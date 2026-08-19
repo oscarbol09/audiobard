@@ -57,7 +57,7 @@ jobs:
         run: |
           pytest --cov=audiobard --cov-report=term-missing --cov-fail-under=70 -m "not integration"
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@b4b15b8b7c6c21a4f6a4b1f2e0d6c1f2e0d6c1f2 # v4
+        uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392 # v4.0.0
         with:
           name: coverage-${{ matrix.python-version }}
           path: .coverage
