@@ -1,56 +1,60 @@
 # Contributing to AudioBard
 
-Thanks for your interest in contributing! 🎉
-
-This document covers everything you need to know to submit issues, propose features, and open pull requests.
-
-## Table of contents
+Thanks for your interest. AudioBard is a small project with a strong
+opinion: **one change per PR, backed by real evidence**. This document is
+short on purpose — the longer it gets, the less it gets read.
 
 - [Code of conduct](#code-of-conduct)
-- [Project structure](#project-structure)
+- [What gets merged (and what doesn't)](#what-gets-merged-and-what-doesnt)
 - [Development setup](#development-setup)
 - [Reporting bugs](#reporting-bugs)
-- [Suggesting features](#suggesting-features)
-- [Pull requests](#pull-requests)
+- [Opening a pull request](#opening-a-pull-request)
+- [The benchmark bar](#the-benchmark-bar)
 - [Style guide](#style-guide)
 - [Testing](#testing)
-- [Prompt engineering guidelines](#prompt-engineering-guidelines)
-- [Adding a new LLM or TTS provider](#adding-a-new-llm-or-tts-provider)
+- [Prompts: the versioning rule](#prompts-the-versioning-rule)
+- [Adding a provider](#adding-a-provider)
+- [The guards: touching tools/guards.py](#the-guards-touching-toolsguardspy)
 
 ## Code of conduct
 
-This project follows the [Contributor Covenant Code of Conduct](./CODE_OF_CONDUCT.md). By participating, you agree to uphold it.
+[Contributor Covenant](./CODE_OF_CONDUCT.md). By participating you agree to
+uphold it.
 
-## Project structure
+## What gets merged (and what doesn't)
 
-```
-audiobard/
-├── src/audiobard/       # Library code
-│   ├── parser/          # TXT/EPUB parsers
-│   ├── llm/             # LLM clients + prompts
-│   ├── tts/             # TTS providers + voice mapper
-│   ├── audio/           # Audio assembly
-│   ├── pipeline.py      # Orchestrator
-│   └── cli.py           # CLI entry point
-├── tests/               # pytest suite
-├── eval/                # Benchmark + gold standard
-└── data/                # Sample books (gitignored)
-```
+The maintainer applies the same bar to every PR. Precedents shape the bar;
+these are the recurring rejection reasons:
 
-External dependencies (LLMs, TTS engines) are isolated behind interfaces (`LLMClient`, `TTSProvider`). To change behavior, you usually only need to touch one provider implementation and the corresponding tests.
+1. **Evidence of the real input, not a constructed one.** A fix for an
+   input shape the actual code path never produces gets closed. Before
+   opening a PR for a parser/LLM fix, show a real sample (a real EPUB/TXT
+   file, a real provider response) that exhibits the condition. If you
+   can't reproduce it in the real environment, say so — a "paused, not a
+   verdict" PR is welcome, and it gets re-opened with evidence.
+2. **Reproducible on current dependencies, through the real code path.** A
+   test that injects a string by bypassing the actual reading path doesn't
+   count as evidence. Show the actual command/output that fails.
+3. **One change per PR.** Personal fork configuration (AGENTS.md, local
+   scripts, editor config) never enters a PR. Separate concerns into
+   separate PRs; mixed PRs are closed on sight.
+4. **Duplicates lose to first-filed-with-tests.** Search open issues and
+   PRs before implementing. If the same bug already has an issue or a PR
+   with tests, the earlier one wins — no competing implementations.
+5. **Tests must be real pins.** A test that copies the constant it watches
+   drifts together with the file it should police. Derive the watched
+   value from the source file when you can, and assert exact equality over
+   every affected file, not substring membership.
+6. **If a PR takes pieces of someone else's closed PR/issue**, the commits
+   that use them must carry `Co-authored-by: Name <id+user@users.noreply.github.com>`
+   for that author. No exception.
 
 ## Development setup
 
-### Prerequisites
-
-- Python 3.10+
-- [Ollama](https://ollama.com) installed and running (`ollama serve`)
-- A model pulled: `ollama pull qwen2.5:7b` (or `llama3.1:8b`)
-- [Piper TTS](https://github.com/rhasspy/piper/releases) binary on PATH
-- [ffmpeg](https://ffmpeg.org/download.html) installed
-- A voice model from [Piper releases](https://github.com/rhasspy/piper/releases) (e.g. `en_US-amy-medium.onnx` + `.onnx.json`)
-
-### Steps
+Prerequisites: Python 3.10+, [Ollama](https://ollama.com) running with a
+pulled model (e.g. `ollama pull qwen2.5:7b`), the
+[Piper](https://github.com/rhasspy/piper/releases) binary on PATH, and
+[ffmpeg](https://ffmpeg.org/download.html).
 
 ```bash
 git clone https://github.com/oscarbol09/audiobard.git
@@ -58,107 +62,105 @@ cd audiobard
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev,llm-ollama,tts-piper]"
-pre-commit install          # if .pre-commit-config.yaml is present
-pytest                      # run the test suite
+pytest
 ```
 
-### Running the benchmark
+Run the whole local gate the same way CI does:
 
 ```bash
-audiobard benchmark --llm ollama --model qwen2.5:7b
+ruff check src tests tools
+mypy src/audiobard
+pytest --cov=audiobard --cov-fail-under=70 -m "not integration"
+python tools/guards.py
 ```
-
-This evaluates attribution accuracy against the gold standard (`eval/gold_standard/p_and_p_ch3.json`). **Any PR that modifies `src/audiobard/llm/prompts.py` must include benchmark output showing no regression.**
 
 ## Reporting bugs
 
-Use the [bug report template](.github/ISSUE_TEMPLATE/bug.yml). Include:
+Use the [bug report template](.github/ISSUE_TEMPLATE/bug.yml) and include:
 
-- Python version (`python --version`)
-- AudioBard version (`audiobard --version`)
-- OS and architecture
-- Minimal reproduction snippet
-- Full error traceback (if applicable)
+- Python version, `audiobard --version`, OS
+- A minimal reproduction **that goes through the real code path** — the
+  actual file or the actual provider response, not a paraphrase
+- The full error traceback
 
-## Suggesting features
+Anything security-related goes to the [security policy](./SECURITY.md),
+never into a public issue.
 
-Use the [feature request template](.github/ISSUE_TEMPLATE/feature.yml). Before opening a PR for a new feature:
+## Opening a pull request
 
-1. Open an issue describing the use case
-2. Wait for maintainer feedback
-3. Reference the issue from your PR
+1. Check for existing issues/PRs about the same bug first (see above).
+2. Branch from `main` with a descriptive name: `fix/`, `feat/`, `docs/`.
+3. Make the change. **One change per PR.** Keep the diff reviewable.
+4. Add or update tests that would fail against the pre-fix code.
+5. Run the local gate (above) until clean.
+6. If you touched prompts or parsers, run the benchmark (next section) and
+   attach its output to the PR.
+7. Open the PR with the [template](.github/PULL_REQUEST_TEMPLATE.md),
+   referencing any related issues. At least one approving review is
+   required; the merge is squash or linear only.
 
-Features touching voice cloning, identity, or impersonation require the `ethics-review` label and an explicit RFC. See the development plan §10.
+Titles follow [Conventional Commits](https://www.conventionalcommits.org/):
+`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`. Messages in
+English.
 
-## Pull requests
+## The benchmark bar
 
-1. Fork the repo and create a branch from `main`:
-   ```bash
-   git checkout -b feat/my-feature
-   ```
-2. Make your changes. Follow the [style guide](#style-guide).
-3. Add or update tests. PRs that decrease coverage below 70% will be rejected.
-4. Run the full CI suite locally:
-   ```bash
-   ruff check .
-   ruff format .
-   mypy src/audiobard
-   pytest --cov=audiobard --cov-report=term-missing
-   ```
-5. If you modified `prompts.py`, run the benchmark and attach output.
-6. Use the [PR template](.github/PULL_REQUEST_TEMPLATE.md).
-7. Push and open a PR. Reference any related issues.
-8. Wait for review. At least 1 approving review is required before merge.
+`audiobard benchmark --llm ollama --model qwen2.5:7b` scores attribution
+accuracy against the gold standard (`eval/gold_standard/p_and_p_ch3.json`).
 
-PR titles follow [Conventional Commits](https://www.conventionalcommits.org/):
-- `feat:` new feature
-- `fix:` bug fix
-- `docs:` documentation only
-- `refactor:` code change with no behavior change
-- `test:` test additions/corrections
-- `chore:` tooling, CI, dependencies
-
-Example: `feat: add Piper TTS provider with emotion prosody mapping`
+**Any PR that changes `src/audiobard/llm/prompts.py`, the parsers, or the
+attribution logic must include benchmark output showing no regression.**
+Without it the PR is marked incomplete, not merged. This is the project's
+core contract: quality is measured, not asserted.
 
 ## Style guide
 
-- **Python**: follow PEP 8 + ruff defaults. Max line length 100.
-- **Type hints**: required for all public APIs. Use `from __future__ import annotations` if needed.
-- **Pydantic**: use Pydantic models for all data structures that cross module boundaries.
-- **Async**: prefer `async def` for I/O-bound code (LLM, TTS, filesystem). CPU-bound work goes through `asyncio.to_thread` or `ThreadPoolExecutor`.
-- **Logging**: use `structlog` (already a dependency). Never `print()` for diagnostics.
-- **Error messages**: actionable. Include what failed and how to fix it.
-- **Docstrings**: Google style for modules, classes, and public functions.
+- PEP 8 + ruff defaults, line length 100. Type hints on all public APIs.
+- Pydantic models for every data structure crossing a module boundary —
+  the LLM JSON schemas are generated from them.
+- `async def` for I/O (LLM, TTS, filesystem); CPU-bound work via
+  `asyncio.to_thread`.
+- Logging via `structlog`; never `print()` for diagnostics.
+- Docstrings: Google style for modules, classes, public functions.
 
 ## Testing
 
-- **Unit tests** (`tests/`): mock external calls. Use `respx` for httpx, `pytest-mock` for subprocess.
-- **Integration tests** (`tests/integration/`): end-to-end with deterministic fixtures. Mark with `@pytest.mark.integration`.
-- **Benchmark** (`eval/benchmark.py`): runs against gold standard. CI runs weekly + on prompt changes.
+- Unit tests in `tests/` mock external calls (`respx` for httpx).
+- Integration tests are marked `@pytest.mark.integration` and excluded
+  from CI (they need local Ollama/Piper).
+- Coverage gate: 70%.
 
-Coverage gate: 70% for MVP, 85% for v0.2.0.
+## Prompts: the versioning rule
 
-## Prompt engineering guidelines
+Prompts live in `src/audiobard/llm/prompts.py`, versioned
+(`PROMPT_V1`, ...). **Never edit a versioned prompt in place** — add a new
+version and switch the default, so the benchmark can compare versions.
+Document what changed and why in the prompt's docstring.
 
-Prompts live in `src/audiobard/llm/prompts.py` and are versioned (`PROMPT_V1`, `PROMPT_V2`, ...). When modifying prompts:
-
-1. **Never edit a versioned prompt in place.** Add a new version (`PROMPT_V2`) and switch the default in `llm/__init__.py`.
-2. **Run the benchmark before and after.** The new version must not regress accuracy.
-3. **Include few-shot examples** (3-5 worked examples covering edge cases).
-4. **Pydantic-validate responses.** The schema is the source of truth.
-5. **Document the change** in the prompt docstring: what changed, why, expected effect.
-
-## Adding a new LLM or TTS provider
+## Adding a provider
 
 1. Subclass the relevant ABC (`LLMClient` or `TTSProvider`).
-2. Implement all abstract methods. Match the async/sync signature of the base.
-3. Register the provider in the factory (`src/audiobard/llm/__init__.py` or `tts/__init__.py`).
-4. Add a config example to `config.example.yaml`.
-5. Add tests with mocked network calls.
-6. Update `README.md` "Supported providers" table.
+2. Implement all abstract methods with the base's async/sync signature.
+3. Register it in the factory (`src/audiobard/llm/__init__.py` or
+   `tts/__init__.py`).
+4. Add a config example and tests with mocked network calls.
+5. Update the README providers table.
+6. Providers that clone voices or impersonate real people trigger the
+   `ethics-review` RFC requirement (dev plan §10) — open the RFC issue
+   before implementing.
 
-See `docs/adding-a-provider.md` (TODO: write this in Phase 4.1) for a detailed walkthrough.
+## The guards: touching tools/guards.py
+
+`tools/guards.py` (run in CI) pins personal-data protection: `.env` never
+committed, `data/books/` only allowlisted public-domain samples, no audio
+output tracked, no literal API keys in source. Its allowlists
+(`REQUIRED_IGNORE_RULES`, `ALLOWED_IGNORE_NEGATIONS`,
+`ALLOWED_DATA_BOOK_FILES`, `SECRET_EXEMPT_PATHS`) are the reviewed
+contract: if your change legitimately needs a new allowlist entry, add it
+**in the same PR** with a comment explaining why. Changing a guard and
+changing the thing it guards in separate PRs is a rejection.
 
 ## Questions?
 
-Open a [discussion](https://github.com/oscarbol09/audiobard/discussions) or reach out via issues.
+Open an issue or ask in the PR itself. If an issue is long, make the ask
+at the top.
