@@ -1,0 +1,84 @@
+name: Bug report
+description: Report a bug in AudioBard
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the sections below.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: When I run `audiobard generate ...`, the output is empty.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal commands to reproduce the bug.
+      placeholder: |
+        1. Download book from ...
+        2. Run `audiobard generate ...`
+        3. See error
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: AudioBard version
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: 3.11.7
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS / architecture
+      placeholder: Ubuntu 24.04 x86_64
+    validations:
+      required: true
+
+  - type: dropdown
+    id: llm
+    attributes:
+      label: LLM provider
+      options:
+        - ollama (local)
+        - gemini
+        - openrouter
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tts
+    attributes:
+      label: TTS provider
+      options:
+        - piper (local)
+        - edge
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / traceback
+      description: Paste the full traceback or relevant log lines.
+      render: shell
+    validations:
+      required: false

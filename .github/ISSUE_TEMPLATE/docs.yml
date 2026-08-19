@@ -1,0 +1,20 @@
+name: Documentation issue
+description: Report a problem with the documentation
+title: "[docs]: "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: issue
+    attributes:
+      label: What's wrong or missing?
+      placeholder: The README doesn't explain how to configure X.
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: File or section
+      placeholder: README.md > "Quick start"
+    validations:
+      required: true

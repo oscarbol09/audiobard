@@ -1,0 +1,60 @@
+name: Feature request
+description: Suggest a new feature for AudioBard
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the feature and the use case.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem does this solve? Who benefits?
+      placeholder: Currently I have to manually ... for every chapter ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you implement it? API sketch, config changes, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you consider?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - parser
+        - llm
+        - tts
+        - audio
+        - pipeline
+        - cli
+        - docs
+        - other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ethics
+    attributes:
+      label: Does this touch ethics-sensitive areas? (voice cloning, identity, impersonation, DRM)
+      options:
+        - no
+        - yes (will require ethics-review)
+    validations:
+      required: true

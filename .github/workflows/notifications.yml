@@ -1,0 +1,98 @@
+name: Notify Discord on PR/Issue events
+
+on:
+  pull_request:
+    types: [opened, reopened, closed, review_requested, ready_for_review]
+  issues:
+    types: [opened, reopened, closed, labeled]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: github.event.action != 'labeled' || contains(github.event.label.name, 'ethics-review')
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          EVENT_JSON: ${{ toJSON(github.event) }}
+          REPO: ${{ github.repository }}
+          SENDER: ${{ github.event.sender.login }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "::warning::DISCORD_WEBHOOK_URL secret is not set; skipping notification."
+            exit 0
+          fi
+
+          PAYLOAD=$(python3 - <<'PY'
+          import json, os, sys
+          event = json.loads(os.environ["EVENT_JSON"])
+          repo = os.environ["REPO"]
+          sender = os.environ["SENDER"]
+          action = os.environ["ACTION"]
+
+          if "pull_request" in event:
+              kind = "PR"
+              obj = event["pull_request"]
+              number = obj["number"]
+              title = obj["title"]
+              url = obj["html_url"]
+              draft = obj.get("draft", False)
+              merged = obj.get("merged", False)
+              color = 0x2ecc71 if merged else (0x95a5a6 if action == "closed" else 0x3498db)
+              action_verb = {
+                  "opened": "opened",
+                  "reopened": "reopened",
+                  "closed": "merged" if merged else "closed",
+                  "review_requested": "requested review on",
+                  "ready_for_review": "marked ready for review on",
+              }.get(action, action)
+          else:
+              kind = "Issue"
+              obj = event["issue"]
+              number = obj["number"]
+              title = obj["title"]
+              url = obj["html_url"]
+              labels = [l["name"] for l in obj.get("labels", [])]
+              color = 0xe67e22 if "ethics-review" in labels else (0x95a5a6 if action == "closed" else 0xe74c3c)
+              action_verb = {
+                  "opened": "opened",
+                  "reopened": "reopened",
+                  "closed": "closed",
+                  "labeled": f'added label to',
+              }.get(action, action)
+              if action == "labeled" and "label" in event:
+                  action_verb = f"added label `{event['label']['name']}` to"
+
+          embed = {
+              "title": f"{kind} #{number}: {title}",
+              "url": url,
+              "color": color,
+              "fields": [
+                  {"name": "Action", "value": action_verb, "inline": True},
+                  {"name": "Author", "value": sender, "inline": True},
+                  {"name": "Repo", "value": repo, "inline": True},
+              ],
+              "footer": {"text": "AudioBard notifications"},
+          }
+          if kind == "PR" and draft:
+              embed["fields"].append({"name": "Status", "value": "Draft", "inline": True})
+          if kind == "Issue" and "issue" in event:
+              labels = [l["name"] for l in event["issue"].get("labels", [])]
+              if labels:
+                  embed["fields"].append({"name": "Labels", "value": ", ".join(labels), "inline": False})
+
+          payload = {
+              "username": "AudioBard Bot",
+              "embeds": [embed],
+              "content": f"<@&NOTIFY_ROLE_ID>" if os.environ.get("NOTIFY_ROLE_ID") else None,
+          }
+          payload = {k: v for k, v in payload.items() if v is not None}
+          print(json.dumps(payload))
+          PY
+          )
+
+          curl -fsS -H "Content-Type: application/json" \
+               -X POST \
+               -d "$PAYLOAD" \
+               "$DISCORD_WEBHOOK_URL"
