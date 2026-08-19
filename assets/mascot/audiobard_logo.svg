@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6d28d9"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="160" rx="32" fill="url(#bg)"/>
+  <text x="80" y="96" font-family="Georgia, 'Times New Roman', serif" font-size="72" font-weight="bold" fill="#ffffff" text-anchor="middle">♫</text>
+  <text x="80" y="128" font-family="Georgia, serif" font-size="22" fill="#e9d5ff" text-anchor="middle" letter-spacing="3">AudioBard</text>
+</svg>
