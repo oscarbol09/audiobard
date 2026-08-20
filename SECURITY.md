@@ -1,7 +1,7 @@
 # Security Policy
 
-AudioBard runs **third-party code on your machine**: local LLM runtimes
-(Ollama, LM Studio), local TTS engines (Piper), and remote LLM/TTS providers
+AudioBard runs **third-party code on your machine**: a local LLM runtime
+(Ollama), a local TTS engine (Piper), and remote LLM/TTS providers
 whose SDKs are executed inside this package. It also reads your book files.
 That combination deserves an honest threat model, not a generic template.
 
@@ -34,16 +34,17 @@ Who we protect, against what, and what we explicitly do not defend:
    `tools/guards.py` CI job pins gitignore rules that keep books and
    generated audio out of the repository, and blocks literal API keys in
    tracked files.
-2. **Secrets and keys.** Provider API keys (Gemini, OpenRouter, NVIDIA,
-   Piper downloads, optional TTS cloud keys) are loaded from `.env` or the
-   environment, never hardcoded. CI fails on hardcoded keys. Key material
-   must not end up in logs, issue reports, or `data/` output.
+2. **Secrets and keys.** Provider API keys (Gemini, OpenRouter — including
+   NVIDIA-hosted models accessed through OpenRouter's catalog — or optional
+   TTS cloud keys) are loaded from `.env` or the environment, never
+   hardcoded. CI fails on hardcoded keys. Key material must not end up in
+   logs, issue reports, or `data/` output.
 3. **Prompt-injection containment.** LLM-provided output is parsed with
    strict, validated schemas (Pydantic). A malicious book could try to
    inject instructions into the extraction or dialog-attribution step. We
    contain this by (a) parsing provider output as data, not instructions;
    (b) never echoing provider output into new provider prompts as
-   instructions; (c) `make_audiobook.py` operating on the parsed contract,
+   instructions; (c) `pipeline.py` operating on the parsed contract,
    not on raw book text. Defense in depth: users should still review the
    attribution map once before generating (the CLI prints it).
 
@@ -53,7 +54,10 @@ Who we protect, against what, and what we explicitly do not defend:
    remote provider SDK executes arbitrary code with your user privileges by
    design. No wrapper can contain that; the practical mitigations are
    installing these from trusted sources and keeping them updated. We
-   document this in the dev plan rather than pretend it away.
+   document this in the dev plan rather than pretend it away. This applies
+   equally to any model you select through OpenRouter's catalog (including
+   third-party-hosted ones, e.g. NVIDIA's) — OpenRouter is a proxy, not a
+   guarantee about the underlying model host.
 2. **LLM censorship/abuse filtering.** The voices and text synthesis are
    intentionally unfiltered (see the ethics note in the README). A request
    to suppress specific content types is a product decision, not a security

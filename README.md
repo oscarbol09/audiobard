@@ -8,14 +8,19 @@
 
 [![CI](https://github.com/oscarbol09/audiobard/actions/workflows/ci.yml/badge.svg)](https://github.com/oscarbol09/audiobard/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 
-An open-source audiobook generator that turns public-domain classics into narrated audiobooks with **distinct voices per character** — entirely offline, entirely free, no API keys required.
+An open-source audiobook generator that turns public-domain classics into narrated audiobooks with **distinct voices per character** — 100% free either way, and offline-capable if you want zero cloud dependency.
 
-It parses a book (TXT/EPUB), detects who speaks each line with a local LLM, assigns a consistent voice to every character, and synthesizes natural-sounding audio with a local neural TTS engine.
+It parses a book (TXT/EPUB), detects who speaks each line with an LLM, assigns a consistent voice to every character, and synthesizes natural-sounding audio with a neural TTS engine. Both the LLM and the TTS engine are swappable between a local, fully offline provider and a free cloud API — see [Prerequisites](#prerequisites).
 
-> **Why I built this.** <!-- [YOUR_STORY]: a couple of honest sentences about why this project exists — what you were trying to do when it didn't exist. The projects people trust are the ones that say why they were built. -->
+> **Why I built this.**
 >
 > Reading is a joy; finding the time is not. I wanted a tool that reads a book *to* me the way I would read it aloud myself — with different voices for different characters, and no cloud dependency deciding whether the project works today. Everything here runs on your own machine, and it costs nothing.
+
+## Demo
+
+<!-- [YOUR_SAMPLE]: drop a short (10–20s) generated clip here once you have one — e.g. a link to a hosted MP3, or a GIF of the CLI running end-to-end. A sample sells the multi-voice pitch far faster than prose does. -->
 
 ## Status & Capabilities
 
@@ -35,16 +40,32 @@ TXT/EPUB     Who's in the          Unique voice       Who says each      Per-lin
                                     gender/age/tone                                        metadata
 ```
 
-The core pipeline is **provider-agnostic**: every external dependency (LLM, TTS) sits behind a small interface, so the project works fully offline with [Ollama](https://ollama.com) + [Piper](https://github.com/rhasspy/piper), or optionally against cloud free tiers (Gemini, edge-tts) when you want higher accuracy — see [Extension model](#extension-model).
+The core pipeline is **provider-agnostic**: every external dependency (LLM, TTS) sits behind a small interface. Run it fully offline with [Ollama](https://ollama.com) + [Piper](https://github.com/rhasspy/piper) if you have the hardware, or fully via free cloud APIs (OpenRouter, Gemini, Edge TTS) if you don't — see [Extension model](#extension-model).
 
 ## Prerequisites
 
-- **Python 3.10+**
-- **Offline path (recommended, $0, no accounts):**
-  - [Ollama](https://ollama.com) installed and running (`ollama serve`), with a model: `ollama pull qwen2.5:7b`
-  - [Piper TTS](https://github.com/rhasspy/piper/releases) binary on `PATH` (models auto-download on first use)
-  - [ffmpeg](https://ffmpeg.org/download.html)
-- **Cloud path (optional):** `GEMINI_API_KEY` for Gemini free tier or `OPENROUTER_API_KEY`.
+- **Python 3.10+** — required either way.
+- **[ffmpeg](https://ffmpeg.org/download.html)** — required either way (audio assembly).
+
+Pick one LLM path and one TTS path; they're independent, so you can mix (e.g. cloud LLM + local TTS):
+
+| | Local (offline, $0, no account) | Cloud (API, $0 free tier, no local compute) |
+|---|---|---|
+| **LLM** | [Ollama](https://ollama.com) running (`ollama serve`) with a model: `ollama pull qwen2.5:7b` | `AUDIOBARD_LLM_PROVIDER=openrouter` or `gemini` + an API key (see below) |
+| **TTS** | [Piper](https://github.com/rhasspy/piper/releases) binary on `PATH` (lightweight, CPU-only — models auto-download on first use) | `AUDIOBARD_TTS_PROVIDER=edge` (Microsoft Edge TTS, no API key, no SLA) |
+
+**If your machine can't comfortably run a local 7B model** (no GPU, limited RAM), the cloud path needs nothing more than Python — no local model download at all. A working `.env` for a fully cloud-based, zero-local-compute setup:
+
+```bash
+AUDIOBARD_LLM_PROVIDER=openrouter
+AUDIOBARD_LLM_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free   # any OpenRouter :free model ID works
+OPENROUTER_API_KEY=your_key_here
+AUDIOBARD_TTS_PROVIDER=edge
+```
+
+There's no dedicated NVIDIA client — OpenRouter's catalog includes NVIDIA-hosted free-tier models, so pointing `AUDIOBARD_LLM_MODEL` at one gets you NVIDIA inference through the existing `openrouter` provider, no code changes needed. [Gemini's free tier](https://ai.google.dev) works the same way via `AUDIOBARD_LLM_PROVIDER=gemini` + `GEMINI_API_KEY`.
+
+**Note:** cloud free tiers are non-commercial only (see [Extension model](#extension-model) and [SECURITY.md](SECURITY.md)); free-tier model availability rotates over time, so check [openrouter.ai/models](https://openrouter.ai/models) for what's currently live.
 
 ## Quick start
 
@@ -52,7 +73,13 @@ The core pipeline is **provider-agnostic**: every external dependency (LLM, TTS)
 # Clone and install dependencies
 git clone https://github.com/oscarbol09/audiobard.git
 cd audiobard
+
+# Local path (Ollama + Piper):
 pip install -e ".[dev,llm-ollama,tts-piper]"
+
+# Cloud path (OpenRouter/Gemini + Edge TTS) — openrouter and edge-tts need no extras,
+# they're core dependencies already:
+pip install -e ".[dev,llm-gemini]"   # omit llm-gemini too if you're only using openrouter
 
 # Generate an audiobook
 audiobard generate book.epub --output audiobook.mp3
@@ -67,7 +94,7 @@ audiobard generate book.epub --dry-run
 |---|---|
 | `audiobard generate <book> -o <out>` | Full pipeline: parse → attribute → synthesize → assemble |
 | `audiobard generate <book> --dry-run` | Parse + LLM attribution only — no synthesis (fast prompt iteration) |
-| `audiobard benchmark --llm <provider>` | Attribution accuracy against the gold standard (`eval/gold_standard/`) |
+| `audiobard benchmark --llm <provider>` | Attribution accuracy against the gold standard (see [eval/README.md](eval/README.md)) |
 | `audiobard stats` | Cache hit rate, books processed, and disk cache usage |
 | `audiobard voices --locale en_US` | List available TTS voices for a locale |
 | `audiobard validate-config` | Check config, providers, and ethics guardrails |
@@ -96,7 +123,7 @@ audiobard/
 │   └── lint_skills.py            # (planned) prompt/skill linting
 ├── .github/workflows/            # CI, benchmark, notifications
 ├── AudioBard_DevPlan.md          # Full development plan (phases, costs, ethics)
-└── docs/                         # (planned) provider guides
+└── docs/                         # Provider and prompt-engineering guides
 ```
 
 ## How it works
@@ -133,7 +160,7 @@ tts:
 - **`TTSProvider`** — `piper_provider` (offline, primary), `edge_provider` (opt-in cloud; note it has no SLA — see [SECURITY.md](SECURITY.md)).
 - **`BookParser`** — `text_parser`, `epub_parser`.
 
-Adding a provider = one class in one file + one config example + tests. See [docs/adding-a-provider.md](docs/adding-a-provider.md) and [docs/prompt-engineering.md](docs/prompt-engineering.md).
+Adding a provider = one class in one file + one config example + tests. See [docs/adding-a-provider.md](docs/adding-a-provider.md) for the walkthrough and [docs/prompt-engineering.md](docs/prompt-engineering.md) for how the versioned LLM prompts are structured and tuned.
 
 ## Contributing
 
