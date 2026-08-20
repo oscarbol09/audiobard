@@ -9,11 +9,14 @@ Required env var: ``AUDIOBARD_OPENROUTER_API_KEY`` or ``OPENROUTER_API_KEY``.
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from audiobard.llm.base import LLMClient
+
+if TYPE_CHECKING:
+    from audiobard.persistence import PersistenceManager
 
 _OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 _DEFAULT_MODEL = "deepseek/deepseek-chat-v3-0324:free"
@@ -41,8 +44,14 @@ class OpenRouterClient(LLMClient):
         api_key: str | None = None,
         temperature: float = 0.2,
         max_retries: int = 3,
+        persistence: PersistenceManager | None = None,
     ) -> None:
-        super().__init__(model=model, temperature=temperature, max_retries=max_retries)
+        super().__init__(
+            model=model,
+            temperature=temperature,
+            max_retries=max_retries,
+            persistence=persistence,
+        )
         self.api_key = (
             api_key
             or os.environ.get("OPENROUTER_API_KEY")

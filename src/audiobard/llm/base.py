@@ -14,20 +14,28 @@ Retry policy:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import random
 import time
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
 from audiobard.models import AttributionResult, CharactersResult
 
+if TYPE_CHECKING:
+    from audiobard.persistence import PersistenceManager
+
 logger = logging.getLogger(__name__)
 
 _T = TypeVar("_T", bound=BaseModel)
+
+# Bump this when prompts or schema logic changes — old cache entries are
+# automatically invalidated because the key includes this version.
+_CACHE_VERSION = "v1"
 
 
 def _backoff(attempt: int) -> float:
@@ -53,10 +61,12 @@ class LLMClient(ABC):
         model: str,
         temperature: float = 0.2,
         max_retries: int = 3,
+        persistence: PersistenceManager | None = None,
     ) -> None:
         self.model = model
         self.temperature = temperature
         self.max_retries = max_retries
+        self._persistence = persistence
 
     # ------------------------------------------------------------------
     # Provider contract
@@ -129,11 +139,38 @@ class LLMClient(ABC):
     ) -> _T:
         """Call :meth:`_raw_call` up to ``max_retries`` times.
 
+        Before the first attempt, checks the SQLite LLM cache (if a
+        :class:`~audiobard.persistence.PersistenceManager` was injected).
+        A successful response is stored in the cache; errors are never cached.
+
         Retries on:
         - Any exception from ``_raw_call`` (network errors, timeouts, etc.)
         - :class:`~pydantic.ValidationError` (malformed JSON or schema mismatch)
         - :class:`json.JSONDecodeError` (non-JSON response)
         """
+        # ------------------------------------------------------------------
+        # 1. Cache lookup — key = SHA-256(version + model + temperature + prompt)
+        # ------------------------------------------------------------------
+        cache_key_material = (
+            f"{_CACHE_VERSION}:{self.model}:{self.temperature:.4f}:{prompt}"
+        )
+        prompt_hash = hashlib.sha256(cache_key_material.encode()).hexdigest()
+
+        if self._persistence is not None:
+            cached_raw = self._persistence.get_llm_cache(prompt_hash)
+            if cached_raw is not None:
+                logger.debug(
+                    "LLM cache hit: hash=%s model=%s", prompt_hash[:12], self.model
+                )
+                try:
+                    return model_cls.model_validate(json.loads(cached_raw))
+                except (ValidationError, json.JSONDecodeError) as exc:
+                    # Stale or corrupt cache entry — fall through to live call
+                    logger.warning("LLM cache entry invalid, re-querying: %s", exc)
+
+        # ------------------------------------------------------------------
+        # 2. Live call with retries
+        # ------------------------------------------------------------------
         last_exc: Exception | None = None
         for attempt in range(self.max_retries):
             t0 = time.monotonic()
@@ -151,6 +188,14 @@ class LLMClient(ABC):
                         "elapsed_s": round(elapsed, 3),
                     },
                 )
+                # Store in cache only on success
+                if self._persistence is not None:
+                    try:
+                        self._persistence.save_llm_cache(
+                            prompt_hash, raw, type(self).__name__
+                        )
+                    except Exception as cache_exc:
+                        logger.warning("Failed to write LLM cache: %s", cache_exc)
                 return result
             except (ValidationError, json.JSONDecodeError, Exception) as exc:
                 last_exc = exc

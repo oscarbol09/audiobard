@@ -8,9 +8,12 @@ Install extras: ``pip install audiobard[llm-ollama]``
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from audiobard.llm.base import LLMClient
+
+if TYPE_CHECKING:
+    from audiobard.persistence import PersistenceManager
 
 
 class OllamaClient(LLMClient):
@@ -34,8 +37,14 @@ class OllamaClient(LLMClient):
         base_url: str = "http://localhost:11434",
         temperature: float = 0.2,
         max_retries: int = 3,
+        persistence: PersistenceManager | None = None,
     ) -> None:
-        super().__init__(model=model, temperature=temperature, max_retries=max_retries)
+        super().__init__(
+            model=model,
+            temperature=temperature,
+            max_retries=max_retries,
+            persistence=persistence,
+        )
         self.base_url = base_url
 
     async def _raw_call(self, prompt: str, schema: dict[str, Any]) -> str:

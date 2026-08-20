@@ -38,26 +38,37 @@ from audiobard.tts.piper_provider import PiperProvider
 logger = logging.getLogger(__name__)
 
 
-def create_llm_client(config: AudioBardConfig) -> LLMClient:
-    """Factory to create the configured LLM client."""
+def create_llm_client(
+    config: AudioBardConfig,
+    persistence: PersistenceManager | None = None,
+) -> LLMClient:
+    """Factory to create the configured LLM client.
+
+    Args:
+        config: Pipeline configuration.
+        persistence: Optional persistence manager for LLM request caching.
+    """
     if config.llm_provider == "ollama":
         return OllamaClient(
             model=config.llm_model,
             base_url=config.llm_base_url,
             temperature=config.llm_temperature,
             max_retries=config.llm_max_retries,
+            persistence=persistence,
         )
     elif config.llm_provider == "gemini":
         return GeminiClient(
             model=config.llm_model,
             temperature=config.llm_temperature,
             max_retries=config.llm_max_retries,
+            persistence=persistence,
         )
     elif config.llm_provider == "openrouter":
         return OpenRouterClient(
             model=config.llm_model,
             temperature=config.llm_temperature,
             max_retries=config.llm_max_retries,
+            persistence=persistence,
         )
     else:
         raise ValueError(f"Unknown LLM provider: {config.llm_provider}")
@@ -100,7 +111,7 @@ class AudioBookPipeline:
     def __init__(self, config: AudioBardConfig) -> None:
         self.config = config
         self.persistence = PersistenceManager(config.db_path)
-        self.llm_client = create_llm_client(config)
+        self.llm_client = create_llm_client(config, persistence=self.persistence)
         self.tts_provider = create_tts_provider(config)
         self.audio_processor = AudioProcessor()
         self.cache_dir = config.cache_dir / "pipeline"

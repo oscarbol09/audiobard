@@ -226,5 +226,115 @@ def validate_config() -> None:
     console.print("[green]Configuration is valid and safe![/green]")
 
 
+@app.command("stats")
+def stats() -> None:
+    """Show LLM cache hit rate and TTS disk usage statistics."""
+    try:
+        config = AudioBardConfig()
+    except Exception as exc:
+        console.print(f"[red]Error loading configuration:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    import sqlite3
+
+    db_path = config.db_path
+    if not db_path.exists():
+        console.print("[yellow]No database found yet — run a generation first.[/yellow]")
+        return
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        # LLM cache stats
+        row = conn.execute(
+            "SELECT COUNT(*) AS total, SUM(hits) AS total_hits FROM llm_cache"
+        ).fetchone()
+        total_entries = int(row["total"]) if row["total"] else 0
+        total_hits = int(row["total_hits"]) if row["total_hits"] else 0
+        hit_rate = (
+            f"{100 * total_hits / (total_hits + total_entries):.1f}%"
+            if (total_hits + total_entries) > 0
+            else "n/a"
+        )
+
+        # Books processed
+        books = int(
+            conn.execute("SELECT COUNT(*) FROM books").fetchone()[0]
+        )
+
+        # TTS cache disk usage
+        tts_cache = config.cache_dir / "tts"
+        tts_size_mb = (
+            sum(f.stat().st_size for f in tts_cache.rglob("*.mp3")) / 1_048_576
+            if tts_cache.exists()
+            else 0.0
+        )
+
+        # Pipeline cache disk usage
+        pipeline_cache = config.cache_dir / "pipeline"
+        clips_count = (
+            len(list(pipeline_cache.rglob("*.mp3")))
+            if pipeline_cache.exists()
+            else 0
+        )
+    finally:
+        conn.close()
+
+    table = Table(title="AudioBard Statistics")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Books processed", str(books))
+    table.add_row("LLM cache entries", str(total_entries))
+    table.add_row("LLM cache hits", str(total_hits))
+    table.add_row("LLM cache hit rate", hit_rate)
+    table.add_row("TTS cache size", f"{tts_size_mb:.1f} MB")
+    table.add_row("Pipeline clips cached", str(clips_count))
+    console.print(table)
+
+
+@app.command("benchmark")
+def benchmark(
+    llm: str = typer.Option(
+        "ollama",
+        "--llm",
+        help="LLM provider (ollama, gemini, openrouter)",
+    ),
+    model: str = typer.Option(
+        "qwen2.5:7b",
+        "--model",
+        help="Model identifier to benchmark",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Output results as JSON (useful for CI)",
+    ),
+) -> None:
+    """Run attribution accuracy benchmark against the P&P ch3 gold standard."""
+    from pathlib import Path as _Path
+
+    eval_script = _Path(__file__).resolve().parent.parent.parent / "eval" / "benchmark.py"
+    if not eval_script.exists():
+        console.print(f"[red]Benchmark script not found:[/red] {eval_script}")
+        raise typer.Exit(code=1)
+
+    argv = ["--llm", llm, "--model", model]
+    if json_output:
+        argv.append("--json")
+
+    # Run via importlib to avoid subprocess overhead
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("benchmark", eval_script)
+    if spec is None or spec.loader is None:
+        console.print("[red]Failed to load benchmark module.[/red]")
+        raise typer.Exit(code=1)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    rc: int = mod.main(argv)
+    if rc != 0:
+        raise typer.Exit(code=rc)
+
+
 if __name__ == "__main__":
     app()

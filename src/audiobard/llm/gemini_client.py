@@ -13,11 +13,14 @@ Required env var: ``AUDIOBARD_GEMINI_API_KEY`` or ``GEMINI_API_KEY``.
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from audiobard.llm.base import LLMClient
+
+if TYPE_CHECKING:
+    from audiobard.persistence import PersistenceManager
 
 _GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models"
@@ -47,8 +50,14 @@ class GeminiClient(LLMClient):
         api_key: str | None = None,
         temperature: float = 0.2,
         max_retries: int = 3,
+        persistence: PersistenceManager | None = None,
     ) -> None:
-        super().__init__(model=model, temperature=temperature, max_retries=max_retries)
+        super().__init__(
+            model=model,
+            temperature=temperature,
+            max_retries=max_retries,
+            persistence=persistence,
+        )
         self.api_key = (
             api_key
             or os.environ.get("GEMINI_API_KEY")
