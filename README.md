@@ -12,7 +12,7 @@
 
 An open-source audiobook generator that turns public-domain classics into narrated audiobooks with **distinct voices per character** — 100% free either way, and offline-capable if you want zero cloud dependency.
 
-It parses a book (TXT/EPUB), detects who speaks each line with an LLM, assigns a consistent voice to every character, and synthesizes natural-sounding audio with a neural TTS engine. Both the LLM and the TTS engine are swappable between a local, fully offline provider and a free cloud API — see [Prerequisites](#prerequisites).
+It parses a book (**TXT or EPUB only** — no PDF yet, see below), detects who speaks each line with an LLM, assigns a consistent voice to every character, and synthesizes natural-sounding audio with a neural TTS engine. Both the LLM and the TTS engine are swappable between a local, fully offline provider and a free cloud API — see [Prerequisites](#prerequisites).
 
 > **Why I built this.**
 >
@@ -41,6 +41,8 @@ TXT/EPUB     Who's in the          Unique voice       Who says each      Per-lin
 ```
 
 The core pipeline is **provider-agnostic**: every external dependency (LLM, TTS) sits behind a small interface. Run it fully offline with [Ollama](https://ollama.com) + [Piper](https://github.com/rhasspy/piper) if you have the hardware, or fully via free cloud APIs (OpenRouter, Gemini, Edge TTS) if you don't — see [Extension model](#extension-model).
+
+**Supported input: TXT and EPUB only — no PDF.** This was a deliberate scope decision (see the dev plan's tech-stack notes): OCR quality on scanned classics is poor and would quietly wreck dialog attribution, while EPUB already ships clean chapter/paragraph structure. If you have a PDF, convert it to EPUB or TXT first — [Calibre](https://calibre-ebook.com) does this for free. **PDF support is a welcome contribution** if someone wants to tackle a solid extraction path (e.g. `pdfplumber` + layout-aware chapter detection) behind the same `BookParser` interface as `TextParser`/`EpubParser` — see [Extension model](#extension-model) and [Contributing](#contributing).
 
 ## Prerequisites
 
