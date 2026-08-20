@@ -15,10 +15,52 @@ Example .env::
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
+
+
+class YamlConfigSettingsSource(PydanticBaseSettingsSource):
+    """Loads configuration from ~/.config/audiobard/config.yaml or config.json if present."""
+
+    def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str, bool]:
+        return None, field_name, False
+
+    def __call__(self) -> dict[str, Any]:
+        config_path = Path("~/.config/audiobard/config.yaml").expanduser()
+        if not config_path.exists():
+            config_path = Path("~/.config/audiobard/config.json").expanduser()
+        if not config_path.exists():
+            return {}
+        try:
+            text = config_path.read_text(encoding="utf-8")
+            if config_path.suffix in (".yaml", ".yml"):
+                try:
+                    import yaml
+
+                    data = yaml.safe_load(text)
+                    return data if isinstance(data, dict) else {}
+                except ImportError:
+                    # Lightweight fallback parser for flat key: value yaml lines
+                    result: dict[str, Any] = {}
+                    for line in text.splitlines():
+                        line = line.strip()
+                        if line and not line.startswith("#") and ":" in line:
+                            k, v = line.split(":", 1)
+                            result[k.strip()] = v.strip().strip("\"'")
+                    return result
+            else:
+                import json
+
+                data = json.loads(text)
+                return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
 
 
 class AudioBardConfig(BaseSettings):
@@ -35,6 +77,23 @@ class AudioBardConfig(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            YamlConfigSettingsSource(settings_cls),
+            file_secret_settings,
+        )
 
     # ------------------------------------------------------------------ LLM
     llm_provider: Literal["ollama", "gemini", "openrouter"] = "ollama"

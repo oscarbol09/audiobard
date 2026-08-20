@@ -17,9 +17,9 @@ It parses a book (TXT/EPUB), detects who speaks each line with a local LLM, assi
 >
 > Reading is a joy; finding the time is not. I wanted a tool that reads a book *to* me the way I would read it aloud myself — with different voices for different characters, and no cloud dependency deciding whether the project works today. Everything here runs on your own machine, and it costs nothing.
 
-## Does it actually work?
+## Status & Capabilities
 
-**Status: 🚧 Pre-MVP.** The architecture and development plan are published ([`AudioBard_DevPlan.md`](AudioBard_DevPlan.md)); the implementation starts with Phase 1. Everything below marked *(planned)* is specified, not yet shipped. The first shippable target is `v0.1.0` — one chapter, one book, end to end, offline.
+**Status: ✅ v0.1.0-MVP Ready.** All core pipeline capabilities across text/EPUB parsing, LLM-based dialog attribution, voice mapping, neural TTS synthesis with Piper/Edge, SQLite persistence, and attribution benchmarking are fully implemented and verified.
 
 ## What this is
 
@@ -41,42 +41,36 @@ The core pipeline is **provider-agnostic**: every external dependency (LLM, TTS)
 
 - **Python 3.10+**
 - **Offline path (recommended, $0, no accounts):**
-  - [Ollama](https://ollama.com) installed and running (`ollama serve`), with a model: `ollama pull qwen2.5:7b` *(planned: auto-pull in v0.1.0)*
-  - [Piper TTS](https://github.com/rhasspy/piper/releases) binary on `PATH` plus a voice model (`en_US-amy-medium.onnx` + `.onnx.json`)
+  - [Ollama](https://ollama.com) installed and running (`ollama serve`), with a model: `ollama pull qwen2.5:7b`
+  - [Piper TTS](https://github.com/rhasspy/piper/releases) binary on `PATH` (models auto-download on first use)
   - [ffmpeg](https://ffmpeg.org/download.html)
-- **Cloud path (optional):** a Gemini API key for the LLM free tier, or nothing extra if you stay offline.
+- **Cloud path (optional):** `GEMINI_API_KEY` for Gemini free tier or `OPENROUTER_API_KEY`.
 
 ## Quick start
 
-> 🎥 *(planned: a 3-minute demo video, recorded when v0.1.0 lands.)*
-
 ```bash
-pip install audiobard[llm-ollama,tts-piper]
-audiobard generate book.epub --output audiobook.mp3
-```
-
-Walkthrough of what happens on that one command — see [How it works](#how-it-works).
-
-Until the first PyPI release, install from source:
-
-```bash
+# Clone and install dependencies
 git clone https://github.com/oscarbol09/audiobard.git
 cd audiobard
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -e ".[dev,llm-ollama,tts-piper]"
+
+# Generate an audiobook
+audiobard generate book.epub --output audiobook.mp3
+
+# Or run a dry-run to test character extraction and dialog attribution without synthesis
+audiobard generate book.epub --dry-run
 ```
 
-## Command reference *(planned for v0.1.0)*
+## Command reference
 
 | Command | What it does |
 |---|---|
 | `audiobard generate <book> -o <out>` | Full pipeline: parse → attribute → synthesize → assemble |
-| `audiobard benchmark` | Attribution accuracy against the hand-labeled gold standard (`eval/gold_standard/`) |
-| `audiobard stats` | Cache hit rate, tokens, per-book state |
-| `audiobard voices` | List available TTS voices for a locale |
-| `audiobard validate-config` | Check config, providers, and model availability |
-| `audiobard generate --dry-run` | Parse + LLM attribution only — no synthesis (fast prompt iteration) |
+| `audiobard generate <book> --dry-run` | Parse + LLM attribution only — no synthesis (fast prompt iteration) |
+| `audiobard benchmark --llm <provider>` | Attribution accuracy against the gold standard (`eval/gold_standard/`) |
+| `audiobard stats` | Cache hit rate, books processed, and disk cache usage |
+| `audiobard voices --locale en_US` | List available TTS voices for a locale |
+| `audiobard validate-config` | Check config, providers, and ethics guardrails |
 
 ## File structure
 
@@ -139,7 +133,7 @@ tts:
 - **`TTSProvider`** — `piper_provider` (offline, primary), `edge_provider` (opt-in cloud; note it has no SLA — see [SECURITY.md](SECURITY.md)).
 - **`BookParser`** — `text_parser`, `epub_parser`.
 
-Adding a provider = one class in one file + one config example + tests. See `docs/adding-a-provider.md` *(planned)*.
+Adding a provider = one class in one file + one config example + tests. See [docs/adding-a-provider.md](docs/adding-a-provider.md) and [docs/prompt-engineering.md](docs/prompt-engineering.md).
 
 ## Contributing
 

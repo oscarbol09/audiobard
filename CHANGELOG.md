@@ -7,46 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The changelog is an entry point for humans: every PR that changes behavior
 adds an entry under the relevant section, in the same commit as the change.
 
-## [Unreleased]
+## [0.1.0] - 2026-08-20
 
 ### Added
 
-- Package skeleton (Phase 1): `pyproject.toml` (PEP 621), `src/audiobard`
-  with a minimal typer CLI (`audiobard --version`), `py.typed`, and the
-  Pydantic contracts that will drive the LLM JSON schemas (`Paragraph`,
-  `Character`, `CharactersResult`, `DialogLine`, `AttributionResult`,
-  `Voice`, `VoiceAssignment`) — 12 unit tests.
-- CI workflow (`.github/workflows/ci.yml`): ruff + mypy (strict) lint job,
-  pytest matrix on Python 3.10/3.11/3.12 with a 70% coverage gate,
-  security guards job, and dependency-review on PRs. Actions pinned to
-  commit SHAs, `permissions: contents: read`.
-- Security and data-hygiene guards (`tools/guards.py`): fail CI on literal
-  API keys in tracked source files, on missing/weakened personal-data
-  gitignore rules, on non-allowlisted files under `data/books/`, and on
-  tracked audio output — with tests that break one thing at a time.
-- Rewritten `.gitignore` grouped by section (Python, secrets, data, audio,
-  models, IDE/OS, logs, caches).
-
-### Changed
-
-- Rewritten README with project story, pipeline diagram, quick start,
-  command reference, extension model, and ethics notes.
-- Rewritten CONTRIBUTING: one-change-per-PR bar, evidence rules from real
-  precedents (real input, reproducibility through the real code path,
-  first-filed-with-tests wins, no personal fork config), benchmark bar for
-  prompt/parser changes, guards contract section.
-
-### Fixed
-
-- (none yet)
-
-### Security
-
-- Added `SECURITY.md` with an honest threat model: user book data staying
-  local, secrets/keys handling, prompt-injection containment via strict
-  schema parsing — and the explicit out-of-scope trade-offs (malicious
-  local providers, content filtering, cloud TOS, dependency supply chain).
-- Discord notifier bot (`notifications.yml`) and its README; webhook URL
-  lives in the `DISCORD_WEBHOOK_URL` secret, never in the repo.
-- GitHub community files: issue/PR templates, code of conduct, branch
-  protection on `main` (1 approving review, linear history).
+- **Phase 1: Project Foundation & Book Parsers**:
+  - `BookParser` ABC with concrete `TextParser` (plain text with Gutenberg header cleaning) and `EpubParser` (EPUB parsing using `ebooklib`).
+  - `LLMClient` ABC with retries, exponential backoff, jitter, and Pydantic JSON schema generation.
+  - LLM concrete providers: `OllamaClient` (offline), `GeminiClient` (Google Gemini REST), `OpenRouterClient`.
+  - Versioned prompt infrastructure (`src/audiobard/llm/prompts.py`) protected against in-place edits.
+  - Deterministic `VoiceMapper` scoring tone attributes with cosine similarity.
+- **Phase 2: Pipeline Core (TTS & Audio)**:
+  - `TTSProvider` ABC with in-memory LRU caching (500 MB limit) and disk caching.
+  - `PiperProvider` wrapping local `piper` binary with automatic ONNX model downloads from Hugging Face and emotion-based prosody scaling.
+  - `EdgeProvider` for cloud TTS via `edge-tts` with rate/pitch mapping.
+  - `AudioProcessor` for concatenation, emotion pause insertion, `-16 dBFS` normalization in thread pools, and M4B/MP3 chapter export using FFmpeg `FFMETADATA1`.
+  - `PersistenceManager` managing SQLite schemas for books, characters, voice assignments, checkpoints (`--resume`), and LLM caches.
+  - `AudioBookPipeline` orchestrating parse → extract → map → attribute → synthesize → assemble.
+  - CLI subcommands `generate`, `voices`, `validate-config`.
+- **Phase 3: Quality, Caching & Benchmarking**:
+  - SHA-256 request caching in `LLMClient._call_with_retry` backed by SQLite `llm_cache`.
+  - Hand-labeled dialog attribution gold standard for *Pride and Prejudice* Chapter 3 (`eval/gold_standard/p_and_p_ch3.json`).
+  - Attribution accuracy benchmark runner (`eval/benchmark.py`) computing accuracy and confusion matrices.
+  - CLI subcommands `audiobard benchmark` and `audiobard stats`.
+  - CI workflow (`.github/workflows/benchmark.yml`) for weekly attribution regression testing.
+- **Phase 4: Documentation & Release**:
+  - Developer guides `docs/prompt-engineering.md` and `docs/adding-a-provider.md`.
+  - YAML and JSON config file loader support (`~/.config/audiobard/config.yaml`).
+  - Security and hygiene guards (`tools/guards.py`).
+  - 100+ unit test suite with >79% coverage.

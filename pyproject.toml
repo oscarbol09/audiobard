@@ -74,7 +74,7 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["ebooklib.*", "ollama.*", "edge_tts.*", "mutagen.*", "pydub.*"]
+module = ["ebooklib.*", "ollama.*", "edge_tts.*", "mutagen.*", "pydub.*", "yaml.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
