@@ -18,6 +18,9 @@ Checks:
 3. data/books — only allowlisted filenames may be tracked (e.g. a
    .gitkeep or a public-domain sample). Catches committing copyrighted books.
 4. audio output — *.mp3 / *.m4b / *.wav must never be tracked.
+5. data/voices — only catalog metadata (.json) or .gitkeep may be tracked.
+   Catches accidentally committing large voice-model binaries or personal
+   audio samples under an extension the other checks don't cover.
 
 Stdlib only. Exit 0 on success, 1 with a failure list otherwise.
 """
@@ -76,6 +79,12 @@ ALLOWED_IGNORE_NEGATIONS = {
 # Files that may be tracked inside data/books/. Public-domain samples only;
 # anything else (copyrighted books, user uploads) belongs in a fork or local.
 ALLOWED_DATA_BOOK_FILES = {".gitkeep"}
+
+# Extensions allowed inside data/voices/. Only the voice catalog metadata
+# (e.g. data/voices/en_US.json) and .gitkeep may be tracked - never model
+# binaries (*.onnx is already gitignored, but this catches anything else
+# large or personal that isn't caught by extension-based .gitignore rules).
+ALLOWED_DATA_VOICE_EXTENSIONS = {".json", ""}
 
 # Audio output must never be tracked, wherever it lands.
 AUDIO_EXTENSIONS = {".mp3", ".m4b", ".wav", ".flac", ".ogg"}
@@ -151,6 +160,23 @@ def check_data_books() -> None:
                 )
 
 
+def check_data_voices() -> None:
+    """Only catalog metadata (.json) or .gitkeep may be tracked under data/voices/."""
+    for path in _tracked_files():
+        rel = path.relative_to(ROOT)
+        parts = rel.parts
+        if ("data" in parts and "voices" in parts
+                and rel.suffix.lower() not in ALLOWED_DATA_VOICE_EXTENSIONS):
+            errors.append(
+                    f"{rel.as_posix()}: file extension not allowed under data/voices/ "
+                    f"(only {sorted(e or '.gitkeep' for e in ALLOWED_DATA_VOICE_EXTENSIONS)}). "
+                    "This directory ships voice catalog metadata only - model binaries and "
+                    "audio samples must never be tracked. If this is a legitimate new file "
+                    "type, add it to ALLOWED_DATA_VOICE_EXTENSIONS in tools/guards.py in the "
+                    "same PR."
+                )
+
+
 def check_audio_output() -> None:
     """Audio output must never be tracked, wherever it lands."""
     for path in _tracked_files():
@@ -184,13 +210,14 @@ def main() -> int:
     check_secrets()
     check_gitignore()
     check_data_books()
+    check_data_voices()
     check_audio_output()
     if errors:
         print(f"guards: {len(errors)} failure(s)")
         for err in errors:
             print(f"  - {err}")
         return 1
-    print("guards: OK (secrets, gitignore rules, data/books allowlist, audio output)")
+    print("guards: OK (secrets, gitignore rules, data allowlists, audio output)")
     return 0
 
 

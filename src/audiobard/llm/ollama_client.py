@@ -63,4 +63,7 @@ class OllamaClient(LLMClient):
             format=schema,
             options={"temperature": self.temperature},
         )
-        return response.message.content  # type: ignore[no-any-return]
+        content = response.message.content
+        if content is None:  # pragma: no cover
+            raise RuntimeError("Ollama returned an empty response message")
+        return content

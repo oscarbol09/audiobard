@@ -214,6 +214,36 @@ class AudioOutputGuardTests(GuardRepoFixture):
         self.assertIn("audio output must not be tracked", result.stdout)
 
 
+class DataVoicesGuardTests(GuardRepoFixture):
+    def test_voice_model_binary_fails(self):
+        self.add_tracked_file("data/voices/en_US-amy-medium.onnx", "")
+        result = run_guards(self.root)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("extension not allowed under data/voices/", result.stdout)
+        self.assertIn("en_US-amy-medium.onnx", result.stdout)
+
+    def test_catalog_json_passes(self):
+        self.add_tracked_file("data/voices/en_US.json", '{"voices": []}\n')
+        result = run_guards(self.root)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_allowlisted_extension_passes(self):
+        # Mutate the *copied* guard script (subprocess runs its own module)
+        # to admit a new extension in the same PR, mirroring the data/books
+        # allowlist test above.
+        guard = self.root / "tools" / "guards.py"
+        guard.write_text(
+            guard.read_text(encoding="utf-8").replace(
+                'ALLOWED_DATA_VOICE_EXTENSIONS = {".json", ""}',
+                'ALLOWED_DATA_VOICE_EXTENSIONS = {".json", ".txt", ""}',
+            ),
+            encoding="utf-8",
+        )
+        self.add_tracked_file("data/voices/catalog.txt", "voice catalog\n")
+        result = run_guards(self.root)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
 class RealRepoTests(unittest.TestCase):
     def test_guards_pass_on_this_repo(self):
         # The live check CI runs: the actual repo tree must satisfy its own guards.
