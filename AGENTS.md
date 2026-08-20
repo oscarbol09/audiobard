@@ -2,9 +2,7 @@
 
 AudioBard converts public-domain books into multi-voice audiobooks with a
 local LLM and TTS, then optionally generates a "radio play" scene version
-and narration track. See [AudioBard_DevPlan.md](AudioBard_DevPlan.md) for
-the architecture and phases; this file only covers the rules agents must
-not violate.
+and narration track. This file covers the rules agents must not violate.
 
 ## Verification gate (run before every PR)
 
@@ -36,14 +34,18 @@ python tools/guards.py
   copyrighted books, user uploads, or generated audio (`*.mp3`, `*.m4b`).
 - **One change per PR.** Personal fork config (your AGENTS.md, local
   scripts) never enters a PR.
-- **Skeleton note (2026-08):** the repo is at Phase 1 (package skeleton +
-  Pydantic contracts + CLI smoke, tests green). `src/audiobard/llm`,
-  `tts`, `parser`, `audio` do not exist yet — do not assume interfaces
-  beyond the Pydantic contracts in `src/audiobard/models.py`.
+
+## Current state (2026-08)
+
+All MVP phases (1–4) are complete and production-ready:
+- `src/audiobard/` — all modules implemented (parser, llm, tts, audio, pipeline, persistence, cli, config)
+- 168 unit tests passing, **100% coverage** across all 23 source files
+- CI gates green: ruff, mypy, guards, tests on Python 3.10/3.11/3.12
+- The project is now in **community growth mode** — contributions welcome
 
 ## Pointers
 
-- Architecture/phases/ethics: `AudioBard_DevPlan.md`
+- Historical dev plan (archived): `docs/AudioBard_DevPlan_archive.md`
 - Contribution bar and precedents: `CONTRIBUTING.md`
 - Security policy and threat model: `SECURITY.md`
 - Pydantic contracts: `src/audiobard/models.py`
