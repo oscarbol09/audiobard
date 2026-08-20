@@ -127,9 +127,8 @@ class TTSProvider(ABC):
         pitch: float,
     ) -> bytes:
         """Internal synthesis call to the actual engine/subprocess."""
-        pass
 
     @abstractmethod
     async def list_voices(self, locale: str) -> list[Voice]:
         """Return list of available voices for *locale*."""
-        pass
+

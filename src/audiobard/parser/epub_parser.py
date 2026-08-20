@@ -26,12 +26,12 @@ _SKIP_ID_PATTERNS = re.compile(
 )
 
 # HTML tags we want to convert to newlines before stripping (block-level breaks).
-_BLOCK_TAGS = re.compile(r"<(?:p|br|div|h[1-6]|li|tr)[^>]*>", re.IGNORECASE)
+_BLOCK_TAGS = re.compile(r"</?(?:p|div|h[1-6]|li|tr)[^>]*>|<br\s*/?>", re.IGNORECASE)
 
 
 def _html_to_text(html: str) -> str:
     """Very lightweight HTML → plaintext: replace block tags with newlines, strip the rest."""
-    text = _BLOCK_TAGS.sub("\n", html)
+    text = _BLOCK_TAGS.sub("\n\n", html)
     # Strip remaining tags.
     text = re.sub(r"<[^>]+>", "", text)
     # Decode common HTML entities.

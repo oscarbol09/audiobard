@@ -82,3 +82,34 @@ async def test_tts_provider_cache_flow() -> None:
         data3 = await provider.synthesize(text, voice, emotion)
         assert provider.synthesize_calls == 1
         assert data3 == data1
+
+
+def test_memory_cache_update_existing() -> None:
+    cache = MemoryCache(max_bytes=100)
+    key = ("h1", "v1", "e1")
+    cache.set(key, b"123")
+    assert cache.get(key) == b"123"
+    assert cache.current_bytes == 3
+
+    # Update existing key
+    cache.set(key, b"12345")
+    assert cache.get(key) == b"12345"
+    assert cache.current_bytes == 5
+
+
+@pytest.mark.asyncio
+async def test_tts_disk_write_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from unittest.mock import patch
+
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    provider = DummyProvider(config)
+    voice = Voice(
+        id="en_US-test-medium",
+        locale="en_US",
+        gender=GenderHint.MALE,
+        age=AgeHint.ADULT,
+    )
+
+    with patch("pathlib.Path.write_bytes", side_effect=OSError("Disk Full")):
+        data = await provider.synthesize("Hello", voice, Emotion.NEUTRAL)
+        assert len(data) > 0

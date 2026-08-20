@@ -101,3 +101,33 @@ async def test_llm_cache_no_save_on_error() -> None:
         with pm._get_conn() as conn:
             row = conn.execute("SELECT COUNT(*) FROM llm_cache").fetchone()
             assert row[0] == 0
+
+
+@pytest.mark.asyncio
+async def test_llm_cache_corrupted_json_fallback() -> None:
+    """Test that corrupted JSON in cache falls back to live provider call."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        pm = PersistenceManager(db_path)
+
+        client = _EchoClient([_VALID_CHARACTERS_JSON], persistence=pm)
+        # Pre-seed corrupted JSON into cache
+        with patch.object(pm, "get_llm_cache", return_value="invalid-json-content"):
+            with patch("asyncio.sleep"):
+                res = await client.extract_characters("Some text")
+            assert res.characters[0].canonical_id == "Narrator"
+            assert client._call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_llm_cache_save_error_graceful() -> None:
+    """Test that failure in saving to cache does not abort the LLM call."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        pm = PersistenceManager(db_path)
+
+        client = _EchoClient([_VALID_CHARACTERS_JSON], persistence=pm)
+        with patch.object(pm, "save_llm_cache", side_effect=RuntimeError("Disk Error")):
+            with patch("asyncio.sleep"):
+                res = await client.extract_characters("Some text")
+            assert res.characters[0].canonical_id == "Narrator"

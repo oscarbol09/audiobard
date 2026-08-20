@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -144,3 +145,95 @@ async def test_piper_synthesize_raw(
             assert "--length_scale" in called_args
             scale_idx = called_args.index("--length_scale")
             assert called_args[scale_idx + 1] == "0.826"
+
+
+@pytest.mark.asyncio
+async def test_piper_list_voices_missing_pool(tmp_path: Path) -> None:
+    config = AudioBardConfig(
+        cache_dir=tmp_path,
+        voices_dir=tmp_path / "nonexistent_voices",
+        db_path=tmp_path / "test.db",
+    )
+    provider = PiperProvider(config)
+    assert await provider.list_voices("en_US") == []
+
+
+@pytest.mark.asyncio
+@patch("shutil.which", return_value=None)
+async def test_piper_missing_executable(mock_which: Any, tmp_path: Path) -> None:
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    provider = PiperProvider(config)
+    voice = Voice(id="v1", locale="en_US", gender=GenderHint.MALE, age=AgeHint.ADULT)
+    with pytest.raises(FileNotFoundError, match="piper executable not found"):
+        await provider._synthesize_raw("Hello", voice, Emotion.NEUTRAL, 1.0, 1.0)
+
+
+@pytest.mark.asyncio
+@patch("shutil.which", return_value="/usr/bin/piper")
+@patch("asyncio.create_subprocess_exec")
+async def test_piper_subprocess_error(
+    mock_subproc: AsyncMock, mock_which: Any, tmp_path: Path
+) -> None:
+    mock_proc = AsyncMock()
+    mock_proc.returncode = 1
+    mock_proc.communicate.return_value = (b"", b"Piper internal error")
+    mock_subproc.return_value = mock_proc
+
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    provider = PiperProvider(config)
+    voice = Voice(id="v1", locale="en_US", gender=GenderHint.MALE, age=AgeHint.ADULT)
+
+    with (
+        patch.object(provider, "_ensure_model", return_value=tmp_path / "v1.onnx"),
+        pytest.raises(RuntimeError, match="Piper process exited with code 1"),
+    ):
+        await provider._synthesize_raw("Hello", voice, Emotion.NEUTRAL, 1.0, 1.0)
+
+
+@pytest.mark.asyncio
+async def test_piper_list_voices_not_list(tmp_path: Path) -> None:
+    voices_dir = tmp_path / "voices"
+    voices_dir.mkdir()
+    (voices_dir / "en_US.json").write_text('{"not": "a list"}', encoding="utf-8")
+    config = AudioBardConfig(
+        cache_dir=tmp_path, voices_dir=voices_dir, db_path=tmp_path / "test.db"
+    )
+    provider = PiperProvider(config)
+    assert await provider.list_voices("en_US") == []
+
+
+@pytest.mark.asyncio
+async def test_piper_list_voices_invalid_json(tmp_path: Path) -> None:
+    voices_dir = tmp_path / "voices"
+    voices_dir.mkdir()
+    (voices_dir / "en_US.json").write_text("invalid json content", encoding="utf-8")
+    config = AudioBardConfig(
+        cache_dir=tmp_path, voices_dir=voices_dir, db_path=tmp_path / "test.db"
+    )
+    provider = PiperProvider(config)
+    assert await provider.list_voices("en_US") == []
+
+
+
+@pytest.mark.asyncio
+async def test_piper_ensure_model_cached(tmp_path: Path) -> None:
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    piper_dir = tmp_path / "piper"
+    piper_dir.mkdir(parents=True, exist_ok=True)
+    onnx_file = piper_dir / "en_US-dummy-medium.onnx"
+    json_file = piper_dir / "en_US-dummy-medium.onnx.json"
+    onnx_file.write_bytes(b"cached-onnx")
+    json_file.write_bytes(b"{}")
+
+    provider = PiperProvider(config)
+    result = await provider._ensure_model("en_US-dummy-medium")
+    assert result == onnx_file
+
+
+@pytest.mark.asyncio
+async def test_piper_ensure_model_invalid_voice_id(tmp_path: Path) -> None:
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    provider = PiperProvider(config)
+    with pytest.raises(ValueError, match="Invalid voice ID format"):
+        await provider._ensure_model("invalid_id")
+

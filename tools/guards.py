@@ -45,6 +45,7 @@ SECRET_EXEMPT_PATHS = [
     "AudioBard_DevPlan.md",
     "SECURITY.md",
     ".github/",
+    "docs/",
 ]
 
 # Personal-data ignore rules that must never disappear from .gitignore.

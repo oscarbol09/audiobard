@@ -251,3 +251,11 @@ def test_pool_property_returns_copy(mapper: VoiceMapper) -> None:
     pool = mapper.pool
     pool.clear()  # mutating the returned list should not affect mapper
     assert len(mapper.pool) == len(_POOL)
+
+
+def test_cosine_similarity_zero_vector() -> None:
+    from audiobard.tts.voice_mapper import _cosine_similarity
+
+    assert _cosine_similarity((0.0, 0.0, 0.0), (1.0, 1.0, 1.0)) == 0.0
+    assert _cosine_similarity((1.0, 1.0, 1.0), (0.0, 0.0, 0.0)) == 0.0
+

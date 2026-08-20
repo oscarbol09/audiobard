@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import tempfile
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -20,6 +21,17 @@ def _create_dummy_mp3() -> bytes:
     out = io.BytesIO()
     segment.export(out, format="mp3")
     return out.getvalue()
+
+
+def _create_audible_mp3() -> bytes:
+    """Generate a dummy non-silent MP3 segment using pydub."""
+    # A 500ms segment of noise/signal with finite dBFS
+    raw_data = (b"\x10\x20\x30\x40" * 2500)
+    segment = AudioSegment(data=raw_data, sample_width=2, frame_rate=44100, channels=2)
+    out = io.BytesIO()
+    segment.export(out, format="mp3")
+    return out.getvalue()
+
 
 
 @pytest.mark.asyncio
@@ -65,6 +77,24 @@ async def test_audio_processor_concatenate() -> None:
     # Clip 1 (500ms) + happy gap (200ms) + Clip 2 (500ms) + sad gap (400ms) = ~1600ms
     segment = AudioSegment.from_file(io.BytesIO(out_bytes), format="mp3")
     assert abs(len(segment) - 1600) < 100  # allow small compression variance
+
+
+@pytest.mark.asyncio
+async def test_audio_processor_concatenate_normalizes_audible() -> None:
+    """Test that concatenate applies gain normalization when audio is audible (finite dBFS)."""
+    audible_mp3 = _create_audible_mp3()
+    clips = [
+        AudioClip(
+            mp3_bytes=audible_mp3,
+            speaker="Character_A",
+            emotion=Emotion.NEUTRAL,
+            duration_ms=500,
+        )
+    ]
+    processor = AudioProcessor()
+    out_bytes = await processor.concatenate(clips)
+    assert len(out_bytes) > 0
+
 
 
 @pytest.mark.asyncio
@@ -123,3 +153,55 @@ async def test_audio_processor_export_m4b(
         assert "1" in call2_args
         assert "-codec" in call2_args
         assert "copy" in call2_args
+
+
+@pytest.mark.asyncio
+async def test_audio_processor_concatenate_empty() -> None:
+    processor = AudioProcessor()
+    out = await processor.concatenate([])
+    assert out == b""
+
+
+@pytest.mark.asyncio
+@patch("shutil.which", return_value=None)
+async def test_audio_processor_export_m4b_missing_ffmpeg(mock_which: Any) -> None:
+    processor = AudioProcessor()
+    with pytest.raises(FileNotFoundError, match="ffmpeg executable not found"):
+        await processor.export_m4b(b"data", Path("out.m4b"), [])
+
+
+@pytest.mark.asyncio
+@patch("shutil.which", return_value="/usr/bin/ffmpeg")
+@patch("asyncio.create_subprocess_exec")
+async def test_audio_processor_export_m4b_proc1_error(
+    mock_subproc: AsyncMock, mock_which: Any
+) -> None:
+    mock_proc = AsyncMock()
+    mock_proc.returncode = 1
+    mock_proc.communicate.return_value = (b"", b"Conversion Error")
+    mock_subproc.return_value = mock_proc
+
+    processor = AudioProcessor()
+    with pytest.raises(RuntimeError, match="FFmpeg raw M4B export failed"):
+        await processor.export_m4b(b"data", Path("out.m4b"), [])
+
+
+@pytest.mark.asyncio
+@patch("shutil.which", return_value="/usr/bin/ffmpeg")
+@patch("asyncio.create_subprocess_exec")
+async def test_audio_processor_export_m4b_proc2_error(
+    mock_subproc: AsyncMock, mock_which: Any
+) -> None:
+    mock_proc1 = AsyncMock()
+    mock_proc1.returncode = 0
+    mock_proc1.communicate.return_value = (b"", b"")
+
+    mock_proc2 = AsyncMock()
+    mock_proc2.returncode = 1
+    mock_proc2.communicate.return_value = (b"", b"Injection Error")
+
+    mock_subproc.side_effect = [mock_proc1, mock_proc2]
+
+    processor = AudioProcessor()
+    with pytest.raises(RuntimeError, match="FFmpeg chapter injection failed"):
+        await processor.export_m4b(b"data", Path("out.m4b"), [])

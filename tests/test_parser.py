@@ -176,7 +176,7 @@ class TestParserStats:
 
     def test_stats_before_parse_raises(self) -> None:
         parser = TextParser()
-        with pytest.raises(RuntimeError, match="parse()"):
+        with pytest.raises(RuntimeError, match=r"Call parse\(\) before stats\(\)"):
             parser.stats()
 
     def test_dialog_ratio_all_dialog(self) -> None:
@@ -195,3 +195,84 @@ class TestParserStats:
         parser.parse(text)
         stats = parser.stats()
         assert stats.dialog_ratio == 0.0
+
+
+# ---------------------------------------------------------------------------
+# EpubParser — unit tests
+# ---------------------------------------------------------------------------
+
+
+class _MockEpubItem:
+    def __init__(self, item_id: str, name: str, content: bytes) -> None:
+        self._id = item_id
+        self._name = name
+        self._content = content
+
+    def get_id(self) -> str:
+        return self._id
+
+    def get_name(self) -> str:
+        return self._name
+
+    def get_content(self) -> bytes:
+        return self._content
+
+
+class _MockEpubBook:
+    def __init__(self, items: list[_MockEpubItem]) -> None:
+        self._items = items
+
+    def get_items_of_type(self, item_type: int) -> list[_MockEpubItem]:
+        return self._items
+
+
+class TestEpubParser:
+    def test_epub_parser_parsing(self) -> None:
+        from unittest.mock import patch
+
+        from audiobard.parser.epub_parser import EpubParser
+
+        items = [
+            _MockEpubItem("cover_page", "cover.xhtml", b"<h1>Cover</h1>"),
+            _MockEpubItem("toc_page", "toc.xhtml", b"<nav>Table of Contents</nav>"),
+            _MockEpubItem(
+                "ch1",
+                "ch1.xhtml",
+                b"<p>Hello &amp; welcome &mdash; world &ndash; &lsquo;test&rsquo; "
+                b"&#39;quote&#39; &quot;double&quot; &ldquo;smart&rdquo; &lt;tag&gt;.</p>"
+                b"<p>&ldquo;Hello!&rdquo; she said.</p>",
+            ),
+            _MockEpubItem("empty_ch", "empty.xhtml", b"   "),
+            _MockEpubItem("ch2", "ch2.xhtml", b"<div>Second chapter content.</div>"),
+        ]
+        mock_book = _MockEpubBook(items)
+
+        with patch("ebooklib.epub.read_epub", return_value=mock_book):
+            parser = EpubParser()
+            paragraphs = parser.parse(b"dummy-epub-bytes")
+            assert len(paragraphs) == 3
+            assert paragraphs[0].chapter == 0
+            assert "Hello & welcome" in paragraphs[0].text
+            assert paragraphs[1].is_dialog is True
+            assert paragraphs[2].chapter == 1
+            assert paragraphs[2].text == "Second chapter content."
+
+            stats = parser.stats()
+            assert stats.total_paragraphs == 3
+            assert stats.dialog_ratio > 0.0
+
+    def test_epub_parser_filepath_input(self) -> None:
+        from unittest.mock import patch
+
+        from audiobard.parser.epub_parser import EpubParser
+
+        items = [
+            _MockEpubItem("ch1", "ch1.xhtml", b"<p>Simple paragraph from file path.</p>")
+        ]
+        mock_book = _MockEpubBook(items)
+
+        with patch("ebooklib.epub.read_epub", return_value=mock_book):
+            parser = EpubParser()
+            paragraphs = parser.parse("fake_book.epub")
+            assert len(paragraphs) == 1
+            assert paragraphs[0].text == "Simple paragraph from file path."
