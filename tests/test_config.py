@@ -58,6 +58,47 @@ def test_yaml_config_source_loading() -> None:
             assert data["llm_model"] == "gemini-2.0-flash"
 
 
+def test_yaml_config_source_uses_pyyaml_when_available() -> None:
+    """YamlConfigSettingsSource parses with PyYAML when the module is importable."""
+    import types
+
+    fake_yaml = types.ModuleType("yaml")
+    fake_yaml.safe_load = lambda text: {"llm_provider": "gemini", "llm_model": "gemini-2.0-flash"}
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fake_config_file = Path(tmpdir) / "config.yaml"
+        fake_config_file.write_text(
+            "llm_provider: gemini\nllm_model: gemini-2.0-flash\n",
+            encoding="utf-8",
+        )
+
+        source = YamlConfigSettingsSource(AudioBardConfig)
+        with patch.dict(sys.modules, {"yaml": fake_yaml}), patch(
+            "pathlib.Path.expanduser", return_value=fake_config_file
+        ):
+            data = source()
+            assert data["llm_provider"] == "gemini"
+            assert data["llm_model"] == "gemini-2.0-flash"
+
+
+def test_yaml_config_source_ignores_non_dict_yaml() -> None:
+    """YamlConfigSettingsSource falls back to {} when PyYAML returns a non-dict."""
+    import types
+
+    fake_yaml = types.ModuleType("yaml")
+    fake_yaml.safe_load = lambda text: ["not", "a", "dict"]
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fake_config_file = Path(tmpdir) / "config.yaml"
+        fake_config_file.write_text("llm_provider: gemini\n", encoding="utf-8")
+
+        source = YamlConfigSettingsSource(AudioBardConfig)
+        with patch.dict(sys.modules, {"yaml": fake_yaml}), patch(
+            "pathlib.Path.expanduser", return_value=fake_config_file
+        ):
+            assert source() == {}
+
+
 def test_yaml_config_source_fallback_without_pyyaml() -> None:
     """Test YamlConfigSettingsSource fallback parsing when PyYAML is not available."""
     with tempfile.TemporaryDirectory() as tmpdir:
