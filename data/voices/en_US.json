@@ -1,0 +1,114 @@
+[
+  {
+    "id": "en_US-amy-medium",
+    "locale": "en_US",
+    "gender": "female",
+    "age": "adult",
+    "energy": 0.55,
+    "sample_text": "The sun had long since set when she finally arrived."
+  },
+  {
+    "id": "en_US-kathleen-low",
+    "locale": "en_US",
+    "gender": "female",
+    "age": "adult",
+    "energy": 0.35,
+    "sample_text": "She spoke quietly, as if afraid of her own voice."
+  },
+  {
+    "id": "en_US-ljspeech-high",
+    "locale": "en_US",
+    "gender": "female",
+    "age": "young",
+    "energy": 0.75,
+    "sample_text": "Oh, I could not believe what I was hearing!"
+  },
+  {
+    "id": "en_US-libritts-high",
+    "locale": "en_US",
+    "gender": "female",
+    "age": "elderly",
+    "energy": 0.40,
+    "sample_text": "In my day, things were quite different, I assure you."
+  },
+  {
+    "id": "en_US-hfc_female-medium",
+    "locale": "en_US",
+    "gender": "female",
+    "age": "young",
+    "energy": 0.65,
+    "sample_text": "I do not think you understand what I am saying."
+  },
+  {
+    "id": "en_US-joe-medium",
+    "locale": "en_US",
+    "gender": "male",
+    "age": "adult",
+    "energy": 0.60,
+    "sample_text": "He cleared his throat before speaking."
+  },
+  {
+    "id": "en_US-kusal-medium",
+    "locale": "en_US",
+    "gender": "male",
+    "age": "adult",
+    "energy": 0.45,
+    "sample_text": "He replied with measured words, careful as always."
+  },
+  {
+    "id": "en_US-arctic-medium",
+    "locale": "en_US",
+    "gender": "male",
+    "age": "adult",
+    "energy": 0.80,
+    "sample_text": "Enough! I will not stand for this any longer!"
+  },
+  {
+    "id": "en_US-ryan-high",
+    "locale": "en_US",
+    "gender": "male",
+    "age": "young",
+    "energy": 0.70,
+    "sample_text": "Wait — did you really say that? That is incredible!"
+  },
+  {
+    "id": "en_US-danny-low",
+    "locale": "en_US",
+    "gender": "male",
+    "age": "elderly",
+    "energy": 0.30,
+    "sample_text": "I have seen many winters. This one feels different."
+  },
+  {
+    "id": "en_US-alan-low",
+    "locale": "en_US",
+    "gender": "male",
+    "age": "young",
+    "energy": 0.40,
+    "sample_text": "I am not sure what to say. Everything feels strange."
+  },
+  {
+    "id": "en_US-norman-medium",
+    "locale": "en_US",
+    "gender": "neutral",
+    "age": "adult",
+    "energy": 0.50,
+    "sample_text": "The story continues from where we left off."
+  },
+  {
+    "id": "en_US-lessac-medium",
+    "locale": "en_US",
+    "gender": "female",
+    "age": "adult",
+    "energy": 0.62,
+    "sample_text": "She nodded slowly, understanding everything at last."
+  },
+  {
+    "id": "en_US-kristin-medium",
+    "locale": "en_US",
+    "gender": "female",
+    "age": "adult",
+    "energy": 0.48,
+    "sample_text": "There is something to be said for patience."
+  }
+]

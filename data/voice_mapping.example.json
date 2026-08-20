@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "assignments": {
+    "Narrator": {
+      "canonical_id": "Narrator",
+      "voice_id": "en_US-norman-medium",
+      "rate": 1.0,
+      "pitch": 1.0
+    },
+    "Character_A": {
+      "canonical_id": "Character_A",
+      "voice_id": "en_US-ljspeech-high",
+      "rate": 1.0,
+      "pitch": 1.08
+    },
+    "Character_B": {
+      "canonical_id": "Character_B",
+      "voice_id": "en_US-arctic-medium",
+      "rate": 0.98,
+      "pitch": 0.95
+    }
+  }
+}

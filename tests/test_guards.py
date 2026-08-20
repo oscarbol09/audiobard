@@ -42,6 +42,19 @@ def git_init_and_commit_all(root: Path) -> None:
     an mp3), so the fixture has to replicate that bypass.
     """
     subprocess.run(["git", "init", "-q", str(root)], check=True, capture_output=True)
+    # CI runners have no global git identity configured, unlike most dev
+    # machines - set it locally on this throwaway repo so commit succeeds
+    # everywhere (exit 128 "Please tell me who you are" otherwise).
+    subprocess.run(
+        ["git", "-C", str(root), "config", "user.email", "guards-fixture@example.invalid"],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(root), "config", "user.name", "Guards Fixture"],
+        check=True,
+        capture_output=True,
+    )
     subprocess.run(["git", "-C", str(root), "add", "-Af"], check=True, capture_output=True)
     subprocess.run(
         ["git", "-C", str(root), "commit", "-q", "-m", "fixture", "--allow-empty"],
