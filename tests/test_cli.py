@@ -238,10 +238,18 @@ def test_benchmark_nonzero_return() -> None:
 
 
 def test_cli_main_invoked() -> None:
-    import runpy
+    from audiobard import cli
+
+    cli_path = Path(cli.__file__)
+    cli_code = cli_path.read_text(encoding="utf-8")
+    compiled = compile(cli_code, str(cli_path), "exec")
     with patch.object(sys, "argv", ["audiobard", "--version"]):
+        globs = {"__name__": "__main__", "__file__": str(cli_path)}
         with pytest.raises(SystemExit) as exc:
-            runpy.run_module("audiobard.cli", run_name="__main__")
+            exec(compiled, globs)
         assert exc.value.code == 0
+
+
+
 
 
