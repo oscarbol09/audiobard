@@ -110,7 +110,11 @@ class CleanTreeTests(GuardRepoFixture):
 
 class SecretGuardTests(GuardRepoFixture):
     def test_gemini_key_literal_fails(self):
-        key_line = 'GEMINI_API_KEY = "AIzaSyDummyKey1234567890abcdefghijklmno"\n'
+        # Key split so GitHub secret-scanning does not flag this test file
+        # as containing a real credential. The concatenation is identical at
+        # runtime and the guards pattern still matches.
+        _fake = "AIzaSy" + "DummyKey1234567890abcdefghijklmno"
+        key_line = f'GEMINI_API_KEY = "{_fake}"\n'
         self.add_tracked_file("src/audiobard/client.py", key_line)
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 1)
@@ -118,7 +122,9 @@ class SecretGuardTests(GuardRepoFixture):
         self.assertIn("client.py", result.stdout)
 
     def test_openai_style_key_fails(self):
-        self.add_tracked_file("config.py", 'api_key = "sk-abcdef1234567890abcdef1234567890"\n')
+        # Key split to avoid GitHub secret-scanning false positives.
+        _fake = "sk-" + "abcdef1234567890abcdef1234567890"
+        self.add_tracked_file("config.py", f'api_key = "{_fake}"\n')
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 1)
         self.assertIn("possible API key", result.stdout)
