@@ -174,26 +174,26 @@ class AudioBookPipeline:
 
         # 2. Voice Assignment
         logger.info("Mapping voices...")
+        # One provider call serves both the empty-pool check and the
+        # lookup map; with network-backed providers a second call is a
+        # second round trip for the same unchanging pool.
+        voices = await self.tts_provider.list_voices(self.config.tts_locale)
+        if not voices:
+            raise RuntimeError(
+                f"No voices found for locale: {self.config.tts_locale}"
+            )
+        voice_map = {v.id: v for v in voices}
         checkpoint = self.persistence.get_checkpoint(book_id, "voice_assignment")
         if resume and checkpoint and checkpoint["status"] == "completed":
             voice_assignments = self.persistence.get_voice_mapping(book_id)
             logger.info("Loaded voice mappings from checkpoint")
         else:
-            voices = await self.tts_provider.list_voices(self.config.tts_locale)
-            if not voices:
-                raise RuntimeError(
-                    f"No voices found for locale: {self.config.tts_locale}"
-                )
             voices_path = self.config.voices_dir / f"{self.config.tts_locale}.json"
             mapper = VoiceMapper(voices_path)
             voice_assignments = list(mapper.assign_all(characters).values())
             self.persistence.save_voice_mapping(book_id, voice_assignments)
             self.persistence.save_checkpoint(book_id, "voice_assignment", "completed", {})
             logger.info("Mapped %d speakers to voices", len(voice_assignments))
-
-        # Get voice lookup map
-        voices = await self.tts_provider.list_voices(self.config.tts_locale)
-        voice_map = {v.id: v for v in voices}
 
         # 3. Attribution & Synthesis
         chunks = chunk_paragraphs(paragraphs, chunk_size=self.config.chunk_words)

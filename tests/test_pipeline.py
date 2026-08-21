@@ -168,6 +168,10 @@ async def test_pipeline_run(
         # Verify output MP3 was generated
         mock_proc.export_mp3.assert_called_once_with(b"final-audio", output_mp3)
 
+        # The voice pool cannot change within a run, so the provider is
+        # asked for it exactly once (issue #10)
+        assert mock_tts.list_voices.await_count == 1
+
         # Test M4B format output branch
         output_m4b = tmp_path / "output.m4b"
         await pipeline.run(book_file, output_m4b, resume=True, dry_run=False)
