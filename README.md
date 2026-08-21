@@ -174,6 +174,17 @@ Thinking about a PR? Read [CONTRIBUTING.md](CONTRIBUTING.md) first — it states
 
 AudioBard converts public-domain text to audio. The following are explicitly out of scope, and require an `ethics-review` RFC before any implementation PR is accepted: voice cloning without consent, DRM circumvention, impersonation/deepfakes, and bulk generation for spam. Full policy in the [development plan, §10](AudioBard_DevPlan.md) and the [ethics-review issue](https://github.com/oscarbol09/audiobard/issues/7).
 
+## Copyright & legal disclaimer
+
+**AudioBard is designed exclusively for public-domain works** (e.g., Project Gutenberg, LibriVox, Standard Ebooks). The user is solely responsible for verifying the copyright status of any text before processing it.
+
+- This software does not validate, enforce, or assume copyright ownership of input material.
+- Generating audiobooks from copyrighted works without authorization may infringe the rights of authors, publishers, and voice artists.
+- The tool is provided "as is" under the MIT License — see [LICENSE](LICENSE). The authors disclaim all warranties and liability for how the software is used, including any copyright infringement by end users.
+- No warranty of fitness for a particular purpose, non-infringement, or merchantability is implied.
+
+If you are a rights holder and believe this software is being used to infringe your copyright, please follow standard DMCA/notice-and-takedown procedures with the hosting platform.
+
 ## License
 
 MIT — see [LICENSE](LICENSE). The gold standard dataset (`eval/gold_standard/`) is CC0.
