@@ -7,7 +7,8 @@ Algorithm
    a. Filter the pool by ``gender_hint`` (mandatory).
    b. Further filter by ``age_hint`` (best-effort; fall back to gender-filtered pool if empty).
    c. Score remaining candidates by cosine similarity of the tone vector.
-   d. Deterministic tie-break: ``hash(canonical_id) % len(candidate_pool)``.
+   d. Deterministic tie-break: ``zlib.crc32(canonical_id) % len(candidate_pool)``,
+      stable across processes (built-in ``hash()`` is salted per process).
    e. If even the gender-filtered pool is empty, assign from the full pool
       via the same hash tie-break and log a warning.
 3. Save the resulting mapping to ``voice_mapping.json`` (versioned).
@@ -22,6 +23,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import zlib
 from pathlib import Path
 from typing import Any
 
@@ -188,7 +190,9 @@ class VoiceMapper:
         # Step 4: deterministic tie-break among top-scoring voices
         top_score = scored[0][0]
         top_voices = [v for score, _, v in scored if abs(score - top_score) < 1e-9]
-        chosen = top_voices[hash(character.canonical_id) % len(top_voices)]
+        chosen = top_voices[
+            zlib.crc32(character.canonical_id.encode("utf-8")) % len(top_voices)
+        ]
 
         return VoiceAssignment(
             canonical_id=character.canonical_id,

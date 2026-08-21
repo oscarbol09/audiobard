@@ -8,6 +8,9 @@ for the core determinism and filtering tests.  The save/load tests use
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -259,3 +262,52 @@ def test_cosine_similarity_zero_vector() -> None:
     assert _cosine_similarity((0.0, 0.0, 0.0), (1.0, 1.0, 1.0)) == 0.0
     assert _cosine_similarity((1.0, 1.0, 1.0), (0.0, 0.0, 0.0)) == 0.0
 
+
+
+def test_assignment_is_stable_across_processes(tmp_path: Path) -> None:
+    """The tie-break must not depend on the process hash seed (issue #9).
+
+    Runs the same assignment in two subprocesses with different, fixed
+    PYTHONHASHSEED values. Built-in hash() gives different answers in
+    the two seeds, so this pins that the tie-break no longer uses it.
+    The pool holds four identical-energy voices so the top-score tie
+    group is larger than one; with a single candidate the tie-break
+    never runs and this test would pin nothing.
+    """
+    pool = [
+        {
+            "id": f"v{i}",
+            "locale": "en_US",
+            "gender": "neutral",
+            "age": "adult",
+            "energy": 0.5,
+        }
+        for i in range(4)
+    ]
+    pool_path = tmp_path / "en_US.json"
+    pool_path.write_text(json.dumps(pool), encoding="utf-8")
+    script = (
+        "import json, sys\n"
+        "from audiobard.tts.voice_mapper import VoiceMapper\n"
+        "from audiobard.models import Character, GenderHint, AgeHint, Tone\n"
+        "mapper = VoiceMapper(voices_path=sys.argv[1])\n"
+        "out = {}\n"
+        "for letter in 'ABCDEFGH':\n"
+        "    c = Character(canonical_id='Character_' + letter, name=letter,\n"
+        "                  gender_hint=GenderHint.NEUTRAL,\n"
+        "                  age_hint=AgeHint.ADULT, tone=Tone.NEUTRAL)\n"
+        "    out[c.canonical_id] = mapper.assign(c).voice_id\n"
+        "print(json.dumps(out, sort_keys=True))\n"
+    )
+    results = []
+    for seed in ("1", "2"):
+        env = dict(os.environ, PYTHONHASHSEED=seed)
+        proc = subprocess.run(
+            [sys.executable, "-c", script, str(pool_path)],
+            capture_output=True, text=True, env=env, check=True,
+        )
+        results.append(proc.stdout.strip())
+    assert results[0] == results[1], (
+        "voice assignment differs between processes: "
+        f"{results[0]} vs {results[1]}"
+    )
