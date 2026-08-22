@@ -58,6 +58,22 @@ class TestTextParserBasic:
         result = parser.parse(b"Hello, bytes world.")
         assert result[0].text == "Hello, bytes world."
 
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("First.\n\nSecond.", ["First.", "Second."]),
+            ("First.\r\n\r\nSecond.", ["First.", "Second."]),
+            ("First.\r\rSecond.", ["First.", "Second."]),
+            ("First.\r\n\r\nSecond.\n\nThird.", ["First.", "Second.", "Third."]),
+        ],
+    )
+    def test_paragraph_boundaries_support_line_endings(
+        self, text: str, expected: list[str]
+    ) -> None:
+        parser = TextParser()
+        result = parser.parse(text)
+        assert [paragraph.text for paragraph in result] == expected
+
     def test_returns_paragraph_models(self) -> None:
         parser = TextParser()
         result = parser.parse("Some text.")
