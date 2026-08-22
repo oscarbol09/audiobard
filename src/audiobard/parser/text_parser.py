@@ -85,7 +85,7 @@ def _strip_pg_boilerplate(text: str) -> str:
 
 def _split_paragraphs(text: str) -> list[str]:
     """Split on one or more blank lines; return non-empty stripped paragraphs."""
-    blocks = re.split(r"\n{2,}", text)
+    blocks = re.split(r"(?:\r\n|\r|\n){2,}", text)
     result: list[str] = []
     for block in blocks:
         cleaned = " ".join(block.split())  # collapse internal whitespace
