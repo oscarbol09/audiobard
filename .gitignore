@@ -74,3 +74,8 @@ Thumbs.db
 htmlcov/
 .coverage
 coverage.xml
+
+# ---------------------------------------------------------------------------
+# Local planning & design documents — fork-only, never enter upstream PRs.
+# ---------------------------------------------------------------------------
+TAURI_GUI_DEVELOPMENT_PLAN.md
