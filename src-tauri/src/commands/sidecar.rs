@@ -2,10 +2,24 @@
 
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
+use std::time::Duration;
 use serde::Serialize;
 use tauri::{AppHandle, Manager, Runtime, State};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
+
+/// Timeout for short-lived health and progress probes.
+///
+/// Five seconds is generous for a localhost request; longer means the
+/// UI is hung waiting for a stuck sidecar.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Timeout for the full generation request.
+///
+/// Audiobooks for long public-domain texts can take more than half an
+/// hour to render end-to-end; a one-hour ceiling lets the network call
+/// fail loudly if the pipeline wedges instead of blocking the IPC.
+const GENERATE_TIMEOUT: Duration = Duration::from_secs(3600);
 
 /// Managed state for the Python sidecar process.
 pub struct PythonSidecar {
@@ -102,7 +116,10 @@ pub async fn stop_python_sidecar(sidecar: State<'_, PythonSidecar>) -> Result<St
 /// Check if the FastAPI server is healthy.
 #[tauri::command]
 pub async fn check_server_health() -> Result<bool, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(PROBE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = "http://127.0.0.1:8000/health";
 
     match client.get(url).send().await {
@@ -130,7 +147,10 @@ pub async fn generate_audiobook(
     llm_model: String,
     session_id: String,
 ) -> Result<String, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(GENERATE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = "http://127.0.0.1:8000/generate";
 
     let payload = serde_json::json!({
@@ -173,7 +193,10 @@ pub async fn get_generation_progress(
     app: AppHandle,
     session_id: String,
 ) -> Result<GenerationProgress, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(PROBE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = "http://127.0.0.1:8000/progress";
 
     match client.get(&url).query(&[("session_id", session_id.as_str())]).send().await {
