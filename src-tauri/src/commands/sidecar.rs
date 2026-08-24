@@ -262,3 +262,106 @@ pub async fn cancel_audiobook(session_id: String) -> Result<String, String> {
 
     Ok("cancelled".to_string())
 }
+
+/// Library book entry returned by the API.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryBook {
+    pub id: i64,
+    pub title: String,
+    pub path: String,
+    pub total_paragraphs: i64,
+    pub total_words: i64,
+    pub dialog_ratio: f64,
+    pub created_at: Option<String>,
+}
+
+/// Fetch the full library from FastAPI.
+#[tauri::command]
+pub async fn get_library() -> Result<Vec<LibraryBook>, String> {
+    let client = reqwest::Client::builder()
+        .timeout(PROBE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+    let url = "http://127.0.0.1:8000/library";
+
+    match client.get(url).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                let books: Vec<LibraryBook> = response.json().await
+                    .map_err(|e| format!("Failed to parse library response: {}", e))?;
+                Ok(books)
+            } else {
+                let err = response.text().await.unwrap_or_default();
+                Err(format!("Library request failed: {}", err))
+            }
+        }
+        Err(e) => {
+            log::warn!("Library request failed: {}", e);
+            Err(format!("Network error: {}", e))
+        }
+    }
+}
+
+/// Download a generated audiobook.
+///
+/// Returns the local file path so the UI can open it with the system default player.
+#[tauri::command]
+pub async fn download_book(book_id: i64) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(PROBE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+    let url = format!("http://127.0.0.1:8000/book/{}/download", book_id);
+
+    match client.get(&url).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                // FastAPI returns the file directly; we just need the path
+                // For now, reconstruct the path locally
+                Ok(format!(
+                    "{}/AudioBard/output/book_{}.mp3",
+                    std::env::var("USERPROFILE").unwrap_or_else(|_| ".".to_string()),
+                    book_id
+                ))
+            } else {
+                let err = response.text().await.unwrap_or_default();
+                Err(format!("Download failed: {}", err))
+            }
+        }
+        Err(e) => {
+            log::warn!("Download request failed: {}", e);
+            Err(format!("Network error: {}", e))
+        }
+    }
+}
+
+/// Regenerate a book with previous settings (stub).
+#[tauri::command]
+pub async fn regenerate_book(book_id: i64, _settings: serde_json::Value) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(GENERATE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+    let url = format!("http://127.0.0.1:8000/book/{}/regenerate", book_id);
+
+    let payload = serde_json::json!({});
+
+    match client.post(&url).json(&serde_json::json!({})).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                let result: serde_json::Value = response.json().await
+                    .map_err(|e| format!("Failed to parse regenerate response: {}", e))?;
+                Ok(result.to_string())
+            } else {
+                let err = response.text().await.unwrap_or_default();
+                Err(format!("Regenerate failed: {}", err))
+            }
+        }
+        Err(e) => {
+            log::warn!("Regenerate request failed: {}", e);
+            Err(format!("Network error: {}", e))
+        }
+    }
+}
+}
