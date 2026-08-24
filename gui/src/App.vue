@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useGenerationStore } from './stores/generation'
 import UploadSection from './components/UploadSection.vue'
+import GenerationProgress from './components/GenerationProgress.vue'
 
 const healthOk = ref(false)
 const healthError = ref<string | null>(null)
@@ -172,6 +173,8 @@ async function onGenerate(): Promise<void> {
                 </span>
               </button>
             </div>
+
+            <GenerationProgress />
           </section>
         </div>
       </main>
