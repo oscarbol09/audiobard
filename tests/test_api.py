@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from pathlib import Path
 from typing import Any
@@ -198,3 +199,86 @@ def test_generate_audiobook_missing_field(client: TestClient) -> None:
     response = client.post("/generate", json={"file_name": "book.txt"})
     assert response.status_code == 500
     assert "Generation failed" in response.json()["detail"]
+
+
+def test_progress_store_cancel_and_is_cancelled() -> None:
+    store = ProgressStore()
+    assert not store.is_cancelled("abc")
+    store.cancel("abc")
+    assert store.is_cancelled("abc")
+    store.cancel("abc")
+    assert store.is_cancelled("abc")
+
+
+def test_progress_store_cancel_does_not_affect_others() -> None:
+    store = ProgressStore()
+    store.cancel("a")
+    assert store.is_cancelled("a")
+    assert not store.is_cancelled("b")
+
+
+def test_cancel_endpoint_marks_session(client: TestClient) -> None:
+    response = client.post("/cancel", json={"session_id": "sess-cancel"})
+    assert response.status_code == 200
+    assert response.json() == {"status": "cancelled"}
+    assert progress_store.is_cancelled("sess-cancel")
+
+
+def test_cancel_endpoint_unknown_session_is_idempotent(client: TestClient) -> None:
+    response = client.post("/cancel", json={"session_id": "never-existed"})
+    assert response.status_code == 200
+    assert response.json() == {"status": "cancelled"}
+
+
+def test_cancel_endpoint_missing_session_id_is_idempotent(client: TestClient) -> None:
+    response = client.post("/cancel", json={})
+    assert response.status_code == 200
+    assert response.json() == {"status": "cancelled"}
+
+
+def test_generate_audiobook_cancelled_via_callback(client: TestClient, tmp_path: Path) -> None:
+    fake_pipeline = MagicMock()
+
+    async def cancel_mid_run(input_path: Path, output_path: Path, **_kwargs: Any) -> None:
+        progress_callback = _kwargs["progress_callback"]
+        progress_callback(PipelineProgress(stage="synthesis", percent=10, message="chunk 1"))
+        progress_callback(PipelineProgress(stage="synthesis", percent=20, message="chunk 2"))
+        raise asyncio.CancelledError()
+
+    fake_pipeline.run = AsyncMock(side_effect=cancel_mid_run)
+
+    with (
+        patch("audiobard.api.AudioBookPipeline", return_value=fake_pipeline),
+        patch("audiobard.api.AudioBardConfig"),
+        patch("pathlib.Path.home", return_value=tmp_path),
+    ):
+        response = client.post("/generate", json=_generate_payload("session-cancel"))
+
+    assert response.status_code == 499
+    assert "cancelled" in response.json()["detail"]
+    assert progress_store.get("session-cancel") == PipelineProgress(
+        stage="cancelled", percent=0, message="Cancelled by user"
+    )
+
+
+def test_generate_audiobook_cancelled_writes_stage_before_http_exception(
+    client: TestClient, tmp_path: Path
+) -> None:
+    fake_pipeline = MagicMock()
+
+    async def cancel_then_check_store(input_path: Path, output_path: Path, **_kwargs: Any) -> None:
+        progress_callback = _kwargs["progress_callback"]
+        progress_store.cancel("session-cb")
+        progress_callback(PipelineProgress(stage="synthesis", percent=5, message="x"))
+
+    fake_pipeline.run = AsyncMock(side_effect=cancel_then_check_store)
+
+    with (
+        patch("audiobard.api.AudioBookPipeline", return_value=fake_pipeline),
+        patch("audiobard.api.AudioBardConfig"),
+        patch("pathlib.Path.home", return_value=tmp_path),
+    ):
+        response = client.post("/generate", json=_generate_payload("session-cb"))
+
+    assert response.status_code == 499
+    assert progress_store.get("session-cb").stage == "cancelled"
