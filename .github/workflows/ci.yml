@@ -54,7 +54,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install system dependencies (ffmpeg)
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: pip install ".[dev]"
+      - run: pip install ".[dev,api]"
       - name: Run unit tests with coverage
         run: |
           pytest --cov=audiobard --cov-report=term-missing --cov-fail-under=70 -m "not integration"

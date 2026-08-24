@@ -100,3 +100,76 @@ pub async fn check_server_health() -> Result<bool, String> {
         }
     }
 }
+
+/// Generate audiobook via FastAPI.
+#[tauri::command]
+pub async fn generate_audiobook(
+    app: AppHandle,
+    file_base64: String,
+    file_name: String,
+    book_title: String,
+    locale: String,
+    tts_provider: String,
+    llm_provider: String,
+    llm_model: String,
+) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let url = "http://127.0.0.1:8000/generate";
+
+    let payload = serde_json::json!({
+        "file_base64": file_base64,
+        "file_name": file_name,
+        "book_title": book_title,
+        "locale": locale,
+        "tts_provider": tts_provider,
+        "llm_provider": llm_provider,
+        "llm_model": llm_model,
+    });
+
+    let response = client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to call /generate: {}", e))?;
+
+    if !response.status().is_success() {
+        let err = response.text().await.unwrap_or_default();
+        return Err(format!("Generation failed: {}", err));
+    }
+
+    // Return the output path from the response
+    let result: serde_json::Value = response.json().await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    result.get("output_path")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| "No output_path in response".to_string())
+}
+
+/// Poll generation progress from FastAPI.
+#[tauri::command]
+pub async fn get_generation_progress(app: AppHandle) -> Result<u8, String> {
+    let client = reqwest::Client::new();
+    let url = "http://127.0.0.1:8000/progress";
+
+    match client.get(url).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                let result: serde_json::Value = response.json().await
+                    .map_err(|e| format!("Failed to parse progress response: {}", e))?;
+                Ok(result.get("progress")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as u8)
+                    .unwrap_or(0))
+            } else {
+                Ok(0)
+            }
+        }
+        Err(e) => {
+            log::warn!("Progress check failed: {}", e);
+            Ok(0)
+        }
+    }
+}
