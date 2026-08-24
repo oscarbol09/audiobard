@@ -39,6 +39,14 @@ onMounted(() => {
 function handleFileError(message: string) {
   console.error('File error:', message)
 }
+
+async function onGenerate(): Promise<void> {
+  try {
+    await generationStore.startGeneration()
+  } catch (err) {
+    console.error('Generation failed:', err)
+  }
+}
 </script>
 
 <template>
@@ -152,6 +160,7 @@ function handleFileError(message: string) {
               <button
                 class="w-full px-6 py-3 text-lg font-semibold text-gray-900 bg-brand-500 hover:bg-brand-400 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 :disabled="generationStore.isGenerating"
+                @click="onGenerate"
               >
                 <span v-if="!generationStore.isGenerating">Generate Audiobook</span>
                 <span v-else class="flex items-center justify-center gap-2">
