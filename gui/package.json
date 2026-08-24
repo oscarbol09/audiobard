@@ -10,8 +10,9 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "vue": "^3.5.40",
-    "@tauri-apps/api": "^2.2.0"
+    "@tauri-apps/api": "^2.11.1",
+    "pinia": "^4.0.3",
+    "vue": "^3.5.40"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.2.0",
@@ -19,6 +20,7 @@
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/tsconfig": "^0.9.1",
     "autoprefixer": "^10.5.4",
+    "esbuild": "^0.28.2",
     "postcss": "^8.5.26",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.2",

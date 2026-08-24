@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': resolve(import.meta.dirname, 'src'),
     },
   },
   // Tauri dev server config
@@ -23,8 +23,8 @@ export default defineConfig({
   // Make HMR work across the Tauri window
   envPrefix: ['VITE_', 'TAURI_'],
   build: {
-    // Tauri supports es2021
-    target: ['es2021', 'chrome100', 'safari13'],
+    // Use a more compatible target
+    target: 'es2020',
     // Minify in release mode
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     // Produce sourcemaps for debug builds
