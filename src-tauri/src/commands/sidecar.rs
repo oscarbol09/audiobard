@@ -225,3 +225,40 @@ pub async fn get_generation_progress(session_id: String) -> Result<GenerationPro
         }
     }
 }
+
+/// Cancel an in-flight generation.
+///
+/// Posts the session id to FastAPI's `/cancel` endpoint, which
+/// sets a flag on the `ProgressStore` entry. The pipeline's next
+/// progress emit raises `asyncio.CancelledError` and unwinds.
+///
+/// Returns `Ok(())` when FastAPI acknowledges (the endpoint is
+/// idempotent — unknown or already-finished sessions still return
+/// 200). A network failure surfaces as an `Err` so the Vue store can
+/// decide whether to retry or treat the cancel as best-effort.
+#[tauri::command]
+pub async fn cancel_audiobook(session_id: String) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(PROBE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+    let url = "http://127.0.0.1:8000/cancel";
+
+    let payload = serde_json::json!({
+        "session_id": session_id,
+    });
+
+    let response = client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to call /cancel: {}", e))?;
+
+    if !response.status().is_success() {
+        let err = response.text().await.unwrap_or_default();
+        return Err(format!("Cancel failed: {}", err));
+    }
+
+    Ok("cancelled".to_string())
+}

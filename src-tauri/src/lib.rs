@@ -12,6 +12,7 @@ pub fn run() {
             crate::commands::sidecar::check_server_health,
             crate::commands::sidecar::generate_audiobook,
             crate::commands::sidecar::get_generation_progress,
+            crate::commands::sidecar::cancel_audiobook,
         ])
         .setup(|app| {
             // Start the Python sidecar on app launch
