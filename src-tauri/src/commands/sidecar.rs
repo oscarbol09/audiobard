@@ -85,3 +85,18 @@ pub async fn stop_python_sidecar(sidecar: State<'_, PythonSidecar>) -> Result<St
         Ok("Python sidecar was not running".to_string())
     }
 }
+
+/// Check if the FastAPI server is healthy.
+#[tauri::command]
+pub async fn check_server_health() -> Result<bool, String> {
+    let client = reqwest::Client::new();
+    let url = "http://127.0.0.1:8000/health";
+
+    match client.get(url).send().await {
+        Ok(response) => Ok(response.status().is_success()),
+        Err(e) => {
+            log::warn!("Health check failed: {}", e);
+            Ok(false)
+        }
+    }
+}

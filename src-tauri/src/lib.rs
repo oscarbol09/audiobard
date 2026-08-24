@@ -9,6 +9,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             crate::commands::sidecar::start_python_sidecar,
             crate::commands::sidecar::stop_python_sidecar,
+            crate::commands::sidecar::check_server_health,
         ])
         .setup(|app| {
             // Start the Python sidecar on app launch
