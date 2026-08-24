@@ -23,19 +23,6 @@ export const useGenerationStore = defineStore('generation', () => {
     }
   }
 
-  function reset() {
-    isGenerating.value = false
-    progress.value = 0
-    bookFile.value = null
-    bookTitle.value = ''
-    error.value = null
-    outputPath.value = null
-    if (progressInterval) {
-      clearInterval(progressInterval)
-      progressInterval = null
-    }
-  }
-
   async function startGeneration() {
     if (isGenerating.value || !bookFile.value) return
 
@@ -107,7 +94,7 @@ export const useGenerationStore = defineStore('generation', () => {
     })
   }
 
-  function reset() {
+  function reset(): void {
     isGenerating.value = false
     progress.value = 0
     bookFile.value = null
