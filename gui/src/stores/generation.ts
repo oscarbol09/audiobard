@@ -57,6 +57,26 @@ export const useGenerationStore = defineStore('generation', () => {
 
   let progressInterval: number | null = null
 
+  async function cancelGeneration(): Promise<void> {
+    if (sessionId.value === null || !isGenerating.value) {
+      return
+    }
+
+    const sid = sessionId.value
+    try {
+      await invoke("cancel_audiobook", { sessionId: sid })
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e))
+      console.error("Cancel request failed:", err)
+    }
+
+    stopProgressPolling()
+    isGenerating.value = false
+    stage.value = "cancelled"
+    message.value = "Cancelled by user"
+    error.value = "Generation cancelled by user"
+  }
+
   function setBookFile(file: File | null): void {
     bookFile.value = file
     if (file) {
@@ -101,7 +121,7 @@ export const useGenerationStore = defineStore('generation', () => {
       stage.value = update.stage
       progress.value = update.percent
       message.value = update.message
-      if (update.stage === 'complete' || update.stage === 'error') {
+      if (update.stage === 'complete' || update.stage === 'error' || update.stage === 'cancelled') {
         stopProgressPolling()
       }
     } catch {
@@ -189,6 +209,7 @@ export const useGenerationStore = defineStore('generation', () => {
     sessionId,
     setBookFile,
     startGeneration,
+    cancelGeneration,
     reset,
   }
 })

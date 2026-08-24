@@ -37,6 +37,7 @@ class ProgressStore:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._entries: dict[str, PipelineProgress] = {}
+        self._cancelled: set[str] = set()
 
     def update(self, session_id: str, progress: PipelineProgress) -> None:
         with self._lock:
@@ -59,6 +60,30 @@ class ProgressStore:
         """Drop every tracked session; only used by the test suite."""
         with self._lock:
             self._entries.clear()
+            self._cancelled.clear()
+
+    def cancel(self, session_id: str) -> None:
+        """Mark *session_id* as cancelled.
+
+        Idempotent: calling cancel twice for the same session is
+        harmless. The pipeline checks the flag inside its progress
+        callback on every emit and raises asyncio.CancelledError to
+        unwind the run. Cancelling a session that already finished
+        is a no-op: the pipeline is no longer running, so the flag
+        "never gets checked."
+        """
+        with self._lock:
+            self._cancelled.add(session_id)
+
+    def is_cancelled(self, session_id: str) -> bool:
+        """True if cancel() has been called for *session_id*.
+
+        The pipeline reads this on every progress emit so a
+        long-running synthesis chunk can still abort between
+        awaits when the cancel request lands mid-chunk.
+        """
+        with self._lock:
+            return session_id in self._cancelled
 
 
 progress_store = ProgressStore()
@@ -90,6 +115,26 @@ async def get_progress(session_id: str | None = None) -> dict[str, Any]:
         "percent": progress.percent,
         "message": progress.message,
     }
+
+@app.post("/cancel")
+async def cancel_generation(request: dict[str, Any]) -> dict[str, str]:
+    """Mark a generation session as cancelled.
+
+    Body fields:
+        session_id: The opaque token returned by /generate (or
+        auto-generated when missing on that endpoint).
+
+    The handler always returns {"status": "cancelled"}:
+    the Tauri shell calls this idempotently, and the contract
+    is that the pipeline will see the flag on its next progress
+    emit and unwind on its own. An empty or missing session_id
+    is treated the same way so a stale Cancel click does not
+    produce a 4xx for the user.
+    """
+    session_id = str(request.get("session_id") or "")
+    if session_id:
+        progress_store.cancel(session_id)
+    return {"status": "cancelled"}
 
 
 @app.post("/generate")
@@ -145,8 +190,24 @@ async def generate_audiobook(request: dict[str, Any]) -> dict[str, str]:
 
             def on_progress(progress: PipelineProgress) -> None:
                 progress_store.update(session_id, progress)
+                if progress_store.is_cancelled(session_id):
+                    raise asyncio.CancelledError()
 
-            await pipeline.run(input_path, output_path, progress_callback=on_progress)
+            try:
+                await pipeline.run(input_path, output_path, progress_callback=on_progress)
+            except asyncio.CancelledError:
+                progress_store.update(
+                    session_id,
+                    PipelineProgress(
+                        stage="cancelled",
+                        percent=0,
+                        message="Cancelled by user",
+                    ),
+                )
+                raise HTTPException(
+                    status_code=499,
+                    detail="Generation cancelled by user",
+                ) from None
 
             if not output_path.exists():
                 raise HTTPException(
