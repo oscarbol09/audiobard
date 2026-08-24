@@ -303,3 +303,35 @@ class PersistenceManager:
                 (prompt_hash, response_json, provider),
             )
             conn.commit()
+
+    def get_all_books(self) -> list[dict[str, Any]]:
+        """Return all books with latest run timestamp and stats."""
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    b.id,
+                    b.path,
+                    b.title,
+                    b.total_paragraphs,
+                    b.total_words,
+                    b.dialog_ratio,
+                    MAX(pr.updated_at) AS last_run_at
+                FROM books b
+                LEFT JOIN pipeline_runs pr ON b.id = pr.book_id
+                GROUP BY b.id
+                ORDER BY last_run_at DESC NULLS LAST
+                """
+            ).fetchall()
+            return [
+                {
+                    "id": row["id"],
+                    "path": row["path"],
+                    "title": row["title"],
+                    "total_paragraphs": row["total_paragraphs"],
+                    "total_words": row["total_words"],
+                    "dialog_ratio": row["dialog_ratio"],
+                    "created_at": row["last_run_at"],
+                }
+                for row in rows
+            ]

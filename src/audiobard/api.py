@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 
 from audiobard.config import AudioBardConfig
 from audiobard.pipeline import AudioBookPipeline
@@ -89,6 +90,31 @@ class ProgressStore:
 progress_store = ProgressStore()
 
 
+def _get_persistence() -> Any:
+    """Create a PersistenceManager with default config."""
+    from audiobard.config import AudioBardConfig
+    from audiobard.persistence import PersistenceManager
+
+    config = AudioBardConfig()
+    return PersistenceManager(config.db_path)
+
+
+def _get_all_books() -> list[dict[str, Any]]:
+    """Return all books with latest run timestamp and stats."""
+    persistence = _get_persistence()
+    return persistence.get_all_books()  # type: ignore[no-any-return]
+
+
+def _get_book_by_id(book_id: int) -> dict[str, Any] | None:
+    """Get a single book by ID."""
+    persistence = _get_persistence()
+    books: list[dict[str, Any]] = persistence.get_all_books()
+    for book in books:
+        if book["id"] == book_id:
+            return book
+    return None
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     """Health check — Tauri queries this on startup."""
@@ -135,6 +161,69 @@ async def cancel_generation(request: dict[str, Any]) -> dict[str, str]:
     if session_id:
         progress_store.cancel(session_id)
     return {"status": "cancelled"}
+
+
+@app.get("/library")
+async def get_library() -> list[dict[str, Any]]:
+    """Return all generated books with metadata."""
+    books = _get_all_books()
+    return [
+        {
+            "id": book["id"],
+            "title": book["title"],
+            "path": book["path"],
+            "total_paragraphs": book["total_paragraphs"],
+            "total_words": book["total_words"],
+            "dialog_ratio": book["dialog_ratio"],
+            "created_at": book["created_at"],
+        }
+        for book in books
+    ]
+
+
+@app.get("/book/{book_id}")
+async def get_book(book_id: int) -> dict[str, Any]:
+    """Get detailed book information."""
+    book = _get_book_by_id(book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    return {
+        "id": book["id"],
+        "title": book["title"],
+        "path": book["path"],
+        "total_paragraphs": book["total_paragraphs"],
+        "total_words": book["total_words"],
+        "dialog_ratio": book["dialog_ratio"],
+        "created_at": book["created_at"],
+    }
+
+
+@app.get("/book/{book_id}/download")
+async def download_book(book_id: int) -> FileResponse:
+    """Download the generated audiobook file."""
+    book = _get_book_by_id(book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    # Reconstruct output path (same logic as generate_audiobook)
+    output_dir = Path.home() / "AudioBard" / "output"
+    output_path = output_dir / f"{Path(book['path']).stem}.mp3"
+    if not output_path.exists():
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    return FileResponse(
+        output_path,
+        media_type="audio/mpeg",
+        filename=f"{book['title']}.mp3",
+    )
+
+
+@app.post("/book/{book_id}/regenerate")
+async def regenerate_book(book_id: int, request: dict[str, Any]) -> dict[str, str]:
+    """Regenerate audiobook reusing previous settings (stub)."""
+    book = _get_book_by_id(book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    # TODO: Implement full regeneration reusing stored settings
+    raise HTTPException(status_code=501, detail="Regenerate not implemented yet")
 
 
 @app.post("/generate")

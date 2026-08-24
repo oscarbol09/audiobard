@@ -13,6 +13,9 @@ pub fn run() {
             crate::commands::sidecar::generate_audiobook,
             crate::commands::sidecar::get_generation_progress,
             crate::commands::sidecar::cancel_audiobook,
+            crate::commands::sidecar::get_library,
+            crate::commands::sidecar::download_book,
+            crate::commands::sidecar::regenerate_book,
         ])
         .setup(|app| {
             // Start the Python sidecar on app launch

@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useGenerationStore } from './stores/generation'
 import UploadSection from './components/UploadSection.vue'
 import GenerationProgress from './components/GenerationProgress.vue'
+import LibraryPanel from './components/LibraryPanel.vue'
 
 const healthOk = ref(false)
 const healthError = ref<string | null>(null)
@@ -176,6 +177,9 @@ async function onGenerate(): Promise<void> {
 
             <GenerationProgress />
           </section>
+
+          <!-- Library Panel -->
+          <LibraryPanel />
         </div>
       </main>
     </div>
