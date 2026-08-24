@@ -14,6 +14,8 @@ export const useGenerationStore = defineStore('generation', () => {
   const error = ref<string | null>(null)
   const outputPath = ref<string | null>(null)
 
+  let progressInterval: number | null = null
+
   function setBookFile(file: File | null) {
     bookFile.value = file
     if (file) {
@@ -28,6 +30,10 @@ export const useGenerationStore = defineStore('generation', () => {
     bookTitle.value = ''
     error.value = null
     outputPath.value = null
+    if (progressInterval) {
+      clearInterval(progressInterval)
+      progressInterval = null
+    }
   }
 
   async function startGeneration() {
@@ -43,7 +49,8 @@ export const useGenerationStore = defineStore('generation', () => {
       const base64 = await fileToBase64(bookFile.value)
       const fileName = bookFile.value.name
 
-      const result = await invoke<string>('generate_audiobook', {
+      // Start generation (non-blocking)
+      invoke<string>('generate_audiobook', {
         fileBase64: base64,
         fileName,
         bookTitle: bookTitle.value,
@@ -51,15 +58,43 @@ export const useGenerationStore = defineStore('generation', () => {
         ttsProvider: ttsProvider.value,
         llmProvider: llmProvider.value,
         llmModel: llmModel.value,
+      }).then((result) => {
+        outputPath.value = result
+        progress.value = 100
+        isGenerating.value = false
+        stopProgressPolling()
+      }).catch((e) => {
+        error.value = e instanceof Error ? e.message : String(e)
+        isGenerating.value = false
+        stopProgressPolling()
+        throw e
       })
 
-      outputPath.value = result
-      progress.value = 100
+      // Start polling for progress
+      startProgressPolling()
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
-      throw e
-    } finally {
       isGenerating.value = false
+      throw e
+    }
+  }
+
+  function startProgressPolling() {
+    if (progressInterval) return
+    progressInterval = window.setInterval(async () => {
+      try {
+        const prog = await invoke<number>('get_generation_progress')
+        progress.value = prog
+      } catch {
+        // Ignore errors, keep polling
+      }
+    }, 1000)
+  }
+
+  function stopProgressPolling() {
+    if (progressInterval) {
+      clearInterval(progressInterval)
+      progressInterval = null
     }
   }
 
@@ -79,6 +114,7 @@ export const useGenerationStore = defineStore('generation', () => {
     bookTitle.value = ''
     error.value = null
     outputPath.value = null
+    stopProgressPolling()
   }
 
   return {

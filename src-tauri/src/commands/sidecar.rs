@@ -104,6 +104,7 @@ pub async fn check_server_health() -> Result<bool, String> {
 /// Generate audiobook via FastAPI.
 #[tauri::command]
 pub async fn generate_audiobook(
+    app: AppHandle,
     file_base64: String,
     file_name: String,
     book_title: String,
@@ -145,4 +146,30 @@ pub async fn generate_audiobook(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .ok_or_else(|| "No output_path in response".to_string())
+}
+
+/// Poll generation progress from FastAPI.
+#[tauri::command]
+pub async fn get_generation_progress(app: AppHandle) -> Result<u8, String> {
+    let client = reqwest::Client::new();
+    let url = "http://127.0.0.1:8000/progress";
+
+    match client.get(url).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                let result: serde_json::Value = response.json().await
+                    .map_err(|e| format!("Failed to parse progress response: {}", e))?;
+                Ok(result.get("progress")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as u8)
+                    .unwrap_or(0))
+            } else {
+                Ok(0)
+            }
+        }
+        Err(e) => {
+            log::warn!("Progress check failed: {}", e);
+            Ok(0)
+        }
+    }
 }
