@@ -10,7 +10,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from audiobard.api import app
+from audiobard.api import ProgressStore, app, progress_store
+from audiobard.progress import PipelineProgress
+
+
+@pytest.fixture(autouse=True)
+def _clear_progress_store() -> None:
+    progress_store.clear_state_for_tests()
 
 
 @pytest.fixture
@@ -24,48 +30,124 @@ def test_health(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_progress(client: TestClient) -> None:
+def test_progress_default_when_no_session(client: TestClient) -> None:
     response = client.get("/progress")
     assert response.status_code == 200
-    assert response.json() == {"progress": 0}
+    assert response.json() == {"stage": "idle", "percent": 0, "message": ""}
+
+
+def test_progress_default_when_unknown_session(client: TestClient) -> None:
+    response = client.get("/progress", params={"session_id": "does-not-exist"})
+    assert response.status_code == 200
+    assert response.json() == {"stage": "idle", "percent": 0, "message": ""}
+
+
+def test_progress_returns_latest_update(client: TestClient) -> None:
+    progress_store.update("abc", PipelineProgress(stage="synthesis", percent=42, message="ok"))
+    response = client.get("/progress", params={"session_id": "abc"})
+    assert response.status_code == 200
+    assert response.json() == {"stage": "synthesis", "percent": 42, "message": "ok"}
+
+
+def test_progress_store_roundtrip() -> None:
+    store = ProgressStore()
+    store.update("a", PipelineProgress(stage="parsing", percent=10, message="x"))
+    store.update("b", PipelineProgress(stage="synthesis", percent=50, message="y"))
+    assert store.size() == 2
+    assert store.get("a") == PipelineProgress(stage="parsing", percent=10, message="x")
+    assert store.get("b") == PipelineProgress(stage="synthesis", percent=50, message="y")
+    store.clear("a")
+    assert store.get("a") is None
+    assert store.size() == 1
+
+
+def test_progress_store_thread_safe() -> None:
+    import threading
+
+    store = ProgressStore()
+
+    def writer(prefix: str) -> None:
+        for i in range(200):
+            store.update(
+                f"{prefix}-{i}",
+                PipelineProgress(stage="x", percent=i % 101, message="m"),
+            )
+
+    threads = [threading.Thread(target=writer, args=(f"t{i}",)) for i in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert store.size() == 4 * 200
+
+
+def _stub_pipeline_run(input_path: Path, output_path: Path, **_kwargs: Any) -> None:
+    """Stand-in for AudioBookPipeline.run that writes a fake output file."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_bytes(b"fake-mp3-data")
+
+
+def _generate_payload(session_id: str | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "file_base64": base64.b64encode(b"book-content").decode(),
+        "file_name": "book.txt",
+        "llm_provider": "ollama",
+        "llm_model": "qwen2.5:7b",
+        "tts_provider": "piper",
+        "locale": "en-US",
+    }
+    if session_id is not None:
+        payload["session_id"] = session_id
+    return payload
 
 
 def test_generate_audiobook_success(client: TestClient, tmp_path: Path) -> None:
-    def write_output(input_path: Path, output_path: Path) -> None:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_bytes(b"fake-mp3-data")
-
     fake_pipeline = MagicMock()
-    fake_pipeline.run = AsyncMock(side_effect=write_output)
+    fake_pipeline.run = AsyncMock(side_effect=_stub_pipeline_run)
 
     with (
         patch("audiobard.api.AudioBookPipeline", return_value=fake_pipeline),
         patch("audiobard.api.AudioBardConfig"),
         patch("pathlib.Path.home", return_value=tmp_path),
     ):
-        payload: dict[str, Any] = {
-            "file_base64": base64.b64encode(b"book-content").decode(),
-            "file_name": "book.txt",
-            "llm_provider": "ollama",
-            "llm_model": "qwen2.5:7b",
-            "tts_provider": "piper",
-            "locale": "en-US",
-        }
-        response = client.post("/generate", json=payload)
+        response = client.post("/generate", json=_generate_payload("session-A"))
 
     assert response.status_code == 200, response.text
     body = response.json()
+    assert body["session_id"] == "session-A"
     assert "output_path" in body
     assert Path(body["output_path"]).name == "book.mp3"
+    # Pipeline should have been invoked with a progress callback that
+    # updates the store for the same session.
+    fake_pipeline.run.assert_awaited_once()
+    call_kwargs = fake_pipeline.run.await_args.kwargs
+    assert "progress_callback" in call_kwargs
+    cb = call_kwargs["progress_callback"]
+    cb(PipelineProgress(stage="synthesis", percent=33, message="x"))
+    assert progress_store.get("session-A") == PipelineProgress(
+        stage="synthesis", percent=33, message="x"
+    )
+
+
+def test_generate_audiobook_auto_generates_session(client: TestClient, tmp_path: Path) -> None:
+    fake_pipeline = MagicMock()
+    fake_pipeline.run = AsyncMock(side_effect=_stub_pipeline_run)
+
+    with (
+        patch("audiobard.api.AudioBookPipeline", return_value=fake_pipeline),
+        patch("audiobard.api.AudioBardConfig"),
+        patch("pathlib.Path.home", return_value=tmp_path),
+    ):
+        response = client.post("/generate", json=_generate_payload())
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert "session_id" in body and len(body["session_id"]) >= 16
 
 
 def test_generate_audiobook_handles_data_url(client: TestClient, tmp_path: Path) -> None:
-    def write_output(input_path: Path, output_path: Path) -> None:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_bytes(b"data")
-
     fake_pipeline = MagicMock()
-    fake_pipeline.run = AsyncMock(side_effect=write_output)
+    fake_pipeline.run = AsyncMock(side_effect=_stub_pipeline_run)
 
     with (
         patch("audiobard.api.AudioBookPipeline", return_value=fake_pipeline),
@@ -73,56 +155,43 @@ def test_generate_audiobook_handles_data_url(client: TestClient, tmp_path: Path)
         patch("pathlib.Path.home", return_value=tmp_path),
     ):
         raw = base64.b64encode(b"book-content").decode()
-        payload: dict[str, Any] = {
-            "file_base64": f"data:text/plain;base64,{raw}",
-            "file_name": "book.txt",
-            "llm_provider": "ollama",
-            "llm_model": "qwen2.5:7b",
-            "tts_provider": "piper",
-            "locale": "en-US",
-        }
+        payload = _generate_payload()
+        payload["file_base64"] = f"data:text/plain;base64,{raw}"
         response = client.post("/generate", json=payload)
 
     assert response.status_code == 200, response.text
 
 
-def test_generate_audiobook_missing_output(client: TestClient, tmp_path: Path) -> None:
+def test_generate_audiobook_missing_output(client: TestClient) -> None:
+    def no_output(*_args: Any, **_kwargs: Any) -> None:
+        return None
+
     fake_pipeline = MagicMock()
-    fake_pipeline.run = AsyncMock(return_value=None)
+    fake_pipeline.run = AsyncMock(side_effect=no_output)
 
     with (
         patch("audiobard.api.AudioBookPipeline", return_value=fake_pipeline),
         patch("audiobard.api.AudioBardConfig"),
     ):
-        payload: dict[str, Any] = {
-            "file_base64": base64.b64encode(b"book-content").decode(),
-            "file_name": "book.txt",
-            "llm_provider": "ollama",
-            "llm_model": "qwen2.5:7b",
-            "tts_provider": "piper",
-            "locale": "en-US",
-        }
-        response = client.post("/generate", json=payload)
+        response = client.post("/generate", json=_generate_payload("session-noop"))
 
     assert response.status_code == 500
     assert "output file not found" in response.json()["detail"]
 
 
 def test_generate_audiobook_exception(client: TestClient) -> None:
-    with patch("audiobard.api.AudioBookPipeline", side_effect=RuntimeError("boom")):
-        payload: dict[str, Any] = {
-            "file_base64": base64.b64encode(b"book-content").decode(),
-            "file_name": "book.txt",
-            "llm_provider": "ollama",
-            "llm_model": "qwen2.5:7b",
-            "tts_provider": "piper",
-            "locale": "en-US",
-        }
-        response = client.post("/generate", json=payload)
+    def boom(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("boom")
+
+    with patch("audiobard.api.AudioBookPipeline", side_effect=boom):
+        response = client.post("/generate", json=_generate_payload("session-err"))
 
     assert response.status_code == 500
     assert "Generation failed" in response.json()["detail"]
     assert "boom" in response.json()["detail"]
+    assert progress_store.get("session-err") == PipelineProgress(
+        stage="error", percent=0, message="boom"
+    )
 
 
 def test_generate_audiobook_missing_field(client: TestClient) -> None:
