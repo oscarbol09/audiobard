@@ -138,9 +138,15 @@ onMounted(() => {
         <div class="flex flex-wrap gap-2 md:ml-auto">
           <button
             @click="onDownload(book)"
-            class="px-3 py-1.5 text-sm font-medium text-gray-100 bg-gray-800 border border-gray-700 rounded-lg hover:border-brand-500 hover:text-brand-400 transition-colors"
+            class="px-3 py-1.5 text-sm font-medium text-gray-100 bg-gray-800 border border-gray-700 rounded-lg hover:border-green-500 hover:text-green-400 transition-colors"
           >
             Play
+          </button>
+          <button
+            @click="onDownload(book)"
+            class="px-3 py-1.5 text-sm font-medium text-gray-100 bg-gray-800 border border-gray-700 rounded-lg hover:border-green-500 hover:text-green-400 transition-colors"
+          >
+            Download
           </button>
           <button
             @click="onRegenerate(book)"
