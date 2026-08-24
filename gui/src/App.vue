@@ -1,0 +1,171 @@
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
+import { useGenerationStore } from './stores/generation'
+import UploadSection from './components/UploadSection.vue'
+
+const healthOk = ref(false)
+const healthError = ref<string | null>(null)
+const checking = ref(true)
+
+const generationStore = useGenerationStore()
+
+async function checkHealth() {
+  checking.value = true
+  healthError.value = null
+  try {
+    const ok = await invoke<boolean>('check_server_health')
+    healthOk.value = ok
+    if (!ok) {
+      healthError.value = 'FastAPI server health check failed'
+    }
+  } catch (e) {
+    healthError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    checking.value = false
+  }
+}
+
+onMounted(() => {
+  setInterval(async () => {
+    if (!healthOk.value) {
+      await checkHealth()
+    }
+  }, 2000)
+
+  checkHealth()
+})
+
+function handleFileError(message: string) {
+  console.error('File error:', message)
+}
+</script>
+
+<template>
+  <div class="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
+    <!-- Health Check Blocking Screen -->
+    <div v-if="!healthOk" class="flex-1 flex flex-col items-center justify-center p-6">
+      <div class="text-center space-y-6 max-w-md">
+        <div class="inline-flex items-center justify-center">
+          <svg class="animate-spin h-16 w-16 text-brand-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+        <div class="space-y-2">
+          <h1 class="text-3xl font-extrabold tracking-tight text-brand-500">AudioBard</h1>
+          <p class="text-gray-400" v-if="checking">Starting FastAPI server...</p>
+          <p class="text-gray-400" v-else-if="healthError">Health check failed: {{ healthError }}</p>
+          <p class="text-gray-400" v-else>Waiting for server...</p>
+        </div>
+        <div v-if="healthError" class="text-sm text-red-400">
+          Retrying in 2 seconds...
+        </div>
+      </div>
+    </div>
+
+    <!-- Main App Content -->
+    <div v-else class="flex-1 flex flex-col">
+      <header class="border-b border-gray-800 px-6 py-4">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+          <h1 class="text-2xl font-extrabold tracking-tight text-brand-500">AudioBard</h1>
+          <div class="flex items-center gap-4">
+            <span class="px-3 py-1 text-xs font-medium text-green-400 bg-green-900/30 rounded-full">
+              Server Ready
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <main class="flex-1 p-6">
+        <div class="max-w-4xl mx-auto space-y-8">
+          <!-- Upload Section -->
+          <section>
+            <h2 class="text-xl font-semibold text-gray-100 mb-4">Select Book</h2>
+            <UploadSection
+              v-model="generationStore.bookFile"
+              :accepted-types="['txt', 'epub']"
+              :maxSizeMB="50"
+              @error="handleFileError"
+            />
+          </section>
+
+          <!-- Book Details & Generation Options -->
+          <section v-if="generationStore.bookFile" class="space-y-6 border-t border-gray-800 pt-8">
+            <h2 class="text-xl font-semibold text-gray-100">Generation Options</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Locale -->
+              <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Language / Locale</label>
+                <select
+                  v-model="generationStore.locale"
+                  class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                >
+                  <option value="en_US">English (US)</option>
+                  <option value="es_ES">Spanish (Spain)</option>
+                  <option value="fr_FR">French (France)</option>
+                  <option value="de_DE">German (Germany)</option>
+                  <option value="it_IT">Italian (Italy)</option>
+                </select>
+              </div>
+
+              <!-- TTS Provider -->
+              <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">TTS Provider</label>
+                <select
+                  v-model="generationStore.ttsProvider"
+                  class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                >
+                  <option value="piper">Piper (Local, Free)</option>
+                  <option value="edge">Edge TTS (Cloud, Free)</option>
+                </select>
+              </div>
+
+              <!-- LLM Provider -->
+              <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">LLM Provider</label>
+                <select
+                  v-model="generationStore.llmProvider"
+                  class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                >
+                  <option value="ollama">Ollama (Local)</option>
+                  <option value="gemini">Gemini (Cloud)</option>
+                  <option value="openrouter">OpenRouter (Cloud)</option>
+                </select>
+              </div>
+
+              <!-- LLM Model -->
+              <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">LLM Model</label>
+                <input
+                  type="text"
+                  v-model="generationStore.llmModel"
+                  class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  placeholder="e.g., qwen2.5:7b"
+                />
+              </div>
+            </div>
+
+            <!-- Generate Button -->
+            <div class="pt-4 border-t border-gray-800">
+              <button
+                class="w-full px-6 py-3 text-lg font-semibold text-gray-900 bg-brand-500 hover:bg-brand-400 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="generationStore.isGenerating"
+              >
+                <span v-if="!generationStore.isGenerating">Generate Audiobook</span>
+                <span v-else class="flex items-center justify-center gap-2">
+                  <svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generating...
+                </span>
+              </button>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+</template>

@@ -1,4 +1,4 @@
-# ---------------------------------------------------------------------------
+﻿# ---------------------------------------------------------------------------
 # Python
 # ---------------------------------------------------------------------------
 __pycache__/
@@ -15,17 +15,17 @@ venv/
 env/
 
 # ---------------------------------------------------------------------------
-# Secrets — never commit. The sanctioned way to hold keys is .env, and the
+# Secrets � never commit. The sanctioned way to hold keys is .env, and the
 # guards job fails any PR that tracks a literal key in a source file.
 # ---------------------------------------------------------------------------
 .env
 .env.*
 
 # ---------------------------------------------------------------------------
-# Data — user books, persona/voice overrides. The guards job pins these rules
+# Data � user books, persona/voice overrides. The guards job pins these rules
 # (tools/guards.py REQUIRED_IGNORE_RULES): weakening them fails CI.
 # data/books/ may only ever contain the allowlisted files (see tools/guards.py
-# ALLOWED_DATA_BOOK_FILES) — public-domain samples only, never copyrighted
+# ALLOWED_DATA_BOOK_FILES) � public-domain samples only, never copyrighted
 # books, never user uploads.
 # ---------------------------------------------------------------------------
 data/books/*
@@ -34,7 +34,7 @@ data/personas.local.json
 data/voice_mapping.local.json
 
 # ---------------------------------------------------------------------------
-# Audio output — generated audiobooks belong in local output dirs or CI
+# Audio output � generated audiobooks belong in local output dirs or CI
 # artifacts, never in the repository (guards job pins this).
 # ---------------------------------------------------------------------------
 *.mp3
@@ -44,11 +44,16 @@ data/voice_mapping.local.json
 *.ogg
 
 # ---------------------------------------------------------------------------
-# Model files (Piper voices, TTS checkpoints) — large binaries, not source.
+# Model files (Piper voices, TTS checkpoints) � large binaries, not source.
 # ---------------------------------------------------------------------------
 *.onnx
 *.onnx.json
 models/
+
+# ---------------------------------------------------------------------------
+# Tauri / Rust build artifacts
+# ---------------------------------------------------------------------------
+src-tauri/target/
 
 # ---------------------------------------------------------------------------
 # IDE / OS
@@ -76,6 +81,6 @@ htmlcov/
 coverage.xml
 
 # ---------------------------------------------------------------------------
-# Local planning & design documents — fork-only, never enter upstream PRs.
+# Local planning & design documents � fork-only, never enter upstream PRs.
 # ---------------------------------------------------------------------------
 TAURI_GUI_DEVELOPMENT_PLAN.md
