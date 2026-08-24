@@ -4,7 +4,7 @@ use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
 use serde::Serialize;
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, Runtime, State};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
@@ -37,7 +37,8 @@ impl PythonSidecar {
 /// Structured progress update returned by `get_generation_progress`.
 ///
 /// Serialised as JSON and consumed by the Vue store, so the field names
-/// must stay in sync with `GenerationProgress` in `gui/src/types.ts`.
+/// must stay in sync with `GenerationProgress` in
+/// `gui/src/stores/generation.ts`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerationProgress {
@@ -138,7 +139,6 @@ pub async fn check_server_health() -> Result<bool, String> {
 /// after the request resolves.
 #[tauri::command]
 pub async fn generate_audiobook(
-    app: AppHandle,
     file_base64: String,
     file_name: String,
     locale: String,
@@ -189,10 +189,7 @@ pub async fn generate_audiobook(
 /// Returns a structured `GenerationProgress` so the UI can render stage
 /// labels and human-readable messages without an extra JSON parse step.
 #[tauri::command]
-pub async fn get_generation_progress(
-    app: AppHandle,
-    session_id: String,
-) -> Result<GenerationProgress, String> {
+pub async fn get_generation_progress(session_id: String) -> Result<GenerationProgress, String> {
     let client = reqwest::Client::builder()
         .timeout(PROBE_TIMEOUT)
         .build()
