@@ -30,12 +30,64 @@ from audiobard.models import (
 from audiobard.parser import EpubParser, TextParser
 from audiobard.parser.base import BookParser
 from audiobard.persistence import PersistenceManager
+from audiobard.progress import PipelineProgress, ProgressCallback
 from audiobard.tts import VoiceMapper
 from audiobard.tts.base import EMOTION_PROSODY, TTSProvider
 from audiobard.tts.edge_provider import EdgeProvider
 from audiobard.tts.piper_provider import PiperProvider
 
 logger = logging.getLogger(__name__)
+
+# Progress stage weights. These are part of the pipeline's public contract
+# for callers that subscribe to progress callbacks; the values are tuned so
+# the long-running synthesis stage dominates the percent bar while the
+# short setup stages still register movement.
+_PROGRESS_PARSING_END = 5
+_PROGRESS_CHARACTERS_END = 15
+_PROGRESS_VOICE_END = 20
+_PROGRESS_SYNTHESIS_END = 90
+_PROGRESS_ASSEMBLY_END = 100
+
+
+def _emit(callback: ProgressCallback | None, progress: PipelineProgress) -> None:
+    """Invoke a progress callback, swallowing consumer errors.
+
+    The pipeline's correctness must never depend on a consumer being able
+    to render progress; if a callback raises (broken Tauri event bus, full
+    log buffer, etc.) we log and continue rather than aborting generation.
+    """
+    if callback is None:
+        return
+    try:
+        callback(progress)
+    except Exception:  # noqa: BLE001 - consumer error must not abort pipeline
+        logger.exception("Progress callback raised; continuing pipeline")
+
+
+def _emit_chunk_progress(
+    callback: ProgressCallback | None,
+    idx: int,
+    total: int,
+    message: str,
+) -> None:
+    """Emit a synthesis-stage update after chunk *idx* (0-based) completes.
+
+    Maps chunk index to the synthesis portion of the percent bar
+    (20..90) and handles the degenerate *total == 0* case so callers
+    that pass an empty chunk list do not divide by zero.
+    """
+    if callback is None:
+        return
+    if total <= 0:
+        percent = _PROGRESS_SYNTHESIS_END
+    else:
+        ratio = min(max((idx + 1) / total, 0.0), 1.0)
+        span = _PROGRESS_SYNTHESIS_END - _PROGRESS_VOICE_END
+        percent = _PROGRESS_VOICE_END + int(round(ratio * span))
+    _emit(
+        callback,
+        PipelineProgress(stage="synthesis", percent=percent, message=message),
+    )
 
 
 def create_llm_client(
@@ -126,8 +178,22 @@ class AudioBookPipeline:
         output_path: Path,
         resume: bool = True,
         dry_run: bool = False,
+        progress_callback: ProgressCallback | None = None,
     ) -> None:
-        """Run the complete pipeline from book file to finished audio file."""
+        """Run the complete pipeline from book file to finished audio file.
+
+        Args:
+            book_path: Path to the source book (.txt or .epub).
+            output_path: Destination path for the generated audiobook.
+            resume: If True, reuse any checkpoints already on disk for
+                *book_path*. If False, clear them and start fresh.
+            dry_run: If True, run parsing, attribution and checkpointing
+                without synthesising audio or assembling the output file.
+            progress_callback: Optional consumer for stage transitions and
+                percent updates. The pipeline never blocks on it; a
+                raising callback is logged and ignored so a broken
+                subscriber cannot abort generation.
+        """
         if not book_path.exists():  # noqa: ASYNC240
             raise FileNotFoundError(f"Book file not found: {book_path}")
 
@@ -136,10 +202,22 @@ class AudioBookPipeline:
             EpubParser() if book_path.suffix.lower() == ".epub" else TextParser()
         )
 
+        _emit(
+            progress_callback,
+            PipelineProgress(stage="parsing", percent=0, message=f"Parsing {book_path.name}"),
+        )
         logger.info("Parsing book: %s", book_path)
         paragraphs = parser.parse(book_path)
         stats = parser.stats()
         title = getattr(parser, "title", None) or book_path.stem
+        _emit(
+            progress_callback,
+            PipelineProgress(
+                stage="parsing",
+                percent=_PROGRESS_PARSING_END,
+                message=f"Parsed {len(paragraphs)} paragraphs",
+            ),
+        )
 
         book_id = self.persistence.get_or_create_book(book_path, title, stats)
 
@@ -147,6 +225,14 @@ class AudioBookPipeline:
             self.persistence.clear_checkpoints(book_id)
 
         # 1. Characters Extraction
+        _emit(
+            progress_callback,
+            PipelineProgress(
+                stage="characters",
+                percent=_PROGRESS_PARSING_END,
+                message="Extracting characters",
+            ),
+        )
         logger.info("Running character extraction...")
         checkpoint = self.persistence.get_checkpoint(book_id, "characters")
         if resume and checkpoint and checkpoint["status"] == "completed":
@@ -171,8 +257,24 @@ class AudioBookPipeline:
             self.persistence.save_characters(book_id, characters)
             self.persistence.save_checkpoint(book_id, "characters", "completed", {})
             logger.info("Extracted %d characters", len(characters))
+        _emit(
+            progress_callback,
+            PipelineProgress(
+                stage="characters",
+                percent=_PROGRESS_CHARACTERS_END,
+                message=f"Found {len(characters)} characters",
+            ),
+        )
 
         # 2. Voice Assignment
+        _emit(
+            progress_callback,
+            PipelineProgress(
+                stage="voice_assignment",
+                percent=_PROGRESS_CHARACTERS_END,
+                message="Mapping voices",
+            ),
+        )
         logger.info("Mapping voices...")
         # One provider call serves both the empty-pool check and the
         # lookup map; with network-backed providers a second call is a
@@ -194,10 +296,26 @@ class AudioBookPipeline:
             self.persistence.save_voice_mapping(book_id, voice_assignments)
             self.persistence.save_checkpoint(book_id, "voice_assignment", "completed", {})
             logger.info("Mapped %d speakers to voices", len(voice_assignments))
+        _emit(
+            progress_callback,
+            PipelineProgress(
+                stage="voice_assignment",
+                percent=_PROGRESS_VOICE_END,
+                message=f"Mapped {len(voice_assignments)} speakers",
+            ),
+        )
 
         # 3. Attribution & Synthesis
         chunks = chunk_paragraphs(paragraphs, chunk_size=self.config.chunk_words)
         logger.info("Split book into %d chunks for synthesis", len(chunks))
+        _emit(
+            progress_callback,
+            PipelineProgress(
+                stage="synthesis",
+                percent=_PROGRESS_VOICE_END,
+                message=f"Synthesising {len(chunks)} chunks",
+            ),
+        )
 
         with Progress(
             SpinnerColumn(),
@@ -215,6 +333,12 @@ class AudioBookPipeline:
 
                 if resume and checkpoint and checkpoint["status"] == "completed":
                     progress.update(task, advance=1)
+                    _emit_chunk_progress(
+                        progress_callback,
+                        idx=idx,
+                        total=len(chunks),
+                        message=f"Chunk {idx + 1}/{len(chunks)} (cached)",
+                    )
                     continue
 
                 # Run dialog attribution on chunk text
@@ -291,12 +415,43 @@ class AudioBookPipeline:
 
                 self.persistence.save_checkpoint(book_id, checkpoint_name, "completed", {})
                 progress.update(task, advance=1)
+                _emit_chunk_progress(
+                    progress_callback,
+                    idx=idx,
+                    total=len(chunks),
+                    message=f"Chunk {idx + 1}/{len(chunks)}",
+                )
+
+        _emit(
+            progress_callback,
+            PipelineProgress(
+                stage="synthesis",
+                percent=_PROGRESS_SYNTHESIS_END,
+                message="Synthesis complete",
+            ),
+        )
 
         # 4. Assembly
         if dry_run:
             logger.info("Dry-run complete. Skipping audio assembly.")
+            _emit(
+                progress_callback,
+                PipelineProgress(
+                    stage="complete",
+                    percent=_PROGRESS_ASSEMBLY_END,
+                    message="Dry-run complete",
+                ),
+            )
             return
 
+        _emit(
+            progress_callback,
+            PipelineProgress(
+                stage="assembly",
+                percent=_PROGRESS_SYNTHESIS_END,
+                message="Assembling final audio file",
+            ),
+        )
         logger.info("Assembling final audio file...")
         clips: list[AudioClip] = []
         chapters: list[ChapterMarker] = []
@@ -365,4 +520,12 @@ class AudioBookPipeline:
         else:
             await self.audio_processor.export_mp3(final_mp3_bytes, output_path)
 
+        _emit(
+            progress_callback,
+            PipelineProgress(
+                stage="complete",
+                percent=_PROGRESS_ASSEMBLY_END,
+                message="Audiobook generated successfully",
+            ),
+        )
         logger.info("Audiobook generated successfully!")

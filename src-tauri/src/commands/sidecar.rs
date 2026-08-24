@@ -2,9 +2,24 @@
 
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager, Runtime, State};
+use std::time::Duration;
+use serde::Serialize;
+use tauri::{AppHandle, Runtime, State};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
+
+/// Timeout for short-lived health and progress probes.
+///
+/// Five seconds is generous for a localhost request; longer means the
+/// UI is hung waiting for a stuck sidecar.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Timeout for the full generation request.
+///
+/// Audiobooks for long public-domain texts can take more than half an
+/// hour to render end-to-end; a one-hour ceiling lets the network call
+/// fail loudly if the pipeline wedges instead of blocking the IPC.
+const GENERATE_TIMEOUT: Duration = Duration::from_secs(3600);
 
 /// Managed state for the Python sidecar process.
 pub struct PythonSidecar {
@@ -17,6 +32,19 @@ impl PythonSidecar {
             child: Mutex::new(None),
         }
     }
+}
+
+/// Structured progress update returned by `get_generation_progress`.
+///
+/// Serialised as JSON and consumed by the Vue store, so the field names
+/// must stay in sync with `GenerationProgress` in
+/// `gui/src/stores/generation.ts`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerationProgress {
+    pub stage: String,
+    pub percent: u8,
+    pub message: String,
 }
 
 /// Start the FastAPI Python sidecar process.
@@ -89,7 +117,10 @@ pub async fn stop_python_sidecar(sidecar: State<'_, PythonSidecar>) -> Result<St
 /// Check if the FastAPI server is healthy.
 #[tauri::command]
 pub async fn check_server_health() -> Result<bool, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(PROBE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = "http://127.0.0.1:8000/health";
 
     match client.get(url).send().await {
@@ -102,28 +133,34 @@ pub async fn check_server_health() -> Result<bool, String> {
 }
 
 /// Generate audiobook via FastAPI.
+///
+/// Returns a JSON string with `{ "session_id": "...", "output_path": "..." }`
+/// so the Vue store can keep polling progress for the same session even
+/// after the request resolves.
 #[tauri::command]
 pub async fn generate_audiobook(
-    app: AppHandle,
     file_base64: String,
     file_name: String,
-    book_title: String,
     locale: String,
     tts_provider: String,
     llm_provider: String,
     llm_model: String,
+    session_id: String,
 ) -> Result<String, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(GENERATE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = "http://127.0.0.1:8000/generate";
 
     let payload = serde_json::json!({
         "file_base64": file_base64,
         "file_name": file_name,
-        "book_title": book_title,
         "locale": locale,
         "tts_provider": tts_provider,
         "llm_provider": llm_provider,
         "llm_model": llm_model,
+        "session_id": session_id,
     });
 
     let response = client
@@ -138,38 +175,53 @@ pub async fn generate_audiobook(
         return Err(format!("Generation failed: {}", err));
     }
 
-    // Return the output path from the response
+    // Return the full response so the caller can recover session_id and
+    // output_path from a single round trip.
     let result: serde_json::Value = response.json().await
         .map_err(|e| format!("Failed to parse response: {}", e))?;
 
-    result.get("output_path")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| "No output_path in response".to_string())
+    serde_json::to_string(&result)
+        .map_err(|e| format!("Failed to serialise response: {}", e))
 }
 
-/// Poll generation progress from FastAPI.
+/// Poll generation progress for *session_id* from FastAPI.
+///
+/// Returns a structured `GenerationProgress` so the UI can render stage
+/// labels and human-readable messages without an extra JSON parse step.
 #[tauri::command]
-pub async fn get_generation_progress(app: AppHandle) -> Result<u8, String> {
-    let client = reqwest::Client::new();
+pub async fn get_generation_progress(session_id: String) -> Result<GenerationProgress, String> {
+    let client = reqwest::Client::builder()
+        .timeout(PROBE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = "http://127.0.0.1:8000/progress";
 
-    match client.get(url).send().await {
+    match client.get(&url).query(&[("session_id", session_id.as_str())]).send().await {
         Ok(response) => {
             if response.status().is_success() {
                 let result: serde_json::Value = response.json().await
                     .map_err(|e| format!("Failed to parse progress response: {}", e))?;
-                Ok(result.get("progress")
-                    .and_then(|v| v.as_u64())
-                    .map(|v| v as u8)
-                    .unwrap_or(0))
+                Ok(GenerationProgress {
+                    stage: result.get("stage")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("idle")
+                        .to_string(),
+                    percent: result.get("percent")
+                        .and_then(|v| v.as_u64())
+                        .map(|v| v.min(100) as u8)
+                        .unwrap_or(0),
+                    message: result.get("message")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                })
             } else {
-                Ok(0)
+                Ok(GenerationProgress { stage: "idle".into(), percent: 0, message: String::new() })
             }
         }
         Err(e) => {
             log::warn!("Progress check failed: {}", e);
-            Ok(0)
+            Ok(GenerationProgress { stage: "idle".into(), percent: 0, message: String::new() })
         }
     }
 }
