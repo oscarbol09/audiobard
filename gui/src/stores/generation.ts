@@ -19,7 +19,6 @@ interface GenerationProgress {
 interface GenerateAudiobookArgs {
   fileBase64: string
   fileName: string
-  bookTitle: string
   locale: string
   ttsProvider: TTSProvider
   llmProvider: LLMProvider
@@ -147,7 +146,6 @@ export const useGenerationStore = defineStore('generation', () => {
     const args: GenerateAudiobookArgs = {
       fileBase64: base64,
       fileName,
-      bookTitle: bookTitle.value,
       locale: locale.value,
       ttsProvider: ttsProvider.value,
       llmProvider: llmProvider.value,

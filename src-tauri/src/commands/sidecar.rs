@@ -124,7 +124,6 @@ pub async fn generate_audiobook(
     app: AppHandle,
     file_base64: String,
     file_name: String,
-    book_title: String,
     locale: String,
     tts_provider: String,
     llm_provider: String,
@@ -137,7 +136,6 @@ pub async fn generate_audiobook(
     let payload = serde_json::json!({
         "file_base64": file_base64,
         "file_name": file_name,
-        "book_title": book_title,
         "locale": locale,
         "tts_provider": tts_provider,
         "llm_provider": llm_provider,
