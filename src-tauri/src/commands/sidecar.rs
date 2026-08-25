@@ -196,7 +196,7 @@ pub async fn get_generation_progress(session_id: String) -> Result<GenerationPro
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = "http://127.0.0.1:8000/progress";
 
-    match client.get(&url).query(&[("session_id", session_id.as_str())]).send().await {
+    match client.get(url).query(&[("session_id", session_id.as_str())]).send().await {
         Ok(response) => {
             if response.status().is_success() {
                 let result: serde_json::Value = response.json().await
@@ -264,7 +264,7 @@ pub async fn cancel_audiobook(session_id: String) -> Result<String, String> {
 }
 
 /// Library book entry returned by the API.
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryBook {
     pub id: i64,
@@ -364,4 +364,28 @@ pub async fn regenerate_book(book_id: i64, _settings: serde_json::Value) -> Resu
         }
     }
 }
+
+/// Clear cached audio clips and LLM responses via FastAPI backend.
+#[tauri::command]
+pub async fn clear_cache() -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(PROBE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+    let url = "http://127.0.0.1:8000/clear_cache";
+
+    match client.post(url).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                Ok("Cache cleared".to_string())
+            } else {
+                let err = response.text().await.unwrap_or_default();
+                Err(format!("Clear cache failed: {}", err))
+            }
+        }
+        Err(e) => {
+            log::warn!("Clear cache request failed: {}", e);
+            Err(format!("Network error: {}", e))
+        }
+    }
 }
