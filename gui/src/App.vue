@@ -1,9 +1,16 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useGenerationStore } from './stores/generation'
 import { useSettingsStore } from './stores/settings'
 import { useI18nStore } from './stores/i18n'
+import {
+  NIM_MODELS,
+  OPENROUTER_MODELS,
+  GEMINI_MODELS,
+  OLLAMA_MODELS,
+  getModelInfo,
+} from './data/models'
 import UploadSection from './components/UploadSection.vue'
 import GenerationProgress from './components/GenerationProgress.vue'
 import LibraryPanel from './components/LibraryPanel.vue'
@@ -19,6 +26,20 @@ const generationStore = useGenerationStore()
 const settingsStore = useSettingsStore()
 const i18n = useI18nStore()
 const { t } = i18n
+
+const availableModels = computed(() => {
+  const provider = settingsStore.settings.llmProvider
+  if (provider === 'nim') return NIM_MODELS
+  if (provider === 'openrouter') return OPENROUTER_MODELS
+  if (provider === 'gemini') return GEMINI_MODELS
+  return OLLAMA_MODELS
+})
+
+const activeModelInfo = computed(() => {
+  const provider = settingsStore.settings.llmProvider
+  const currentModel = settingsStore.getEffectiveModel()
+  return getModelInfo(provider, currentModel)
+})
 
 function updateActiveModel(val: string) {
   const provider = settingsStore.settings.llmProvider
@@ -189,13 +210,23 @@ async function onGenerate(): Promise<void> {
               <!-- LLM Model -->
               <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('modelPresetLabel') }}</label>
-                <input
-                  type="text"
+                <select
                   :value="settingsStore.getEffectiveModel()"
-                  @input="e => updateActiveModel((e.target as HTMLInputElement).value)"
-                  class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                  placeholder="e.g., qwen2.5:7b or meta/llama-3.3-70b-instruct"
-                />
+                  @change="e => updateActiveModel((e.target as HTMLSelectElement).value)"
+                  class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                >
+                  <option v-for="m in availableModels" :key="m.value" :value="m.value">
+                    {{ m.badge.split(' ')[0] }} {{ m.label }}
+                  </option>
+                </select>
+
+                <!-- Model Info & Recommendation -->
+                <div v-if="activeModelInfo" class="mt-2 text-xs flex items-center justify-between text-gray-400 bg-gray-900/80 p-2.5 rounded-lg border border-gray-800 gap-2">
+                  <span class="truncate text-gray-300">{{ activeModelInfo.description }}</span>
+                  <span class="flex-shrink-0 px-2 py-0.5 rounded border text-[11px]" :class="activeModelInfo.badgeClass">
+                    {{ activeModelInfo.badge }}
+                  </span>
+                </div>
               </div>
             </div>
 

@@ -9,6 +9,7 @@ Required env var: ``AUDIOBARD_NIM_API_KEY`` or ``NVIDIA_NIM_API_KEY`` or ``NIM_A
 from __future__ import annotations
 
 import os
+import re
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -66,7 +67,7 @@ class NimClient(LLMClient):
             )
 
     async def _raw_call(self, prompt: str, schema: dict[str, Any]) -> str:
-        """POST to NVIDIA NIM with ``response_format=json_object``."""
+        """POST to NVIDIA NIM with ``response_format=json_object`` and fallback."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Accept": "application/json",
@@ -80,6 +81,14 @@ class NimClient(LLMClient):
         }
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(_NIM_URL, json=payload, headers=headers)
+            if response.status_code in (400, 422):
+                # Some NIM models (like deepseek-r1) do not support response_format
+                payload_no_rf: dict[str, Any] = {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": self.temperature,
+                }
+                response = await client.post(_NIM_URL, json=payload_no_rf, headers=headers)
             response.raise_for_status()
             data = response.json()
 
@@ -88,10 +97,20 @@ class NimClient(LLMClient):
         except (KeyError, IndexError) as exc:
             raise RuntimeError(f"Unexpected NVIDIA NIM response structure: {data}") from exc
 
-        content = content.strip()
+        # 1. Strip reasoning blocks like <think>...</think> (common in DeepSeek R1 / Kimi)
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+
+        # 2. Strip markdown code fences (```json ... ```)
         if content.startswith("```"):
             lines = content.splitlines()
             inner = lines[1:-1] if lines[-1].startswith("```") else lines[1:]
-            content = "\n".join(inner)
+            content = "\n".join(inner).strip()
+
+        # 3. Extract JSON substring if surrounded by extra commentary
+        if not (content.startswith("{") and content.endswith("}")):
+            start = content.find("{")
+            end = content.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                content = content[start : end + 1]
 
         return str(content)

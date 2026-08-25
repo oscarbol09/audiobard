@@ -1,7 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../stores/settings'
 import { useI18nStore } from '../stores/i18n'
+import {
+  NIM_MODELS,
+  OPENROUTER_MODELS,
+  GEMINI_MODELS,
+  OLLAMA_MODELS,
+  getModelInfo,
+} from '../data/models'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -26,29 +34,10 @@ const themes = [
   { value: 'system', labelKey: 'themeSystem' },
 ] as const
 
-const nimModels = [
-  { value: 'meta/llama-3.3-70b-instruct', label: 'Meta Llama 3.3 70B Instruct' },
-  { value: 'nvidia/llama-3.1-nemotron-70b-instruct', label: 'NVIDIA Llama 3.1 Nemotron 70B' },
-  { value: 'deepseek-ai/deepseek-r1', label: 'DeepSeek R1' },
-  { value: 'mistralai/mistral-large-2-instruct', label: 'Mistral Large 2' },
-]
-
-const openrouterModels = [
-  { value: 'deepseek/deepseek-chat-v3-0324:free', label: 'DeepSeek V3 (Free)' },
-  { value: 'meta-llama/llama-3.3-70b-instruct', label: 'Meta Llama 3.3 70B' },
-  { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
-]
-
-const geminiModels = [
-  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Fast)' },
-  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Reasoning)' },
-]
-
-const ollamaModels = [
-  { value: 'qwen2.5:7b', label: 'Qwen 2.5 7B (Recommended)' },
-  { value: 'llama3.1:8b', label: 'Llama 3.1 8B' },
-  { value: 'gemma2:9b', label: 'Gemma 2 9B' },
-]
+const selectedNimModelInfo = computed(() => getModelInfo('nim', settingsStore.settings.nimModel))
+const selectedOpenrouterModelInfo = computed(() => getModelInfo('openrouter', settingsStore.settings.openrouterModel))
+const selectedGeminiModelInfo = computed(() => getModelInfo('gemini', settingsStore.settings.geminiModel))
+const selectedOllamaModelInfo = computed(() => getModelInfo('ollama', settingsStore.settings.ollamaModel))
 
 async function selectOutputFolder() {
   try {
@@ -179,24 +168,51 @@ async function clearCache() {
                   <select
                     v-model="settingsStore.settings.ollamaModel"
                     @change="settingsStore.settings.llmModel = settingsStore.settings.ollamaModel"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-2 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                   >
-                    <option v-for="m in ollamaModels" :key="m.value" :value="m.value">{{ m.label }}</option>
+                    <option v-for="m in OLLAMA_MODELS" :key="m.value" :value="m.value">
+                      {{ m.badge.split(' ')[0] }} {{ m.label }}
+                    </option>
                   </select>
-                  <input
-                    type="text"
-                    v-model="settingsStore.settings.ollamaModel"
-                    @input="settingsStore.settings.llmModel = settingsStore.settings.ollamaModel"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                    :placeholder="t('customModelPlaceholder')"
-                  />
+
+                  <!-- Model Info Card -->
+                  <div v-if="selectedOllamaModelInfo" class="p-3.5 rounded-lg bg-gray-900/80 border border-gray-700/80 space-y-2 mb-3">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="font-medium text-gray-200 text-sm">{{ selectedOllamaModelInfo.label }}</span>
+                      <span class="text-xs px-2 py-0.5 rounded-full border" :class="selectedOllamaModelInfo.badgeClass">
+                        {{ selectedOllamaModelInfo.badge }}
+                      </span>
+                    </div>
+                    <p class="text-xs text-gray-300 leading-relaxed">{{ selectedOllamaModelInfo.description }}</p>
+                    <div class="text-[11px] text-gray-500 font-mono flex items-center gap-2">
+                      <span>{{ selectedOllamaModelInfo.specs }}</span>
+                      <span>•</span>
+                      <code>{{ selectedOllamaModelInfo.value }}</code>
+                    </div>
+                  </div>
+
+                  <details class="text-xs text-gray-400">
+                    <summary class="cursor-pointer hover:text-gray-300 mb-2">Ingresar modelo personalizado de Ollama...</summary>
+                    <input
+                      type="text"
+                      v-model="settingsStore.settings.ollamaModel"
+                      @input="settingsStore.settings.llmModel = settingsStore.settings.ollamaModel"
+                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                      :placeholder="t('customModelPlaceholder')"
+                    />
+                  </details>
                 </div>
               </div>
 
               <!-- NVIDIA NIM Options (BYOK) -->
               <div v-if="settingsStore.settings.llmProvider === 'nim'" class="space-y-4 p-4 rounded-xl bg-green-950/20 border border-green-800/40">
-                <div class="flex items-center gap-2 text-green-400 text-sm font-semibold">
-                  <span>⚡ NVIDIA NIM (build.nvidia.com)</span>
+                <div class="flex items-center justify-between text-sm">
+                  <div class="flex items-center gap-2 text-green-400 font-semibold">
+                    <span>⚡ NVIDIA NIM (build.nvidia.com)</span>
+                  </div>
+                  <span class="text-xs text-green-400/80 bg-green-900/30 px-2 py-0.5 rounded border border-green-700/30">
+                    Free Tier API
+                  </span>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-300 mb-2">NVIDIA NIM {{ t('apiKeyLabel') }}</label>
@@ -206,30 +222,57 @@ async function clearCache() {
                     class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="nvapi-..."
                   />
+                  <p class="text-xs text-gray-500 mt-1">Obtén tu API key gratuita en <a href="https://build.nvidia.com" target="_blank" class="text-green-400 underline">build.nvidia.com</a> (sin tarjeta requerida).</p>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('modelPresetLabel') }}</label>
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Catálogo de Modelos NVIDIA NIM</label>
                   <select
                     v-model="settingsStore.settings.nimModel"
                     @change="settingsStore.settings.llmModel = settingsStore.settings.nimModel"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   >
-                    <option v-for="m in nimModels" :key="m.value" :value="m.value">{{ m.label }}</option>
+                    <option v-for="m in NIM_MODELS" :key="m.value" :value="m.value">
+                      {{ m.badge.split(' ')[0] }} {{ m.label }}
+                    </option>
                   </select>
-                  <input
-                    type="text"
-                    v-model="settingsStore.settings.nimModel"
-                    @input="settingsStore.settings.llmModel = settingsStore.settings.nimModel"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    :placeholder="t('customModelPlaceholder')"
-                  />
+
+                  <!-- Model Info Card / Recommendation -->
+                  <div v-if="selectedNimModelInfo" class="p-3.5 rounded-lg bg-gray-900/90 border border-green-800/50 space-y-2 mb-3">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                      <span class="font-semibold text-green-300 text-sm">{{ selectedNimModelInfo.label }}</span>
+                      <span class="text-xs px-2.5 py-0.5 rounded-full border font-medium" :class="selectedNimModelInfo.badgeClass">
+                        {{ selectedNimModelInfo.badge }}
+                      </span>
+                    </div>
+                    <p class="text-xs text-gray-300 leading-relaxed">{{ selectedNimModelInfo.description }}</p>
+                    <div class="text-[11px] text-gray-400 font-mono flex items-center justify-between pt-1 border-t border-gray-800">
+                      <span>{{ selectedNimModelInfo.specs }}</span>
+                      <code class="text-green-400">{{ selectedNimModelInfo.value }}</code>
+                    </div>
+                  </div>
+
+                  <details class="text-xs text-gray-400">
+                    <summary class="cursor-pointer hover:text-green-300 mb-2">Ingresar ID de modelo personalizado de NVIDIA NIM...</summary>
+                    <input
+                      type="text"
+                      v-model="settingsStore.settings.nimModel"
+                      @input="settingsStore.settings.llmModel = settingsStore.settings.nimModel"
+                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      :placeholder="t('customModelPlaceholder')"
+                    />
+                  </details>
                 </div>
               </div>
 
               <!-- OpenRouter Options (BYOK) -->
               <div v-if="settingsStore.settings.llmProvider === 'openrouter'" class="space-y-4 p-4 rounded-xl bg-purple-950/20 border border-purple-800/40">
-                <div class="flex items-center gap-2 text-purple-400 text-sm font-semibold">
-                  <span>🌐 OpenRouter Cloud</span>
+                <div class="flex items-center justify-between text-sm">
+                  <div class="flex items-center gap-2 text-purple-400 font-semibold">
+                    <span>🌐 OpenRouter Cloud</span>
+                  </div>
+                  <span class="text-xs text-purple-400/80 bg-purple-900/30 px-2 py-0.5 rounded border border-purple-700/30">
+                    Modelos Free & BYOK
+                  </span>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-300 mb-2">OpenRouter {{ t('apiKeyLabel') }}</label>
@@ -241,28 +284,54 @@ async function clearCache() {
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('modelPresetLabel') }}</label>
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Catálogo de Modelos OpenRouter</label>
                   <select
                     v-model="settingsStore.settings.openrouterModel"
                     @change="settingsStore.settings.llmModel = settingsStore.settings.openrouterModel"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
-                    <option v-for="m in openrouterModels" :key="m.value" :value="m.value">{{ m.label }}</option>
+                    <option v-for="m in OPENROUTER_MODELS" :key="m.value" :value="m.value">
+                      {{ m.badge.split(' ')[0] }} {{ m.label }}
+                    </option>
                   </select>
-                  <input
-                    type="text"
-                    v-model="settingsStore.settings.openrouterModel"
-                    @input="settingsStore.settings.llmModel = settingsStore.settings.openrouterModel"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    :placeholder="t('customModelPlaceholder')"
-                  />
+
+                  <!-- Model Info Card -->
+                  <div v-if="selectedOpenrouterModelInfo" class="p-3.5 rounded-lg bg-gray-900/90 border border-purple-800/50 space-y-2 mb-3">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                      <span class="font-semibold text-purple-300 text-sm">{{ selectedOpenrouterModelInfo.label }}</span>
+                      <span class="text-xs px-2.5 py-0.5 rounded-full border font-medium" :class="selectedOpenrouterModelInfo.badgeClass">
+                        {{ selectedOpenrouterModelInfo.badge }}
+                      </span>
+                    </div>
+                    <p class="text-xs text-gray-300 leading-relaxed">{{ selectedOpenrouterModelInfo.description }}</p>
+                    <div class="text-[11px] text-gray-400 font-mono flex items-center justify-between pt-1 border-t border-gray-800">
+                      <span>{{ selectedOpenrouterModelInfo.specs }}</span>
+                      <code class="text-purple-400">{{ selectedOpenrouterModelInfo.value }}</code>
+                    </div>
+                  </div>
+
+                  <details class="text-xs text-gray-400">
+                    <summary class="cursor-pointer hover:text-purple-300 mb-2">Ingresar ID de modelo personalizado de OpenRouter...</summary>
+                    <input
+                      type="text"
+                      v-model="settingsStore.settings.openrouterModel"
+                      @input="settingsStore.settings.llmModel = settingsStore.settings.openrouterModel"
+                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      :placeholder="t('customModelPlaceholder')"
+                    />
+                  </details>
                 </div>
               </div>
 
               <!-- Gemini Options (BYOK) -->
               <div v-if="settingsStore.settings.llmProvider === 'gemini'" class="space-y-4 p-4 rounded-xl bg-blue-950/20 border border-blue-800/40">
-                <div class="flex items-center gap-2 text-blue-400 text-sm font-semibold">
-                  <span>✨ Google Gemini API</span>
+                <div class="flex items-center justify-between text-sm">
+                  <div class="flex items-center gap-2 text-blue-400 font-semibold">
+                    <span>✨ Google Gemini API</span>
+                  </div>
+                  <span class="text-xs text-blue-400/80 bg-blue-900/30 px-2 py-0.5 rounded border border-blue-700/30">
+                    Google AI Studio
+                  </span>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-300 mb-2">Gemini {{ t('apiKeyLabel') }}</label>
@@ -274,14 +343,31 @@ async function clearCache() {
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('modelPresetLabel') }}</label>
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Modelos Google Gemini</label>
                   <select
                     v-model="settingsStore.settings.geminiModel"
                     @change="settingsStore.settings.llmModel = settingsStore.settings.geminiModel"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option v-for="m in geminiModels" :key="m.value" :value="m.value">{{ m.label }}</option>
+                    <option v-for="m in GEMINI_MODELS" :key="m.value" :value="m.value">
+                      {{ m.badge.split(' ')[0] }} {{ m.label }}
+                    </option>
                   </select>
+
+                  <!-- Model Info Card -->
+                  <div v-if="selectedGeminiModelInfo" class="p-3.5 rounded-lg bg-gray-900/90 border border-blue-800/50 space-y-2 mb-3">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                      <span class="font-semibold text-blue-300 text-sm">{{ selectedGeminiModelInfo.label }}</span>
+                      <span class="text-xs px-2.5 py-0.5 rounded-full border font-medium" :class="selectedGeminiModelInfo.badgeClass">
+                        {{ selectedGeminiModelInfo.badge }}
+                      </span>
+                    </div>
+                    <p class="text-xs text-gray-300 leading-relaxed">{{ selectedGeminiModelInfo.description }}</p>
+                    <div class="text-[11px] text-gray-400 font-mono flex items-center justify-between pt-1 border-t border-gray-800">
+                      <span>{{ selectedGeminiModelInfo.specs }}</span>
+                      <code class="text-blue-400">{{ selectedGeminiModelInfo.value }}</code>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
