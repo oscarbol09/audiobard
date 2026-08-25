@@ -37,16 +37,5 @@
       "debugApplicationIdSuffix": ".debug"
     }
   },
-  "plugins": {
-    "shell": {
-      "sidecar": {
-        "python-sidecar": {
-          "args": ["-m", "uvicorn", "audiobard.api:app", "--host", "0.0.0.0", "--port", "8000"],
-          "env": {
-            "PYTHONPATH": "${resourceDir}/../src"
-          }
-        }
-      }
-    }
-  }
+  "plugins": {}
 }
