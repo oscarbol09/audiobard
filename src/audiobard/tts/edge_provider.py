@@ -75,21 +75,49 @@ class EdgeProvider(TTSProvider):
             pitch_str,
         )
 
-        communicate = edge_tts.Communicate(
-            text=text,
-            voice=voice.id,
-            rate=rate_str,
-            pitch=pitch_str,
-        )
+        import asyncio
 
-        data = b""
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                data += chunk["data"]
+        import edge_tts.exceptions
 
-        if not data:
-            raise RuntimeError(
-                f"Edge TTS returned no audio data for voice: {voice.id}"
-            )
+        for attempt in range(3):
+            try:
+                communicate = edge_tts.Communicate(
+                    text=text,
+                    voice=voice.id,
+                    rate=rate_str,
+                    pitch=pitch_str,
+                )
 
-        return data
+                data = b""
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        data += chunk["data"]
+
+                if not data:
+                    raise RuntimeError(
+                        f"Edge TTS returned no audio data for voice: {voice.id}"
+                    )
+                return data
+
+            except edge_tts.exceptions.NoAudioReceived as exc:
+                logger.warning(
+                    "Edge TTS returned no audio on attempt %d: %s",
+                    attempt + 1, exc
+                )
+                if attempt == 2:
+                    raise RuntimeError(
+                        f"Edge TTS failed completely for voice '{voice.id}'. "
+                        "Text might contain invalid characters or Microsoft "
+                        "is blocking the request."
+                    ) from exc
+                await asyncio.sleep(2 ** attempt)
+            except Exception as exc:
+                logger.warning(
+                    "Edge TTS connection error on attempt %d: %s",
+                    attempt + 1, exc
+                )
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(2 ** attempt)
+
+        raise RuntimeError("Edge TTS failed after retries.")

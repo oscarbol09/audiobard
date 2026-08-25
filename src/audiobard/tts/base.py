@@ -75,6 +75,11 @@ class TTSProvider(ABC):
         Checks memory cache first, then disk cache, and falls back to
         calling the actual provider implementation.
         """
+        # 0. Fast-path for empty text
+        if not text.strip():
+            logger.debug("Skipping TTS synthesis for empty text.")
+            return b""
+
         text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
         mem_key = (text_hash, voice.id, f"{emotion.value}:{rate:.3f}:{pitch:.3f}")
 
