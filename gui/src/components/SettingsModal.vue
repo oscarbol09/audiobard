@@ -113,22 +113,24 @@ async function clearCache() {
 
             <div class="grid grid-cols-2 gap-4">
               <button
-                @click="settingsStore.updateSetting('language', 'es')"
+                type="button"
+                @click="i18n.setLanguage('es')"
                 :class="[
-                  'p-3 rounded-lg border-2 transition-colors flex items-center justify-center gap-2 font-medium',
+                  'p-3 rounded-lg border-2 transition-colors flex items-center justify-center gap-2 font-medium cursor-pointer',
                   settingsStore.settings.language === 'es'
-                    ? 'border-brand-500 bg-brand-500/10 text-brand-400'
+                    ? 'border-brand-500 bg-brand-500/10 text-brand-400 font-bold'
                     : 'border-gray-700 hover:border-gray-600 text-gray-300'
                 ]"
               >
                 🇪🇸 {{ t('spanish') }}
               </button>
               <button
-                @click="settingsStore.updateSetting('language', 'en')"
+                type="button"
+                @click="i18n.setLanguage('en')"
                 :class="[
-                  'p-3 rounded-lg border-2 transition-colors flex items-center justify-center gap-2 font-medium',
+                  'p-3 rounded-lg border-2 transition-colors flex items-center justify-center gap-2 font-medium cursor-pointer',
                   settingsStore.settings.language === 'en'
-                    ? 'border-brand-500 bg-brand-500/10 text-brand-400'
+                    ? 'border-brand-500 bg-brand-500/10 text-brand-400 font-bold'
                     : 'border-gray-700 hover:border-gray-600 text-gray-300'
                 ]"
               >

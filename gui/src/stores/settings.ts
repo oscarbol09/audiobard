@@ -96,7 +96,10 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function updateSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
-    settings.value[key] = value
+    settings.value = {
+      ...settings.value,
+      [key]: value,
+    }
     saveSettings()
   }
 
