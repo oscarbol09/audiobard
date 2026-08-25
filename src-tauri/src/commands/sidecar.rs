@@ -59,6 +59,7 @@ pub async fn start_python_sidecar<R: Runtime>(
         Ok(cmd) => cmd,
         Err(_) => shell
             .command("python")
+            .env("PYTHONPATH", "src")
             .args(["-m", "uvicorn", "audiobard.api:app", "--host", "127.0.0.1", "--port", "8000"]),
     };
 
@@ -69,6 +70,7 @@ pub async fn start_python_sidecar<R: Runtime>(
             log::warn!("Failed sidecar spawn ({}), trying python command fallback...", e);
             shell
                 .command("python")
+                .env("PYTHONPATH", "src")
                 .args(["-m", "uvicorn", "audiobard.api:app", "--host", "127.0.0.1", "--port", "8000"])
                 .spawn()
                 .map_err(|err| format!("Failed to spawn Python sidecar: {}", err))?
