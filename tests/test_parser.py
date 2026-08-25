@@ -292,3 +292,13 @@ class TestEpubParser:
             paragraphs = parser.parse("fake_book.epub")
             assert len(paragraphs) == 1
             assert paragraphs[0].text == "Simple paragraph from file path."
+
+    def test_html_entity_decoding(self) -> None:
+        from audiobard.parser.epub_parser import _html_to_text
+
+        raw = (
+            "<p>&apos;Hello&apos; &copy; 2026 &#8217;test&#8217; "
+            "&#x2019;hex&#x2019; &reg; &euro; &pound; &cent; &sect; &hellip; &bull;</p>"
+        )
+        res = _html_to_text(raw).strip()
+        assert res == "'Hello' © 2026 \u2019test\u2019 \u2019hex\u2019 ® € £ ¢ § … •"

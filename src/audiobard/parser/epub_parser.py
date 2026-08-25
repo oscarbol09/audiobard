@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -29,28 +30,13 @@ _SKIP_ID_PATTERNS = re.compile(
 _BLOCK_TAGS = re.compile(r"</?(?:p|div|h[1-6]|li|tr)[^>]*>|<br\s*/?>", re.IGNORECASE)
 
 
-def _html_to_text(html: str) -> str:
+def _html_to_text(raw_html: str) -> str:
     """Very lightweight HTML → plaintext: replace block tags with newlines, strip the rest."""
-    text = _BLOCK_TAGS.sub("\n\n", html)
+    text = _BLOCK_TAGS.sub("\n\n", raw_html)
     # Strip remaining tags.
     text = re.sub(r"<[^>]+>", "", text)
-    # Decode common HTML entities.
-    for entity, char in (
-        ("&amp;", "&"),
-        ("&lt;", "<"),
-        ("&gt;", ">"),
-        ("&quot;", '"'),
-        ("&#39;", "'"),
-        ("&nbsp;", " "),
-        ("&mdash;", "—"),
-        ("&ndash;", "–"),
-        ("&ldquo;", "\u201c"),
-        ("&rdquo;", "\u201d"),
-        ("&lsquo;", "\u2018"),
-        ("&rsquo;", "\u2019"),
-    ):
-        text = text.replace(entity, char)
-    return text
+    # Decode all named, numeric, and hex HTML entities.
+    return html.unescape(text)
 
 
 class EpubParser(BookParser):
