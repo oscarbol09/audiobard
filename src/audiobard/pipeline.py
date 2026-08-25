@@ -223,7 +223,7 @@ class AudioBookPipeline:
         stats = parser.stats()
         if not paragraphs:
             raise ValueError(f"Book '{book_path.name}' contains no readable paragraphs.")
-            
+
         title = getattr(parser, "title", None) or book_path.stem
         _emit(
             progress_callback,
@@ -540,11 +540,12 @@ class AudioBookPipeline:
                 await self.audio_processor.export_m4b(final_mp3_bytes, output_path, chapters)
             else:
                 await self.audio_processor.export_mp3(final_mp3_bytes, output_path)
-        except PermissionError:
+        except PermissionError as e:
             raise RuntimeError(
-                f"Cannot overwrite '{output_path.name}'. The file is currently open or playing in another application. "
+                f"Cannot overwrite '{output_path.name}'. "
+                "The file is currently open or playing in another application. "
                 "Please close your media player and try again."
-            )
+            ) from e
 
         _emit(
             progress_callback,
