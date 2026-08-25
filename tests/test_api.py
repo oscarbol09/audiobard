@@ -282,6 +282,55 @@ def test_generate_audiobook_cancelled_writes_stage_before_http_exception(
 
     assert response.status_code == 499
     assert progress_store.get("session-cb").stage == "cancelled"
+def test_get_book_path_success(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """GET /book/{id}/path returns local audio file path when file exists."""
+    fake_book = {
+        "id": 1,
+        "title": "Test Book",
+        "path": "test_book.txt",
+        "total_paragraphs": 10,
+        "total_words": 100,
+        "dialog_ratio": 0.2,
+        "created_at": "2026-01-01T00:00:00Z",
+    }
+    monkeypatch.setattr(
+        "audiobard.api._get_book_by_id", lambda _id: fake_book if _id == 1 else None
+    )
+
+    out_dir = tmp_path / "AudioBard" / "output"
+    out_dir.mkdir(parents=True)
+    audio_file = out_dir / "test_book.mp3"
+    audio_file.write_bytes(b"audio-data")
+
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+
+    r = client.get("/book/1/path")
+    assert r.status_code == 200
+    assert r.json()["path"] == str(audio_file)
+
+
+def test_get_book_path_404_unknown_book(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """GET /book/{id}/path returns 404 when book ID is unknown."""
+    monkeypatch.setattr("audiobard.api._get_book_by_id", lambda _id: None)
+    r = client.get("/book/999/path")
+    assert r.status_code == 404
+
+
+def test_get_book_path_404_missing_audio_file(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """GET /book/{id}/path returns 404 when audio file is missing on disk."""
+    fake_book = {"id": 2, "path": "missing.txt", "title": "Missing"}
+    monkeypatch.setattr(
+        "audiobard.api._get_book_by_id", lambda _id: fake_book if _id == 2 else None
+    )
+    r = client.get("/book/2/path")
+    assert r.status_code == 404
+    assert "Audio file not found" in r.json()["detail"]
 
 
 def test_clear_cache_removes_cache_dir(

@@ -312,25 +312,24 @@ pub async fn download_book(book_id: i64) -> Result<String, String> {
         .timeout(PROBE_TIMEOUT)
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
-    let url = format!("http://127.0.0.1:8000/book/{}/download", book_id);
+    let url = format!("http://127.0.0.1:8000/book/{}/path", book_id);
 
-    match client.get(&url).send().await {
+    match client.get(url).send().await {
         Ok(response) => {
             if response.status().is_success() {
-                // FastAPI returns the file directly; we just need the path
-                // For now, reconstruct the path locally
-                Ok(format!(
-                    "{}/AudioBard/output/book_{}.mp3",
-                    std::env::var("USERPROFILE").unwrap_or_else(|_| ".".to_string()),
-                    book_id
-                ))
+                let body: serde_json::Value = response.json().await
+                    .map_err(|e| format!("Failed to parse path response: {}", e))?;
+                let path = body.get("path")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| "Missing path field in response".to_string())?;
+                Ok(path.to_string())
             } else {
                 let err = response.text().await.unwrap_or_default();
-                Err(format!("Download failed: {}", err))
+                Err(format!("Download path request failed: {}", err))
             }
         }
         Err(e) => {
-            log::warn!("Download request failed: {}", e);
+            log::warn!("Download path request failed: {}", e);
             Err(format!("Network error: {}", e))
         }
     }
@@ -406,3 +405,4 @@ pub async fn select_output_folder(app: AppHandle) -> Result<Option<String>, Stri
 
     Ok(folder.map(|p| p.to_string()))
 }
+>>>>>>> 4eef14c1601396c0eaa151856421571405023da0
