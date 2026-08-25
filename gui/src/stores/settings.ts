@@ -61,10 +61,16 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const settings = ref<AppSettings>(loadSettings())
 
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  const systemDark = ref(mediaQuery.matches)
+  mediaQuery.addEventListener('change', (e) => {
+    systemDark.value = e.matches
+  })
+
   const isDark = computed(() => {
     if (settings.value.theme === 'dark') return true
     if (settings.value.theme === 'light') return false
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
+    return systemDark.value
   })
 
   function saveSettings() {
@@ -90,10 +96,10 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   watch(
-    () => settings.value.theme,
-    (newTheme) => {
+    isDark,
+    (dark) => {
       const root = document.documentElement
-      if (newTheme === 'dark' || (newTheme === 'system' && isDark.value)) {
+      if (dark) {
         root.classList.add('dark')
       } else {
         root.classList.remove('dark')
