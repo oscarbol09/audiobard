@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import { useI18nStore } from '../stores/i18n'
 
 interface LibraryBook {
   id: number
@@ -16,6 +17,9 @@ const books = ref<LibraryBook[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const searchQuery = ref('')
+
+const i18n = useI18nStore()
+const { t } = i18n
 
 async function loadLibrary() {
   loading.value = true
@@ -83,7 +87,7 @@ onMounted(() => {
 <template>
   <section class="space-y-4">
     <header class="flex items-center justify-between gap-4">
-      <h2 class="text-xl font-semibold text-gray-100">My Library</h2>
+      <h2 class="text-xl font-semibold text-gray-100">{{ t('libraryTitle') }}</h2>
       <div class="flex items-center gap-2">
         <input
           type="text"
@@ -116,7 +120,7 @@ onMounted(() => {
       <svg class="mx-auto h-12 w-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
       </svg>
-      <p class="mt-2 text-sm">{{ searchQuery ? 'No books match your search.' : 'No books in library yet. Generate your first audiobook!' }}</p>
+      <p class="mt-2 text-sm">{{ searchQuery ? 'No books match your search.' : t('noBooks') }}</p>
     </div>
 
     <ul v-else class="divide-y divide-gray-800">
@@ -140,19 +144,13 @@ onMounted(() => {
             @click="onDownload(book)"
             class="px-3 py-1.5 text-sm font-medium text-gray-100 bg-gray-800 border border-gray-700 rounded-lg hover:border-green-500 hover:text-green-400 transition-colors"
           >
-            Play
-          </button>
-          <button
-            @click="onDownload(book)"
-            class="px-3 py-1.5 text-sm font-medium text-gray-100 bg-gray-800 border border-gray-700 rounded-lg hover:border-green-500 hover:text-green-400 transition-colors"
-          >
-            Download
+            {{ t('downloadBtn') }}
           </button>
           <button
             @click="onRegenerate(book)"
             class="px-3 py-1.5 text-sm font-medium text-gray-900 bg-brand-500 hover:bg-brand-400 rounded-lg transition-colors"
           >
-            Regenerate
+            {{ t('regenerateBtn') }}
           </button>
         </div>
       </li>

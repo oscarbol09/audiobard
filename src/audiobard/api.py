@@ -20,7 +20,7 @@ from audiobard.progress import PipelineProgress
 
 app = FastAPI(title="AudioBard API", version="0.1.0")
 
-LLMChoice = Literal["ollama", "gemini", "openrouter"]
+LLMChoice = Literal["ollama", "gemini", "openrouter", "nim"]
 TTSChoice = Literal["piper", "edge"]
 
 
@@ -256,6 +256,10 @@ async def regenerate_book(book_id: int, request: dict[str, Any]) -> dict[str, st
     config = AudioBardConfig(
         llm_provider=llm_provider,
         llm_model=llm_model,
+        llm_base_url=str(request.get("llm_base_url") or "http://localhost:11434"),
+        openrouter_api_key=str(request.get("openrouter_api_key") or ""),
+        gemini_api_key=str(request.get("gemini_api_key") or ""),
+        nim_api_key=str(request.get("nim_api_key") or ""),
         tts_provider=tts_provider,
         tts_locale=locale,
     )
@@ -321,6 +325,10 @@ async def generate_audiobook(request: dict[str, Any]) -> dict[str, str]:
             config = AudioBardConfig(
                 llm_provider=llm_provider,
                 llm_model=llm_model,
+                llm_base_url=str(request.get("llm_base_url") or "http://localhost:11434"),
+                openrouter_api_key=str(request.get("openrouter_api_key") or ""),
+                gemini_api_key=str(request.get("gemini_api_key") or ""),
+                nim_api_key=str(request.get("nim_api_key") or ""),
                 tts_provider=tts_provider,
                 tts_locale=locale,
             )

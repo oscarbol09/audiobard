@@ -111,6 +111,7 @@ def create_llm_client(
     elif config.llm_provider == "gemini":
         return GeminiClient(
             model=config.llm_model,
+            api_key=config.gemini_api_key or None,
             temperature=config.llm_temperature,
             max_retries=config.llm_max_retries,
             persistence=persistence,
@@ -118,6 +119,17 @@ def create_llm_client(
     elif config.llm_provider == "openrouter":
         return OpenRouterClient(
             model=config.llm_model,
+            api_key=config.openrouter_api_key or None,
+            temperature=config.llm_temperature,
+            max_retries=config.llm_max_retries,
+            persistence=persistence,
+        )
+    elif config.llm_provider == "nim":
+        from audiobard.llm.nim_client import NimClient
+
+        return NimClient(
+            model=config.llm_model or config.nim_model,
+            api_key=config.nim_api_key or None,
             temperature=config.llm_temperature,
             max_retries=config.llm_max_retries,
             persistence=persistence,

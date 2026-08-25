@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18nStore } from '../stores/i18n'
 
 interface Props {
   modelValue: File | null
@@ -14,6 +15,8 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+const i18n = useI18nStore()
+const { t } = i18n
 
 const isDragging = ref(false)
 const dragError = ref<string | null>(null)
@@ -151,12 +154,12 @@ function triggerFileInput() {
               dragError
                 ? 'Invalid file - see error below'
                 : isDragging
-                ? 'Drop the file here'
-                : 'Drag & drop your book here, or click to select'
+                ? t('dropTitle')
+                : t('dropTitle')
             }}
           </p>
           <p class="text-sm text-gray-500">
-            Accepted: {{ acceptedTypesDisplay }} • Max {{ props.maxSizeMB }} MB
+            {{ t('dropSubtitle') }} • Max {{ props.maxSizeMB }} MB
           </p>
         </div>
 
@@ -166,7 +169,7 @@ function triggerFileInput() {
           class="mt-4 px-4 py-2 text-sm font-medium text-gray-900 bg-brand-500 hover:bg-brand-400 rounded-lg transition-colors"
           @click="triggerFileInput"
         >
-          Click to Select File
+          {{ t('selectFile') }}
         </button>
       </div>
 
@@ -199,6 +202,7 @@ function triggerFileInput() {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2h7"></path>
           </svg>
           <div>
+            <span class="text-xs font-semibold text-brand-400 uppercase tracking-wider block">{{ t('selectedBook') }}</span>
             <p class="font-medium text-gray-100 truncate max-w-xs">{{ props.modelValue.name }}</p>
             <p class="text-sm text-gray-500">{{ formatFileSize(props.modelValue.size) }}</p>
           </div>
