@@ -302,3 +302,47 @@ class TestEpubParser:
         )
         res = _html_to_text(raw).strip()
         assert res == "'Hello' © 2026 \u2019test\u2019 \u2019hex\u2019 ® € £ ¢ § … •"
+
+
+class TestProjectGutenbergBoilerplate:
+    def test_both_start_and_end_markers(self) -> None:
+        text = (
+            "Header boilerplate\n"
+            "*** START OF THIS PROJECT GUTENBERG EBOOK TEST ***\n"
+            "Real story content.\n"
+            "*** END OF THIS PROJECT GUTENBERG EBOOK TEST ***\n"
+            "Footer boilerplate"
+        )
+        parser = TextParser()
+        result = parser.parse(text)
+        assert len(result) == 1
+        assert result[0].text == "Real story content."
+
+    def test_only_start_marker(self) -> None:
+        text = (
+            "Header boilerplate\n"
+            "*** START OF THIS PROJECT GUTENBERG EBOOK TEST ***\n"
+            "Real story content."
+        )
+        parser = TextParser()
+        result = parser.parse(text)
+        assert len(result) == 1
+        assert result[0].text == "Real story content."
+
+    def test_only_end_marker(self) -> None:
+        text = (
+            "Real story content.\n"
+            "*** END OF THIS PROJECT GUTENBERG EBOOK TEST ***\n"
+            "Footer boilerplate"
+        )
+        parser = TextParser()
+        result = parser.parse(text)
+        assert len(result) == 1
+        assert result[0].text == "Real story content."
+
+    def test_neither_marker(self) -> None:
+        text = "Real story content without any markers."
+        parser = TextParser()
+        result = parser.parse(text)
+        assert len(result) == 1
+        assert result[0].text == "Real story content without any markers."
