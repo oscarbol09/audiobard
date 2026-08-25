@@ -57,7 +57,7 @@ jobs:
       - run: pip install ".[dev,api]"
       - name: Run unit tests with coverage
         run: |
-          pytest --cov=audiobard --cov-report=term-missing --cov-fail-under=70 -m "not integration"
+          pytest --cov=audiobard --cov-report=term-missing --cov-fail-under=90 -m "not integration"
       - name: Upload coverage artifact
         uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392 # v4.0.0
         with:

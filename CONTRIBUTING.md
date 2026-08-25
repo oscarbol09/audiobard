@@ -70,7 +70,7 @@ Run the whole local gate the same way CI does:
 ```bash
 ruff check src tests tools
 mypy src/audiobard
-pytest --cov=audiobard --cov-fail-under=70 -m "not integration"
+pytest --cov=audiobard --cov-fail-under=90 -m "not integration"
 python tools/guards.py
 ```
 
