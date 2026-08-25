@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../stores/settings'
 
+const props = defineProps<{ modelValue: boolean }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
+
 const settingsStore = useSettingsStore()
 
-const showModal = ref(false)
-
 function closeModal() {
-  showModal.value = false
+  emit('update:modelValue', false)
 }
 
 function handleOverlayClick(e: MouseEvent) {
@@ -49,7 +49,7 @@ async function clearCache() {
 <template>
   <Transition name="modal-fade">
     <div
-      v-if="showModal"
+      v-if="props.modelValue"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
       @click="handleOverlayClick"
       role="dialog"
@@ -310,45 +310,4 @@ async function clearCache() {
       </div>
     </Transition>
   </div>
-</template>
-
-<script setup lang="ts>
-import { ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
-import { useSettingsStore } from '../stores/settings'
-
-const settingsStore = useSettingsStore()
-const showModal = ref(false)
-
-function closeModal() {
-  showModal.value = false
-}
-
-function handleOverlayClick(e: MouseEvent) {
-  if (e.target === e.currentTarget) {
-    closeModal()
-  }
-}
-
-async function selectOutputFolder() {
-  try {
-    const path = await invoke<string>('select_output_folder')
-    if (path) {
-      settingsStore.updateSetting('outputFolder', path)
-    }
-  } catch (e) {
-    console.error('Failed to select output folder:', e)
-  }
-}
-
-async function clearCache() {
-  if (!confirm('This will delete all cached audio and LLM responses. Continue?')) return
-  try {
-    await invoke('clear_cache')
-    alert('Cache cleared successfully')
-  } catch (e) {
-    console.error('Failed to clear cache:', e)
-    alert('Failed to clear cache')
-  }
-}
-</script>
+</template>

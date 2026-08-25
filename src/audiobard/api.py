@@ -226,6 +226,16 @@ async def regenerate_book(book_id: int, request: dict[str, Any]) -> dict[str, st
     raise HTTPException(status_code=501, detail="Regenerate not implemented yet")
 
 
+@app.post("/clear_cache")
+async def clear_cache() -> dict[str, str]:
+    """Delete all cached TTS audio clips and LLM responses."""
+    config = AudioBardConfig()
+    if config.cache_dir.exists():
+        shutil.rmtree(config.cache_dir)
+        config.cache_dir.mkdir(parents=True, exist_ok=True)
+    return {"status": "ok", "message": "Cache cleared"}
+
+
 @app.post("/generate")
 async def generate_audiobook(request: dict[str, Any]) -> dict[str, str]:
     """Generate audiobook from an uploaded base64-encoded file.
