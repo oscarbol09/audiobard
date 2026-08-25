@@ -196,7 +196,7 @@ pub async fn get_generation_progress(session_id: String) -> Result<GenerationPro
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = "http://127.0.0.1:8000/progress";
 
-    match client.get(&url).query(&[("session_id", session_id.as_str())]).send().await {
+    match client.get(url).query(&[("session_id", session_id.as_str())]).send().await {
         Ok(response) => {
             if response.status().is_success() {
                 let result: serde_json::Value = response.json().await
@@ -264,7 +264,7 @@ pub async fn cancel_audiobook(session_id: String) -> Result<String, String> {
 }
 
 /// Library book entry returned by the API.
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryBook {
     pub id: i64,
@@ -364,4 +364,20 @@ pub async fn regenerate_book(book_id: i64, _settings: serde_json::Value) -> Resu
         }
     }
 }
+
+/// Open a native folder-picker dialog and return the selected path.
+///
+/// Returns `None` when the user cancels without selecting a folder.
+/// The blocking dialog call is offloaded to a dedicated thread so it
+/// does not block the Tokio async runtime.
+#[tauri::command]
+pub async fn select_output_folder(app: AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let folder = tokio::task::spawn_blocking(move || {
+        app.dialog().file().blocking_pick_folder()
+    })
+    .await
+    .map_err(|e| format!("Dialog task panicked: {}", e))?;
+
+    Ok(folder.map(|p| p.to_string()))
 }
