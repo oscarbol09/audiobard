@@ -2,16 +2,22 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 
 type Theme = 'light' | 'dark' | 'system'
-type LLMProvider = 'ollama' | 'gemini' | 'openrouter'
+type LLMProvider = 'ollama' | 'gemini' | 'openrouter' | 'nim'
 type TTSProvider = 'piper' | 'edge'
+type Language = 'es' | 'en'
 
 interface AppSettings {
+  // Language & i18n
+  language: Language
+
   // LLM Settings
   llmProvider: LLMProvider
   llmModel: string
   ollamaUrl: string
   geminiApiKey: string
   openrouterApiKey: string
+  nimApiKey: string
+  nimModel: string
 
   // TTS Settings
   ttsProvider: TTSProvider
@@ -30,11 +36,14 @@ interface AppSettings {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
+  language: 'es',
   llmProvider: 'ollama',
   llmModel: 'qwen2.5:7b',
   ollamaUrl: 'http://localhost:11434',
   geminiApiKey: '',
   openrouterApiKey: '',
+  nimApiKey: '',
+  nimModel: 'meta/llama-3.3-70b-instruct',
   ttsProvider: 'piper',
   ttsLocale: 'en_US',
   piperVoice: '',

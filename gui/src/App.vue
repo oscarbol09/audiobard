@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useGenerationStore } from './stores/generation'
+import { useI18nStore } from './stores/i18n'
 import UploadSection from './components/UploadSection.vue'
 import GenerationProgress from './components/GenerationProgress.vue'
 import LibraryPanel from './components/LibraryPanel.vue'
@@ -14,8 +15,8 @@ const healthError = ref<string | null>(null)
 const checking = ref(true)
 
 const generationStore = useGenerationStore()
-
-
+const i18n = useI18nStore()
+const { t } = i18n
 
 async function checkHealth() {
   checking.value = true
@@ -81,9 +82,14 @@ async function onGenerate(): Promise<void> {
 
     <!-- Main App Content -->
     <div v-else class="flex-1 flex flex-col">
-<header class="border-b border-gray-800 px-6 py-4">
+      <header class="border-b border-gray-800 px-6 py-4">
         <div class="max-w-4xl mx-auto flex items-center justify-between">
-          <h1 class="text-2xl font-extrabold tracking-tight text-brand-500">AudioBard</h1>
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-extrabold tracking-tight text-brand-500">AudioBard</h1>
+            <span class="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700">
+              {{ t('subtitle') }}
+            </span>
+          </div>
           <div class="flex items-center gap-4">
             <span class="px-3 py-1 text-xs font-medium text-green-400 bg-green-900/30 rounded-full">
               Server Ready
@@ -91,14 +97,15 @@ async function onGenerate(): Promise<void> {
             <button
               @click="showSettings = true"
               aria-label="Open settings"
-              class="p-2 rounded-lg text-gray-400 hover:text-gray-100 hover:bg-gray-800 transition-colors"
+              class="p-2 rounded-lg text-gray-400 hover:text-gray-100 hover:bg-gray-800 transition-colors flex items-center gap-2"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
+              <span class="text-sm font-medium hidden sm:inline">{{ t('settings') }}</span>
             </button>
           </div>
         </div>
@@ -108,7 +115,6 @@ async function onGenerate(): Promise<void> {
         <div class="max-w-4xl mx-auto space-y-8">
           <!-- Upload Section -->
           <section>
-            <h2 class="text-xl font-semibold text-gray-100 mb-4">Select Book</h2>
             <UploadSection
               v-model="generationStore.bookFile"
               :accepted-types="['txt', 'epub']"
@@ -119,12 +125,10 @@ async function onGenerate(): Promise<void> {
 
           <!-- Book Details & Generation Options -->
           <section v-if="generationStore.bookFile" class="space-y-6 border-t border-gray-800 pt-8">
-            <h2 class="text-xl font-semibold text-gray-100">Generation Options</h2>
-
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <!-- Locale -->
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">Language / Locale</label>
+                <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('voiceLocaleLabel') }}</label>
                 <select
                   v-model="generationStore.locale"
                   class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
@@ -139,7 +143,7 @@ async function onGenerate(): Promise<void> {
 
               <!-- TTS Provider -->
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">TTS Provider</label>
+                <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('ttsProviderLabel') }}</label>
                 <select
                   v-model="generationStore.ttsProvider"
                   class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
@@ -151,25 +155,26 @@ async function onGenerate(): Promise<void> {
 
               <!-- LLM Provider -->
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">LLM Provider</label>
+                <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('llmProviderLabel') }}</label>
                 <select
                   v-model="generationStore.llmProvider"
                   class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                 >
-                  <option value="ollama">Ollama (Local)</option>
-                  <option value="gemini">Gemini (Cloud)</option>
-                  <option value="openrouter">OpenRouter (Cloud)</option>
+                  <option value="ollama">{{ t('providerOllama') }}</option>
+                  <option value="nim">{{ t('providerNim') }}</option>
+                  <option value="openrouter">{{ t('providerOpenRouter') }}</option>
+                  <option value="gemini">{{ t('providerGemini') }}</option>
                 </select>
               </div>
 
               <!-- LLM Model -->
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">LLM Model</label>
+                <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('modelPresetLabel') }}</label>
                 <input
                   type="text"
                   v-model="generationStore.llmModel"
                   class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                  placeholder="e.g., qwen2.5:7b"
+                  placeholder="e.g., qwen2.5:7b or meta/llama-3.3-70b-instruct"
                 />
               </div>
             </div>
@@ -181,13 +186,13 @@ async function onGenerate(): Promise<void> {
                 :disabled="generationStore.isGenerating"
                 @click="onGenerate"
               >
-                <span v-if="!generationStore.isGenerating">Generate Audiobook</span>
+                <span v-if="!generationStore.isGenerating">{{ t('generateBtn') }}</span>
                 <span v-else class="flex items-center justify-center gap-2">
                   <svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Generating...
+                  {{ t('progressTitle') }}
                 </span>
               </button>
             </div>

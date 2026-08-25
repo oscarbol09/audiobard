@@ -1,0 +1,61 @@
+"""Unit tests for NimClient (NVIDIA NIM LLM provider)."""
+
+from __future__ import annotations
+
+import json
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from pydantic import BaseModel
+
+from audiobard.llm.nim_client import NimClient
+
+
+class DummySchema(BaseModel):
+    name: str
+    age: int
+
+
+@pytest.mark.asyncio
+async def test_nim_client_init_error() -> None:
+    with pytest.raises(ValueError, match="NVIDIA NIM API key not found"):
+        NimClient(api_key="")
+
+
+@pytest.mark.asyncio
+async def test_nim_client_raw_call_success() -> None:
+    client = NimClient(api_key="test-nim-key", model="meta/llama-3.3-70b-instruct")
+
+    mock_response = AsyncMock()
+    mock_response.json = lambda: {
+        "choices": [{"message": {"content": '{"name": "Alice", "age": 30}'}}]
+    }
+    mock_response.raise_for_status = AsyncMock()
+
+    with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
+        result = await client._raw_call("Hello", DummySchema.model_json_schema())
+        assert json.loads(result) == {"name": "Alice", "age": 30}
+        mock_post.assert_called_once()
+        headers = mock_post.call_args.kwargs["headers"]
+        assert headers["Authorization"] == "Bearer test-nim-key"
+
+
+@pytest.mark.asyncio
+async def test_nim_client_markdown_fences_stripping() -> None:
+    client = NimClient(api_key="test-nim-key")
+
+    mock_response = AsyncMock()
+    mock_response.json = lambda: {
+        "choices": [
+            {
+                "message": {
+                    "content": "```json\n{\"name\": \"Bob\", \"age\": 25}\n```"
+                }
+            }
+        ]
+    }
+    mock_response.raise_for_status = AsyncMock()
+
+    with patch("httpx.AsyncClient.post", return_value=mock_response):
+        result = await client._raw_call("Hello", DummySchema.model_json_schema())
+        assert json.loads(result) == {"name": "Bob", "age": 25}

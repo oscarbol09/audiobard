@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from audiobard.llm.base import LLMClient
 from audiobard.llm.gemini_client import GeminiClient
+from audiobard.llm.nim_client import NimClient
 from audiobard.llm.ollama_client import OllamaClient
 from audiobard.llm.openrouter_client import OpenRouterClient
 
-__all__ = ["GeminiClient", "LLMClient", "OllamaClient", "OpenRouterClient"]
+__all__ = ["GeminiClient", "LLMClient", "NimClient", "OllamaClient", "OpenRouterClient"]

@@ -96,12 +96,16 @@ class AudioBardConfig(BaseSettings):
         )
 
     # ------------------------------------------------------------------ LLM
-    llm_provider: Literal["ollama", "gemini", "openrouter"] = "ollama"
+    llm_provider: Literal["ollama", "gemini", "openrouter", "nim"] = "ollama"
     llm_model: str = "qwen2.5:7b"
     llm_base_url: str = "http://localhost:11434"
     llm_temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     llm_max_retries: int = Field(default=3, ge=1, le=10)
     llm_semaphore: int = Field(default=4, ge=1, le=64, description="Max concurrent LLM calls")
+    openrouter_api_key: str = ""
+    gemini_api_key: str = ""
+    nim_api_key: str = ""
+    nim_model: str = "meta/llama-3.3-70b-instruct"
 
     # ------------------------------------------------------------------ TTS
     tts_provider: Literal["piper", "edge"] = "piper"
@@ -128,18 +132,18 @@ class AudioBardConfig(BaseSettings):
         description=(
             "Set True only if you self-host open models (Ollama/Piper) and "
             "have confirmed commercial use is permitted under all applicable "
-            "licences. Cloud providers (Gemini, OpenRouter) disallow commercial "
+            "licences. Cloud providers (Gemini, OpenRouter, NIM disallow commercial "
             "use on free tiers."
         ),
     )
 
     def assert_commercial_safe(self) -> None:
         """Raise RuntimeError if commercial_use=True with a cloud provider."""
-        cloud_providers = {"gemini", "openrouter"}
+        cloud_providers = {"gemini", "openrouter", "nim"}
         if self.commercial_use and self.llm_provider in cloud_providers:
             raise RuntimeError(
                 f"AUDIOBARD_COMMERCIAL_USE=true is set, but the selected LLM "
                 f"provider ({self.llm_provider!r}) does not allow commercial use "
-                "on its free tier.  Switch to llm_provider=ollama or disable "
+                "on its free tier. Switch to llm_provider=ollama or disable "
                 "commercial_use."
             )

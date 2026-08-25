@@ -1,21 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useGenerationStore } from '../stores/generation'
+import { useI18nStore } from '../stores/i18n'
 
 const generationStore = useGenerationStore()
-
-const STAGE_LABELS: Record<string, string> = {
-  idle: 'Idle',
-  queued: 'Starting',
-  parsing: 'Parsing book',
-  characters: 'Extracting characters',
-  voice_assignment: 'Mapping voices',
-  synthesis: 'Synthesising speech',
-  assembly: 'Assembling audio',
-  complete: 'Complete',
-  error: 'Error',
-  cancelled: 'Cancelled',
-}
+const i18n = useI18nStore()
+const { t } = i18n
 
 const visible = computed(
   () =>
@@ -26,9 +16,15 @@ const visible = computed(
     generationStore.error !== null,
 )
 
-const stageLabel = computed(
-  () => STAGE_LABELS[generationStore.stage] ?? generationStore.stage,
-)
+const stageLabel = computed(() => {
+  const stage = generationStore.stage
+  if (stage === 'parsing') return t('stageParsing')
+  if (stage === 'characters' || stage === 'attribution') return t('stageAttribution')
+  if (stage === 'voice_assignment') return t('stageVoice')
+  if (stage === 'synthesis') return t('stageSynthesis')
+  if (stage === 'complete') return t('stageComplete')
+  return stage
+})
 
 const isError = computed(
   () => generationStore.stage === 'error' || generationStore.error !== null,
@@ -59,11 +55,11 @@ async function onCancel(): Promise<void> {
     <header class="flex items-baseline justify-between gap-4">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-400">
         {{ stageLabel }}
-    </h3>
+      </h3>
       <div class="flex items-baseline gap-4">
         <span class="text-sm font-medium text-gray-300 tabular-nums">
           {{ generationStore.progress }}%
-      </span>
+        </span>
         <button
           v-if="generationStore.isGenerating"
           type="button"
@@ -71,10 +67,10 @@ async function onCancel(): Promise<void> {
           :disabled="generationStore.sessionId === null"
           @click="onCancel"
         >
-          Cancel
-      </button>
-    </div>
-  </header>
+          {{ t('cancelBtn') }}
+        </button>
+      </div>
+    </header>
 
     <div
       class="h-2 w-full rounded-full bg-gray-800 overflow-hidden"
@@ -82,39 +78,39 @@ async function onCancel(): Promise<void> {
       :aria-valuenow="generationStore.progress"
       aria-valuemin="0"
       aria-valuemax="100"
-      :aria-label="`Generation progress: {{generationStore.progress}} percent`"
+      :aria-label="`Generation progress: ${generationStore.progress} percent`"
     >
       <div
         class="h-full transition-all duration-300"
         :class="barColor"
-        :style="{ width: `{{generationStore.progress}}%` }"
+        :style="{ width: `${generationStore.progress}%` }"
       />
-  </div>
+    </div>
 
     <p v-if="generationStore.message" class="text-sm text-gray-300">
       {{ generationStore.message }}
-  </p>
+    </p>
 
-<div
+    <div
       v-if="isError"
       class="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400"
     >
       {{ generationStore.error ?? 'Generation failed.' }}
-   </div>
+    </div>
 
-<div
+    <div
       v-if="isCancelled"
       class="rounded-lg border border-gray-500/30 bg-gray-500/10 p-4 text-sm text-gray-400"
     >
-      {{ generationStore.error ?? 'Generation cancelled by user.' }}
-   </div>
+      {{ generationStore.error ?? t('cancelled') }}
+    </div>
 
-<div
+    <div
       v-if="isComplete && generationStore.outputPath"
       class="rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-400"
     >
-      <p>Audiobook saved to</p>
+      <p>{{ t('stageComplete') }}</p>
       <code class="mt-1 block font-mono text-xs break-all">{{ generationStore.outputPath }}</code>
-   </div>
- </section>
+    </div>
+  </section>
 </template>
