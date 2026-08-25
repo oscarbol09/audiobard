@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18nStore } from '../stores/i18n'
+import { useGenerationStore } from '../stores/generation'
 
 interface LibraryBook {
   id: number
@@ -20,6 +21,13 @@ const searchQuery = ref('')
 
 const i18n = useI18nStore()
 const { t } = i18n
+const generationStore = useGenerationStore()
+
+watch(() => generationStore.stage, (newStage) => {
+  if (newStage === 'complete') {
+    loadLibrary()
+  }
+})
 
 async function loadLibrary() {
   loading.value = true
@@ -36,23 +44,17 @@ async function loadLibrary() {
 }
 
 const filteredBooks = computed(() => {
-  if (!searchQuery.value.trim()) return books.value
+  if (!searchQuery.value) return books.value
   const q = searchQuery.value.toLowerCase()
-  return books.value.filter(
-    (b) =>
-      b.title.toLowerCase().includes(q) ||
-      b.path.toLowerCase().includes(q)
-  )
+  return books.value.filter((b) => b.title.toLowerCase().includes(q))
 })
 
 async function onDownload(book: LibraryBook) {
   try {
     const path = await invoke<string>('download_book', { bookId: book.id, book_id: book.id })
-    // Open file with system default player
     await invoke('shell.open', { path })
   } catch (e) {
-    console.error('Download failed:', e)
-    alert(`Failed to download: ${e instanceof Error ? e.message : String(e)}`)
+    console.error('Download/Open failed:', e)
   }
 }
 
@@ -98,65 +100,63 @@ onMounted(() => {
 
 <template>
   <section class="space-y-4">
-    <header class="flex items-center justify-between gap-4">
-      <h2 class="text-xl font-semibold text-gray-100">{{ t('libraryTitle') }}</h2>
-      <div class="flex items-center gap-2">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xl font-bold tracking-tight text-gray-100">{{ t('libraryTitle') }}</h2>
+      <div class="flex items-center gap-3">
         <input
-          type="text"
           v-model="searchQuery"
+          type="text"
           placeholder="Search books..."
-          class="w-64 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+          class="px-3 py-1.5 text-sm bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-shadow w-48"
         />
         <button
           @click="loadLibrary"
-          :disabled="loading"
-          class="px-4 py-2 text-sm font-medium text-gray-900 bg-brand-500 hover:bg-brand-400 rounded-lg transition-colors disabled:opacity-50"
+          class="px-3 py-1.5 text-sm font-medium text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 rounded-lg transition-colors"
         >
-          {{ loading ? 'Loading...' : 'Refresh' }}
+          Refresh
         </button>
       </div>
-    </header>
-
-    <div v-if="error" class="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
-      {{ error }}
     </div>
 
-    <div v-if="loading" class="flex justify-center py-8">
-      <svg class="animate-spin h-8 w-8 text-brand-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
+    <div v-if="loading" class="text-center py-8 text-gray-400">Loading library...</div>
+    <div v-else-if="error" class="text-center py-8 text-red-400">{{ error }}</div>
+    <div v-else-if="filteredBooks.length === 0" class="text-center py-12 border-2 border-dashed border-gray-800 rounded-xl">
+      <p class="text-gray-400">{{ searchQuery ? 'No books match your search.' : t('noBooks') }}</p>
     </div>
-
-    <div v-else-if="filteredBooks.length === 0" class="text-center py-12 text-gray-500">
-      <svg class="mx-auto h-12 w-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-      </svg>
-      <p class="mt-2 text-sm">{{ searchQuery ? 'No books match your search.' : t('noBooks') }}</p>
-    </div>
-
-    <ul v-else class="divide-y divide-gray-800">
+    
+    <ul v-else class="divide-y divide-gray-800 border-t border-gray-800">
       <li
         v-for="book in filteredBooks"
         :key="book.id"
-        class="py-4 flex flex-col md:flex-row md:items-center gap-4"
+        class="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
       >
-        <div class="flex-1 min-w-0">
-          <h3 class="font-medium text-gray-100 truncate">{{ book.title }}</h3>
-          <div class="flex flex-wrap gap-4 text-sm text-gray-500 mt-1">
+        <div class="flex-1 space-y-1">
+          <h3 class="font-medium text-gray-100">{{ book.title }}</h3>
+          <div class="text-sm text-gray-400 flex flex-wrap gap-x-4 gap-y-1">
             <span>{{ book.total_paragraphs }} paragraphs</span>
-            <span>{{ book.total_words.toLocaleString() }} words</span>
+            <span>{{ book.total_words }} words</span>
             <span>Dialog: {{ (book.dialog_ratio * 100).toFixed(0) }}%</span>
+          </div>
+          <div class="text-xs text-gray-500">
             <span v-if="book.created_at">Created: {{ formatDate(book.created_at) }}</span>
           </div>
         </div>
 
-        <div class="flex flex-wrap gap-2 md:ml-auto">
+        <div class="flex flex-wrap items-center gap-2 md:ml-auto">
+          <!-- HTML5 Native Audio Player pointing to FastAPI endpoint -->
+          <audio 
+            controls 
+            :src="`http://127.0.0.1:8000/book/${book.id}/download`" 
+            preload="none" 
+            class="h-8 max-w-[200px] outline-none"
+          ></audio>
+
           <button
             @click="onDownload(book)"
             class="px-3 py-1.5 text-sm font-medium text-gray-100 bg-gray-800 border border-gray-700 rounded-lg hover:border-green-500 hover:text-green-400 transition-colors"
+            title="Abrir carpeta de salida"
           >
-            {{ t('downloadBtn') }}
+            Abrir Audio
           </button>
           <button
             @click="onRegenerate(book)"

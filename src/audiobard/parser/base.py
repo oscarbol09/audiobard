@@ -32,7 +32,7 @@ class BookParser(ABC):
     """
 
     def __init__(self) -> None:
-        self._paragraphs: list[Paragraph] = []
+        self._paragraphs: list[Paragraph] | None = None
 
     @abstractmethod
     def parse(self, source: str | bytes | Path) -> list[Paragraph]:
@@ -53,7 +53,7 @@ class BookParser(ABC):
 
         Raises ``RuntimeError`` if called before :meth:`parse`.
         """
-        if not self._paragraphs:
+        if self._paragraphs is None:
             raise RuntimeError("Call parse() before stats().")
 
         total_words = 0
