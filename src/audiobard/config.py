@@ -63,6 +63,21 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
             return {}
 
 
+def _default_voices_dir() -> Path:
+    import os
+
+    env_dir = os.environ.get("AUDIOBARD_VOICES_DIR")
+    if env_dir and Path(env_dir).is_dir():
+        return Path(env_dir)
+    cwd_dir = Path.cwd() / "data" / "voices"
+    if cwd_dir.is_dir():
+        return cwd_dir
+    pkg_dir = Path(__file__).resolve().parent.parent.parent / "data" / "voices"
+    if pkg_dir.is_dir():
+        return pkg_dir
+    return Path("data/voices")
+
+
 class AudioBardConfig(BaseSettings):
     """Central configuration for the AudioBard pipeline.
 
@@ -115,7 +130,7 @@ class AudioBardConfig(BaseSettings):
     # ------------------------------------------------------------------ Paths
     db_path: Path = Path("~/.local/share/audiobard/audiobard.db").expanduser()
     cache_dir: Path = Path("~/.cache/audiobard").expanduser()
-    voices_dir: Path = Path("data/voices")
+    voices_dir: Path = Field(default_factory=_default_voices_dir)
 
     # ------------------------------------------------------------------ Output
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"

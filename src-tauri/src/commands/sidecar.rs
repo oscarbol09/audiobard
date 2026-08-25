@@ -293,14 +293,17 @@ pub async fn cancel_audiobook(session_id: String) -> Result<String, String> {
 
 /// Library book entry returned by the API.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct LibraryBook {
     pub id: i64,
     pub title: String,
     pub path: String,
+    #[serde(alias = "totalParagraphs")]
     pub total_paragraphs: i64,
+    #[serde(alias = "totalWords")]
     pub total_words: i64,
+    #[serde(alias = "dialogRatio")]
     pub dialog_ratio: f64,
+    #[serde(alias = "createdAt")]
     pub created_at: Option<String>,
 }
 

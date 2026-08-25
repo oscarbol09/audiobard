@@ -1,0 +1,58 @@
+[
+  {
+    "id": "es_ES-davefx-medium",
+    "locale": "es_ES",
+    "gender": "male",
+    "age": "adult",
+    "energy": 0.6,
+    "sample_text": "El sol ya se habia puesto cuando finalmente llego a la mansion."
+  },
+  {
+    "id": "es_ES-sharvard-medium",
+    "locale": "es_ES",
+    "gender": "female",
+    "age": "adult",
+    "energy": 0.55,
+    "sample_text": "Hablaba en voz baja, con absoluta serenidad y misterio."
+  },
+  {
+    "id": "es_ES-carlfm-medium",
+    "locale": "es_ES",
+    "gender": "male",
+    "age": "young",
+    "energy": 0.75,
+    "sample_text": "¡No me podia creer lo que estaba escuchando en absoluto!"
+  },
+  {
+    "id": "es_ES-mls_9972-low",
+    "locale": "es_ES",
+    "gender": "female",
+    "age": "elderly",
+    "energy": 0.35,
+    "sample_text": "En mis tiempos las cosas eran muy diferentes, te lo aseguro."
+  },
+  {
+    "id": "es_ES-mls_10246-low",
+    "locale": "es_ES",
+    "gender": "male",
+    "age": "elderly",
+    "energy": 0.4,
+    "sample_text": "He visto pasar muchos inviernos en esta tierra lejana."
+  },
+  {
+    "id": "es-ES-AlvaroNeural",
+    "locale": "es_ES",
+    "gender": "male",
+    "age": "adult",
+    "energy": 0.65,
+    "sample_text": "Avanzo rapidamente hacia la puerta principal sin dudar."
+  },
+  {
+    "id": "es-ES-ElviraNeural",
+    "locale": "es_ES",
+    "gender": "female",
+    "age": "adult",
+    "energy": 0.5,
+    "sample_text": "Miro a su alrededor intentando comprender la situacion."
+  }
+]
