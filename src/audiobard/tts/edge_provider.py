@@ -59,9 +59,10 @@ class EdgeProvider(TTSProvider):
         final_rate = rate * emotion_prosody["rate"]
         final_pitch = pitch * emotion_prosody["pitch"]
 
-        # edge-tts expects rate as a percentage shift string, e.g., "+10%" or "-15%"
-        rate_pct = (final_rate - 1.0) * 100
-        rate_str = f"{rate_pct:+.1f}%"
+        # edge-tts expects rate as an integer percentage shift string,
+        # e.g., "+10%", "-15%", or "+0%"
+        rate_pct = round((final_rate - 1.0) * 100)
+        rate_str = f"{rate_pct:+d}%"
 
         # edge-tts expects pitch in Hz, e.g. "+5Hz" or "-10Hz"
         pitch_hz = round((final_pitch - 1.0) * 100)

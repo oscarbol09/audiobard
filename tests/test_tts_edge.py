@@ -87,7 +87,7 @@ async def test_edge_synthesize_raw(mock_comm_cls: MagicMock) -> None:
         mock_comm_cls.assert_called_once_with(
             text="Hello",
             voice="en-US-EmmaNeural",
-            rate="+21.0%",
+            rate="+21%",
             pitch="+8Hz",
         )
 
@@ -126,7 +126,7 @@ async def test_edge_synthesize_negative_prosody(mock_comm_cls: MagicMock, tmp_pa
     mock_comm_cls.assert_called_once_with(
         text="Hello",
         voice="en-US-EmmaNeural",
-        rate="-15.0%",
+        rate="-15%",
         pitch="-8Hz",
     )
 
