@@ -47,7 +47,7 @@ const filteredBooks = computed(() => {
 
 async function onDownload(book: LibraryBook) {
   try {
-    const path = await invoke<string>('download_book', { book_id: book.id })
+    const path = await invoke<string>('download_book', { bookId: book.id, book_id: book.id })
     // Open file with system default player
     await invoke('shell.open', { path })
   } catch (e) {
@@ -59,7 +59,7 @@ async function onDownload(book: LibraryBook) {
 async function onRegenerate(book: LibraryBook) {
   if (!confirm(`Regenerate "${book.title}"? This will overwrite the existing audio.`)) return
   try {
-    await invoke('regenerate_book', { book_id: book.id, settings: {} })
+    await invoke('regenerate_book', { bookId: book.id, book_id: book.id, settings: {} })
     alert('Regeneration started! Check the generation progress.')
   } catch (e) {
     console.error('Regenerate failed:', e)
@@ -70,7 +70,8 @@ async function onRegenerate(book: LibraryBook) {
 async function onDelete(book: LibraryBook) {
   if (!confirm(t('deleteConfirm'))) return
   try {
-    await invoke('delete_book', { book_id: book.id })
+    await invoke('delete_book', { bookId: book.id, book_id: book.id })
+    books.value = books.value.filter((b) => b.id !== book.id)
     await loadLibrary()
   } catch (e) {
     console.error('Delete failed:', e)
