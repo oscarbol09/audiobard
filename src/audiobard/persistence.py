@@ -24,6 +24,7 @@ class PersistenceManager:
     def _get_conn(self) -> Iterator[sqlite3.Connection]:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON;")
         try:
             yield conn
             conn.commit()
@@ -144,6 +145,13 @@ class PersistenceManager:
             )
             conn.commit()
             return cursor.lastrowid  # type: ignore
+
+    def delete_book(self, book_id: int) -> bool:
+        """Delete a book and all cascaded records (characters, mappings, checkpoints)."""
+        with self._get_conn() as conn:
+            cur = conn.execute("DELETE FROM books WHERE id = ?", (book_id,))
+            conn.commit()
+            return cur.rowcount > 0
 
     # --------------------------------------------------------------------------
     # Characters CRUD

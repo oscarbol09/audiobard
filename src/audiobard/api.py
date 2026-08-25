@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import shutil
 import tempfile
 import threading
@@ -227,6 +228,25 @@ async def get_book_path(book_id: int) -> dict[str, str]:
     if not output_path.exists():
         raise HTTPException(status_code=404, detail="Audio file not found on disk")
     return {"path": str(output_path)}
+
+
+@app.delete("/book/{book_id}")
+async def delete_book(book_id: int) -> dict[str, str]:
+    """Delete a book from the library and remove any generated audio files."""
+    book = _get_book_by_id(book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    output_dir = Path.home() / "AudioBard" / "output"
+    output_path = output_dir / f"{Path(book['path']).stem}.mp3"
+    if output_path.exists():
+        with contextlib.suppress(OSError):
+            output_path.unlink()
+
+    manager = _get_persistence()
+    manager.delete_book(book_id)
+    return {"status": "deleted"}
+
 
 
 @app.post("/book/{book_id}/regenerate")

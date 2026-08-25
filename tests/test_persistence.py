@@ -81,7 +81,13 @@ def test_persistence_manager_crud_and_rollback() -> None:
         pm.clear_checkpoints(book_id1)
         assert pm.get_checkpoint(book_id1, "characters") is None
 
-        # 5. Rollback on exception
+        # 5. Delete book cascade
+        assert pm.delete_book(book_id1) is True
+        assert pm.delete_book(book_id1) is False
+        assert pm.get_characters(book_id1) == []
+        assert pm.get_voice_mapping(book_id1) == []
+
+        # 6. Rollback on exception
         with pytest.raises(RuntimeError, match="DB Error"), pm._get_conn() as conn:
             conn.execute("INSERT INTO books (path, title) VALUES ('err_path', 'err')")
             raise RuntimeError("DB Error")

@@ -60,6 +60,8 @@ pub async fn start_python_sidecar<R: Runtime>(
         Err(_) => shell
             .command("python")
             .env("PYTHONPATH", "src")
+            .env("PYTHONIOENCODING", "utf-8")
+            .env("PYTHONUTF8", "1")
             .args(["-m", "uvicorn", "audiobard.api:app", "--host", "127.0.0.1", "--port", "8000"]),
     };
 
@@ -71,6 +73,8 @@ pub async fn start_python_sidecar<R: Runtime>(
             shell
                 .command("python")
                 .env("PYTHONPATH", "src")
+                .env("PYTHONIOENCODING", "utf-8")
+                .env("PYTHONUTF8", "1")
                 .args(["-m", "uvicorn", "audiobard.api:app", "--host", "127.0.0.1", "--port", "8000"])
                 .spawn()
                 .map_err(|err| format!("Failed to spawn Python sidecar: {}", err))?
@@ -434,3 +438,29 @@ pub async fn select_output_folder(app: AppHandle) -> Result<Option<String>, Stri
 
     Ok(folder.map(|p| p.to_string()))
 }
+
+/// Delete a book from the library and database.
+#[tauri::command]
+pub async fn delete_book(book_id: i64) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .timeout(PROBE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+    let url = format!("http://127.0.0.1:8000/book/{}", book_id);
+
+    match client.delete(url).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                Ok(())
+            } else {
+                let err = response.text().await.unwrap_or_default();
+                Err(format!("Delete failed: {}", err))
+            }
+        }
+        Err(e) => {
+            log::warn!("Delete request failed: {}", e);
+            Err(format!("Network error: {}", e))
+        }
+    }
+}
+
