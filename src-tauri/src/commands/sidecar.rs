@@ -1,6 +1,5 @@
 //! Sidecar commands for managing the FastAPI Python process.
 
-use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
 use serde::Serialize;
@@ -72,7 +71,7 @@ pub async fn start_python_sidecar<R: Runtime>(
     }
 
     // Spawn a task to monitor the sidecar output
-    let app_handle = app.clone();
+    let _app_handle = app.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(event) = rx.recv().await {
             match event {
@@ -105,7 +104,7 @@ pub async fn start_python_sidecar<R: Runtime>(
 pub async fn stop_python_sidecar(sidecar: State<'_, PythonSidecar>) -> Result<String, String> {
     let mut guard = sidecar.child.lock().map_err(|e| format!("Mutex lock failed: {}", e))?;
 
-    if let Some(mut child) = guard.take() {
+    if let Some(child) = guard.take() {
         child.kill().map_err(|e| format!("Failed to kill Python sidecar: {}", e))?;
         log::info!("Python sidecar stopped");
         Ok("Python sidecar stopped".to_string())
