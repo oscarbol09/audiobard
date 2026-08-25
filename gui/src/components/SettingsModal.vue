@@ -308,6 +308,6 @@ async function clearCache() {
           </button>
         </footer>
       </div>
-    </Transition>
-  </div>
-</template>
+    </div>
+  </Transition>
+</template>
