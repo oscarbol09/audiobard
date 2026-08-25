@@ -403,4 +403,3 @@ pub async fn select_output_folder(app: AppHandle) -> Result<Option<String>, Stri
 
     Ok(folder.map(|p| p.to_string()))
 }
->>>>>>> 4eef14c1601396c0eaa151856421571405023da0
