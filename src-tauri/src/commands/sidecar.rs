@@ -54,15 +54,26 @@ pub async fn start_python_sidecar<R: Runtime>(
 ) -> Result<String, String> {
     let shell = app.shell();
 
-    // Determine the Python script path relative to the app
-    let sidecar_command = shell
-        .sidecar("python-sidecar")
-        .map_err(|e| format!("Failed to create sidecar command: {}", e))?;
+    // Try sidecar binary first; if unavailable (e.g. dev mode), fallback to system python command
+    let sidecar_command = match shell.sidecar("python-sidecar") {
+        Ok(cmd) => cmd,
+        Err(_) => shell
+            .command("python")
+            .args(["-m", "uvicorn", "audiobard.api:app", "--host", "127.0.0.1", "--port", "8000"]),
+    };
 
     // Spawn the sidecar process
-    let (mut rx, child) = sidecar_command
-        .spawn()
-        .map_err(|e| format!("Failed to spawn Python sidecar: {}", e))?;
+    let (mut rx, child) = match sidecar_command.spawn() {
+        Ok(res) => res,
+        Err(e) => {
+            log::warn!("Failed sidecar spawn ({}), trying python command fallback...", e);
+            shell
+                .command("python")
+                .args(["-m", "uvicorn", "audiobard.api:app", "--host", "127.0.0.1", "--port", "8000"])
+                .spawn()
+                .map_err(|err| format!("Failed to spawn Python sidecar: {}", err))?
+        }
+    };
 
     // Store the child process for later shutdown
     {
