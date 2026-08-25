@@ -22,11 +22,11 @@ from audiobard.parser.base import BookParser
 
 # Project Gutenberg delimiters — everything outside is stripped.
 _PG_START = re.compile(
-    r"^\*{3}\s*START OF (THE|THIS) PROJECT GUTENBERG",
+    r"^\*{3}\s*START OF (THE|THIS) PROJECT GUTENBERG.*$",
     re.IGNORECASE | re.MULTILINE,
 )
 _PG_END = re.compile(
-    r"^\*{3}\s*END OF (THE|THIS) PROJECT GUTENBERG",
+    r"^\*{3}\s*END OF (THE|THIS) PROJECT GUTENBERG.*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -75,11 +75,11 @@ def _is_dialog(text: str) -> bool:
 def _strip_pg_boilerplate(text: str) -> str:
     """Return the text between PG start/end markers, or the full text."""
     start_m = _PG_START.search(text)
-    end_m = _PG_END.search(text)
     if start_m:
         text = text[start_m.end():]
+    end_m = _PG_END.search(text)
     if end_m:
-        text = text[: end_m.start() - len(text) if start_m is None else end_m.start()]
+        text = text[: end_m.start()]
     return text
 
 
