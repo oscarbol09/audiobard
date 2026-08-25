@@ -282,6 +282,7 @@ def test_generate_audiobook_cancelled_writes_stage_before_http_exception(
 
     assert response.status_code == 499
     assert progress_store.get("session-cb").stage == "cancelled"
+
 def test_get_book_path_success(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -331,6 +332,53 @@ def test_get_book_path_404_missing_audio_file(
     r = client.get("/book/2/path")
     assert r.status_code == 404
     assert "Audio file not found" in r.json()["detail"]
+
+def test_regenerate_book_success(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """POST /book/{id}/regenerate starts pipeline and returns session_id."""
+    source = tmp_path / "source.txt"
+    source.write_text("Hello world")
+
+    fake_book = {"id": 10, "path": str(source), "title": "Source"}
+    monkeypatch.setattr(
+        "audiobard.api._get_book_by_id", lambda _id: fake_book if _id == 10 else None
+    )
+
+    fake_pipeline = MagicMock()
+    fake_pipeline.run = AsyncMock(return_value=None)
+
+    with (
+        patch("audiobard.api.AudioBookPipeline", return_value=fake_pipeline),
+        patch("pathlib.Path.home", return_value=tmp_path),
+    ):
+        r = client.post("/book/10/regenerate", json={"session_id": "regen-session"})
+
+    assert r.status_code == 200
+    assert r.json()["session_id"] == "regen-session"
+    assert r.json()["status"] == "started"
+
+
+def test_regenerate_book_404_unknown_book(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """POST /book/{id}/regenerate returns 404 when book ID is unknown."""
+    monkeypatch.setattr("audiobard.api._get_book_by_id", lambda _id: None)
+    r = client.post("/book/999/regenerate", json={})
+    assert r.status_code == 404
+
+
+def test_regenerate_book_409_source_missing(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """POST /book/{id}/regenerate returns 409 when source file no longer exists."""
+    fake_book = {"id": 11, "path": "nonexistent_source.txt", "title": "Missing"}
+    monkeypatch.setattr(
+        "audiobard.api._get_book_by_id", lambda _id: fake_book if _id == 11 else None
+    )
+    r = client.post("/book/11/regenerate", json={})
+    assert r.status_code == 409
+    assert "Source file no longer exists" in r.json()["detail"]
 
 
 def test_clear_cache_removes_cache_dir(
