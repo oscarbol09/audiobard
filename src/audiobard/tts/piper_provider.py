@@ -137,7 +137,9 @@ class PiperProvider(TTSProvider):
         onnx_url = f"{base_url}.onnx"
         json_url = f"{base_url}.onnx.json"
 
-        async with httpx.AsyncClient() as client:
+        # Large .onnx models exceed httpx's 5s default read timeout.
+        timeout = httpx.Timeout(connect=30.0, read=600.0, write=30.0, pool=30.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             # Download config (json) first
             logger.info("Downloading Piper config from %s", json_url)
             res = await client.get(json_url, follow_redirects=True)

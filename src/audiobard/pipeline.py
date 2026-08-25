@@ -413,7 +413,11 @@ class AudioBookPipeline:
                             encoding="utf-8",
                         )
 
-                self.persistence.save_checkpoint(book_id, checkpoint_name, "completed", {})
+                if not dry_run:
+                    self.persistence.save_checkpoint(book_id, checkpoint_name, "completed", {})
+                else:
+                    # Dry-run must not poison resume: leave chunks uncompleted.
+                    self.persistence.save_checkpoint(book_id, checkpoint_name, "dry_run", {})
                 progress.update(task, advance=1)
                 _emit_chunk_progress(
                     progress_callback,
