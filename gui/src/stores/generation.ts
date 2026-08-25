@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import { useSettingsStore } from './settings'
 
-export type LLMProvider = 'ollama' | 'gemini' | 'openrouter'
+export type LLMProvider = 'ollama' | 'gemini' | 'openrouter' | 'nim'
 export type TTSProvider = 'piper' | 'edge'
 
 interface GenerationResult {
@@ -24,6 +25,9 @@ interface GenerateAudiobookArgs {
   llmProvider: LLMProvider
   llmModel: string
   sessionId: string
+  openrouterApiKey?: string
+  geminiApiKey?: string
+  nimApiKey?: string
 }
 
 function toInvokeArgs(args: GenerateAudiobookArgs): Record<string, unknown> {
@@ -41,16 +45,14 @@ function generateSessionId(): string {
 }
 
 export const useGenerationStore = defineStore('generation', () => {
+  const settingsStore = useSettingsStore()
+
   const isGenerating = ref(false)
   const progress = ref(0)
   const stage = ref('idle')
   const message = ref('')
   const bookFile = ref<File | null>(null)
   const bookTitle = ref('')
-  const locale = ref('en_US')
-  const ttsProvider = ref<TTSProvider>('piper')
-  const llmProvider = ref<LLMProvider>('ollama')
-  const llmModel = ref('qwen2.5:7b')
   const error = ref<string | null>(null)
   const outputPath = ref<string | null>(null)
   const sessionId = ref<string | null>(null)
@@ -163,14 +165,22 @@ export const useGenerationStore = defineStore('generation', () => {
     const fileName = bookFile.value.name
     const base64 = await fileToBase64(bookFile.value)
 
+    const effectiveLlmProvider = settingsStore.settings.llmProvider
+    const effectiveTtsProvider = settingsStore.settings.ttsProvider
+    const effectiveLocale = settingsStore.settings.ttsLocale || 'en_US'
+    const effectiveModel = settingsStore.getEffectiveModel()
+
     const args: GenerateAudiobookArgs = {
       fileBase64: base64,
       fileName,
-      locale: locale.value,
-      ttsProvider: ttsProvider.value,
-      llmProvider: llmProvider.value,
-      llmModel: llmModel.value,
+      locale: effectiveLocale,
+      ttsProvider: effectiveTtsProvider,
+      llmProvider: effectiveLlmProvider as LLMProvider,
+      llmModel: effectiveModel,
       sessionId: sid,
+      openrouterApiKey: settingsStore.settings.openrouterApiKey,
+      geminiApiKey: settingsStore.settings.geminiApiKey,
+      nimApiKey: settingsStore.settings.nimApiKey,
     }
 
     startProgressPolling()
@@ -179,9 +189,6 @@ export const useGenerationStore = defineStore('generation', () => {
       const result = await invoke<string>('generate_audiobook', toInvokeArgs(args))
       const parsed = JSON.parse(result) as GenerationResult
       outputPath.value = parsed.output_path
-      // The Rust side returns the session_id echoed back; keep ours as
-      // the source of truth so a server-generated id would not surprise
-      // a poll already in flight.
       sessionId.value = parsed.session_id || sid
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e))
@@ -200,10 +207,6 @@ export const useGenerationStore = defineStore('generation', () => {
     message,
     bookFile,
     bookTitle,
-    locale,
-    ttsProvider,
-    llmProvider,
-    llmModel,
     error,
     outputPath,
     sessionId,

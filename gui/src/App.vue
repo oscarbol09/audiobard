@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useGenerationStore } from './stores/generation'
+import { useSettingsStore } from './stores/settings'
 import { useI18nStore } from './stores/i18n'
 import UploadSection from './components/UploadSection.vue'
 import GenerationProgress from './components/GenerationProgress.vue'
@@ -15,8 +16,23 @@ const healthError = ref<string | null>(null)
 const checking = ref(true)
 
 const generationStore = useGenerationStore()
+const settingsStore = useSettingsStore()
 const i18n = useI18nStore()
 const { t } = i18n
+
+function updateActiveModel(val: string) {
+  const provider = settingsStore.settings.llmProvider
+  if (provider === 'nim') {
+    settingsStore.updateSetting('nimModel', val)
+  } else if (provider === 'openrouter') {
+    settingsStore.updateSetting('openrouterModel', val)
+  } else if (provider === 'gemini') {
+    settingsStore.updateSetting('geminiModel', val)
+  } else {
+    settingsStore.updateSetting('ollamaModel', val)
+    settingsStore.updateSetting('llmModel', val)
+  }
+}
 
 async function checkHealth() {
   checking.value = true
@@ -130,7 +146,8 @@ async function onGenerate(): Promise<void> {
               <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('voiceLocaleLabel') }}</label>
                 <select
-                  v-model="generationStore.locale"
+                  :value="settingsStore.settings.ttsLocale"
+                  @change="e => settingsStore.updateSetting('ttsLocale', (e.target as HTMLSelectElement).value)"
                   class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                 >
                   <option value="en_US">English (US)</option>
@@ -145,7 +162,8 @@ async function onGenerate(): Promise<void> {
               <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('ttsProviderLabel') }}</label>
                 <select
-                  v-model="generationStore.ttsProvider"
+                  :value="settingsStore.settings.ttsProvider"
+                  @change="e => settingsStore.updateSetting('ttsProvider', (e.target as HTMLSelectElement).value as any)"
                   class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                 >
                   <option value="piper">Piper (Local, Free)</option>
@@ -157,7 +175,8 @@ async function onGenerate(): Promise<void> {
               <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('llmProviderLabel') }}</label>
                 <select
-                  v-model="generationStore.llmProvider"
+                  :value="settingsStore.settings.llmProvider"
+                  @change="e => settingsStore.updateSetting('llmProvider', (e.target as HTMLSelectElement).value as any)"
                   class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                 >
                   <option value="ollama">{{ t('providerOllama') }}</option>
@@ -172,7 +191,8 @@ async function onGenerate(): Promise<void> {
                 <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('modelPresetLabel') }}</label>
                 <input
                   type="text"
-                  v-model="generationStore.llmModel"
+                  :value="settingsStore.getEffectiveModel()"
+                  @input="e => updateActiveModel((e.target as HTMLInputElement).value)"
                   class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                   placeholder="e.g., qwen2.5:7b or meta/llama-3.3-70b-instruct"
                 />

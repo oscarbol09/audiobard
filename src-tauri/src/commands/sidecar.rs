@@ -134,7 +134,17 @@ pub async fn check_server_health() -> Result<bool, String> {
     let url = "http://127.0.0.1:8000/health";
 
     match client.get(url).send().await {
-        Ok(response) => Ok(response.status().is_success()),
+        Ok(response) => {
+            if !response.status().is_success() {
+                return Ok(false);
+            }
+            // Also probe /library to verify it is the current AudioBard API app version
+            let lib_url = "http://127.0.0.1:8000/library";
+            match client.get(lib_url).send().await {
+                Ok(res) => Ok(res.status().is_success()),
+                Err(_) => Ok(false),
+            }
+        }
         Err(e) => {
             log::warn!("Health check failed: {}", e);
             Ok(false)
@@ -156,6 +166,9 @@ pub async fn generate_audiobook(
     llm_provider: String,
     llm_model: String,
     session_id: String,
+    openrouter_api_key: Option<String>,
+    gemini_api_key: Option<String>,
+    nim_api_key: Option<String>,
 ) -> Result<String, String> {
     let client = reqwest::Client::builder()
         .timeout(GENERATE_TIMEOUT)
@@ -171,6 +184,9 @@ pub async fn generate_audiobook(
         "llm_provider": llm_provider,
         "llm_model": llm_model,
         "session_id": session_id,
+        "openrouter_api_key": openrouter_api_key.unwrap_or_default(),
+        "gemini_api_key": gemini_api_key.unwrap_or_default(),
+        "nim_api_key": nim_api_key.unwrap_or_default(),
     });
 
     let response = client
