@@ -282,3 +282,35 @@ def test_generate_audiobook_cancelled_writes_stage_before_http_exception(
 
     assert response.status_code == 499
     assert progress_store.get("session-cb").stage == "cancelled"
+
+
+def test_clear_cache_removes_cache_dir(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """POST /clear_cache deletes cache contents and returns ok."""
+    fake_cache = tmp_path / "cache"
+    fake_cache.mkdir()
+    (fake_cache / "clip.mp3").write_bytes(b"fake")
+    monkeypatch.setattr(
+        "audiobard.api.AudioBardConfig",
+        lambda: type("C", (), {"cache_dir": fake_cache})(),
+    )
+    r = client.post("/clear_cache")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+    assert not (fake_cache / "clip.mp3").exists()
+    assert fake_cache.exists()
+
+
+def test_clear_cache_ok_when_no_cache_dir(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """POST /clear_cache is idempotent when cache dir does not exist."""
+    missing = tmp_path / "nonexistent"
+    monkeypatch.setattr(
+        "audiobard.api.AudioBardConfig",
+        lambda: type("C", (), {"cache_dir": missing})(),
+    )
+    r = client.post("/clear_cache")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
