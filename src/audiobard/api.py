@@ -218,12 +218,48 @@ async def download_book(book_id: int) -> FileResponse:
 
 @app.post("/book/{book_id}/regenerate")
 async def regenerate_book(book_id: int, request: dict[str, Any]) -> dict[str, str]:
-    """Regenerate audiobook reusing previous settings (stub)."""
+    """Regenerate audiobook reusing the stored source file and settings."""
     book = _get_book_by_id(book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
-    # TODO: Implement full regeneration reusing stored settings
-    raise HTTPException(status_code=501, detail="Regenerate not implemented yet")
+
+    source_path = Path(book["path"])
+    if not source_path.exists():  # noqa: ASYNC240
+        raise HTTPException(
+            status_code=409,
+            detail=f"Source file no longer exists on disk: {source_path}",
+        )
+
+    session_id = str(request.get("session_id") or uuid.uuid4().hex)
+    llm_provider = cast(LLMChoice, str(request.get("llm_provider", "ollama")))
+    llm_model = str(request.get("llm_model", "qwen2.5:7b"))
+    tts_provider = cast(TTSChoice, str(request.get("tts_provider", "piper")))
+    locale = str(request.get("locale", "en_US"))
+
+    output_dir = Path.home() / "AudioBard" / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"{source_path.stem}.mp3"
+
+    config = AudioBardConfig(
+        llm_provider=llm_provider,
+        llm_model=llm_model,
+        tts_provider=tts_provider,
+        tts_locale=locale,
+    )
+
+    async def _run() -> None:
+        def on_progress(progress: PipelineProgress) -> None:
+            progress_store.update(session_id, progress)
+            if progress_store.is_cancelled(session_id):
+                raise asyncio.CancelledError()
+
+        pipeline = AudioBookPipeline(config)
+        await pipeline.run(
+            source_path, output_path, resume=False, progress_callback=on_progress
+        )
+
+    asyncio.create_task(_run())
+    return {"session_id": session_id, "status": "started"}
 
 
 @app.post("/generate")

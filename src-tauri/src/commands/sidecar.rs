@@ -196,7 +196,7 @@ pub async fn get_generation_progress(session_id: String) -> Result<GenerationPro
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = "http://127.0.0.1:8000/progress";
 
-    match client.get(&url).query(&[("session_id", session_id.as_str())]).send().await {
+    match client.get(url).query(&[("session_id", session_id.as_str())]).send().await {
         Ok(response) => {
             if response.status().is_success() {
                 let result: serde_json::Value = response.json().await
@@ -264,7 +264,7 @@ pub async fn cancel_audiobook(session_id: String) -> Result<String, String> {
 }
 
 /// Library book entry returned by the API.
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryBook {
     pub id: i64,
@@ -338,16 +338,14 @@ pub async fn download_book(book_id: i64) -> Result<String, String> {
 
 /// Regenerate a book with previous settings (stub).
 #[tauri::command]
-pub async fn regenerate_book(book_id: i64, _settings: serde_json::Value) -> Result<String, String> {
+pub async fn regenerate_book(book_id: i64, settings: serde_json::Value) -> Result<String, String> {
     let client = reqwest::Client::builder()
         .timeout(GENERATE_TIMEOUT)
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = format!("http://127.0.0.1:8000/book/{}/regenerate", book_id);
 
-    let payload = serde_json::json!({});
-
-    match client.post(&url).json(&serde_json::json!({})).send().await {
+    match client.post(url).json(&settings).send().await {
         Ok(response) => {
             if response.status().is_success() {
                 let result: serde_json::Value = response.json().await
@@ -363,5 +361,4 @@ pub async fn regenerate_book(book_id: i64, _settings: serde_json::Value) -> Resu
             Err(format!("Network error: {}", e))
         }
     }
-}
 }

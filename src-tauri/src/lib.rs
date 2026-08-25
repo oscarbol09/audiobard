@@ -1,3 +1,7 @@
+pub mod commands;
+
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -23,14 +27,14 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 // Give the app a moment to fully initialize
                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                let _ = crate::commands::sidecar::start_python_sidecar(app_handle, app.state()).await;
+                let _ = crate::commands::sidecar::start_python_sidecar(app_handle.clone(), app_handle.state()).await;
             });
             Ok(())
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 // Stop the Python sidecar when the window is closed
-                let sidecar: std::sync::Arc<crate::commands::sidecar::PythonSidecar> = window.state();
+                let sidecar: tauri::State<'_, crate::commands::sidecar::PythonSidecar> = window.state();
                 let _ = tauri::async_runtime::block_on(async {
                     let _ = crate::commands::sidecar::stop_python_sidecar(sidecar).await;
                 });
