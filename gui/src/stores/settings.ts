@@ -14,8 +14,11 @@ interface AppSettings {
   llmProvider: LLMProvider
   llmModel: string
   ollamaUrl: string
+  ollamaModel: string
   geminiApiKey: string
+  geminiModel: string
   openrouterApiKey: string
+  openrouterModel: string
   nimApiKey: string
   nimModel: string
 
@@ -40,8 +43,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   llmProvider: 'ollama',
   llmModel: 'qwen2.5:7b',
   ollamaUrl: 'http://localhost:11434',
+  ollamaModel: 'qwen2.5:7b',
   geminiApiKey: '',
+  geminiModel: 'gemini-2.5-flash',
   openrouterApiKey: '',
+  openrouterModel: 'meta-llama/llama-3.3-70b-instruct',
   nimApiKey: '',
   nimModel: 'meta/llama-3.3-70b-instruct',
   ttsProvider: 'piper',
@@ -120,6 +126,14 @@ export const useSettingsStore = defineStore('settings', () => {
     { immediate: true }
   )
 
+  function getEffectiveModel(): string {
+    const provider = settings.value.llmProvider
+    if (provider === 'nim') return settings.value.nimModel || 'meta/llama-3.3-70b-instruct'
+    if (provider === 'openrouter') return settings.value.openrouterModel || 'meta-llama/llama-3.3-70b-instruct'
+    if (provider === 'gemini') return settings.value.geminiModel || 'gemini-2.5-flash'
+    return settings.value.ollamaModel || settings.value.llmModel || 'qwen2.5:7b'
+  }
+
   return {
     settings,
     isDark,
@@ -127,5 +141,6 @@ export const useSettingsStore = defineStore('settings', () => {
     resetToDefaults,
     updateSetting,
     getEffectiveTheme,
+    getEffectiveModel,
   }
 })

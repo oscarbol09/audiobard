@@ -177,14 +177,16 @@ async function clearCache() {
                 <div>
                   <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('ollamaModelLabel') }}</label>
                   <select
-                    v-model="settingsStore.settings.llmModel"
+                    v-model="settingsStore.settings.ollamaModel"
+                    @change="settingsStore.settings.llmModel = settingsStore.settings.ollamaModel"
                     class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-2 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                   >
                     <option v-for="m in ollamaModels" :key="m.value" :value="m.value">{{ m.label }}</option>
                   </select>
                   <input
                     type="text"
-                    v-model="settingsStore.settings.llmModel"
+                    v-model="settingsStore.settings.ollamaModel"
+                    @input="settingsStore.settings.llmModel = settingsStore.settings.ollamaModel"
                     class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                     :placeholder="t('customModelPlaceholder')"
                   />
@@ -241,14 +243,16 @@ async function clearCache() {
                 <div>
                   <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('modelPresetLabel') }}</label>
                   <select
-                    v-model="settingsStore.settings.llmModel"
+                    v-model="settingsStore.settings.openrouterModel"
+                    @change="settingsStore.settings.llmModel = settingsStore.settings.openrouterModel"
                     class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     <option v-for="m in openrouterModels" :key="m.value" :value="m.value">{{ m.label }}</option>
                   </select>
                   <input
                     type="text"
-                    v-model="settingsStore.settings.llmModel"
+                    v-model="settingsStore.settings.openrouterModel"
+                    @input="settingsStore.settings.llmModel = settingsStore.settings.openrouterModel"
                     class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                     :placeholder="t('customModelPlaceholder')"
                   />
@@ -272,7 +276,8 @@ async function clearCache() {
                 <div>
                   <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('modelPresetLabel') }}</label>
                   <select
-                    v-model="settingsStore.settings.llmModel"
+                    v-model="settingsStore.settings.geminiModel"
+                    @change="settingsStore.settings.llmModel = settingsStore.settings.geminiModel"
                     class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option v-for="m in geminiModels" :key="m.value" :value="m.value">{{ m.label }}</option>
