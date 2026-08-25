@@ -303,7 +303,10 @@ class AudioBookPipeline:
             logger.info("Loaded voice mappings from checkpoint")
         else:
             voices_path = self.config.voices_dir / f"{self.config.tts_locale}.json"
-            mapper = VoiceMapper(voices_path)
+            if voices_path.exists():
+                mapper = VoiceMapper(voices_path=voices_path)
+            else:
+                mapper = VoiceMapper(voices=voices)
             voice_assignments = list(mapper.assign_all(characters).values())
             self.persistence.save_voice_mapping(book_id, voice_assignments)
             self.persistence.save_checkpoint(book_id, "voice_assignment", "completed", {})

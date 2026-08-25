@@ -80,14 +80,20 @@ class VoiceMapper:
 
     def __init__(
         self,
-        voices_path: Path | str,
+        voices_path: Path | str | None = None,
         mapping_path: Path | str | None = None,
+        voices: list[Voice] | None = None,
     ) -> None:
-        self.voices_path = Path(voices_path)
+        self.voices_path = Path(voices_path) if voices_path else None
         self.mapping_path = Path(mapping_path) if mapping_path else None
         self._pool: list[Voice] = []
         self._mapping: dict[str, VoiceAssignment] = {}
-        self._load_pool()
+        if voices is not None:
+            self._pool = list(voices)
+        elif self.voices_path is not None:
+            self._load_pool()
+        else:
+            raise ValueError("Either voices_path or voices must be provided to VoiceMapper.")
 
     # ------------------------------------------------------------------
     # Public API
@@ -148,7 +154,7 @@ class VoiceMapper:
     # ------------------------------------------------------------------
 
     def _load_pool(self) -> None:
-        if not self.voices_path.exists():
+        if self.voices_path is None or not self.voices_path.exists():
             raise FileNotFoundError(f"Voice pool not found: {self.voices_path}")
         raw: list[dict[str, Any]] = json.loads(
             self.voices_path.read_text(encoding="utf-8")
