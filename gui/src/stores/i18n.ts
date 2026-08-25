@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
 import { useSettingsStore } from './settings'
 
 const translations = {
@@ -146,12 +145,14 @@ export type TranslationKey = keyof typeof translations.es
 export const useI18nStore = defineStore('i18n', () => {
   const settingsStore = useSettingsStore()
 
-  const t = computed(() => {
+  function t(key: TranslationKey): string {
     const lang = settingsStore.settings.language || 'es'
-    return (key: TranslationKey): string => {
-      return translations[lang]?.[key] || translations['es']?.[key] || key
-    }
-  })
+    return translations[lang]?.[key] || translations['es']?.[key] || key
+  }
 
-  return { t }
+  function setLanguage(lang: 'es' | 'en') {
+    settingsStore.updateSetting('language', lang)
+  }
+
+  return { t, setLanguage }
 })
