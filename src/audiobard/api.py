@@ -216,6 +216,19 @@ async def download_book(book_id: int) -> FileResponse:
     )
 
 
+@app.get("/book/{book_id}/path")
+async def get_book_path(book_id: int) -> dict[str, str]:
+    """Return the local filesystem path of the generated audio file."""
+    book = _get_book_by_id(book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    output_dir = Path.home() / "AudioBard" / "output"
+    output_path = output_dir / f"{Path(book['path']).stem}.mp3"
+    if not output_path.exists():
+        raise HTTPException(status_code=404, detail="Audio file not found on disk")
+    return {"path": str(output_path)}
+
+
 @app.post("/book/{book_id}/regenerate")
 async def regenerate_book(book_id: int, request: dict[str, Any]) -> dict[str, str]:
     """Regenerate audiobook reusing the stored source file and settings."""
