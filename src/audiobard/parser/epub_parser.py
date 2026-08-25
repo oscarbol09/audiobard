@@ -21,8 +21,10 @@ if TYPE_CHECKING:
     pass
 
 # Spine items whose ``idref`` or file name suggests they are not body chapters.
+# Note: Calibre splits chapters into "index_split_XXX.html", so we use negative lookahead
+# to ensure we don't accidentally skip actual book content!
 _SKIP_ID_PATTERNS = re.compile(
-    r"(cover|title|toc|nav|index|coloph|copyright|dedic|epigraph|preface|about)",
+    r"(cover|title|toc|nav|index(?!_split)|coloph|copyright|dedic|epigraph|preface|about)",
     re.IGNORECASE,
 )
 
