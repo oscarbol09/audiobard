@@ -389,3 +389,20 @@ pub async fn clear_cache() -> Result<String, String> {
         }
     }
 }
+
+/// Open a native folder-picker dialog and return the selected path.
+///
+/// Returns `None` when the user cancels without selecting a folder.
+/// The blocking dialog call is offloaded to a dedicated thread so it
+/// does not block the Tokio async runtime.
+#[tauri::command]
+pub async fn select_output_folder(app: AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let folder = tokio::task::spawn_blocking(move || {
+        app.dialog().file().blocking_pick_folder()
+    })
+    .await
+    .map_err(|e| format!("Dialog task panicked: {}", e))?;
+
+    Ok(folder.map(|p| p.to_string()))
+}

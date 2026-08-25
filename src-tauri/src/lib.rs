@@ -6,6 +6,8 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_log::Builder::default()
             .level(log::LevelFilter::Info)
             .build())
@@ -19,7 +21,7 @@ pub fn run() {
             crate::commands::sidecar::cancel_audiobook,
             crate::commands::sidecar::get_library,
             crate::commands::sidecar::download_book,
-            crate::commands::sidecar::regenerate_book,
+            crate::commands::sidecar::select_output_folder,
             crate::commands::sidecar::clear_cache,
         ])
         .setup(|app| {
