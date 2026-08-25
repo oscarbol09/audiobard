@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The changelog is an entry point for humans: every PR that changes behavior
 adds an entry under the relevant section, in the same commit as the change.
 
+## [0.2.0] - 2026-08-25
+
+### Added
+
+- **Desktop GUI (Tauri v2 + Vue 3 + Tailwind CSS)**:
+  - Native cross-platform desktop application interface for AudioBard.
+  - Drag-and-drop book uploader (`UploadSection.vue`) supporting `.epub` and `.txt`.
+  - Live progress feedback (`GenerationProgress.vue`) polling synthesis updates.
+  - Audiobook Library panel (`LibraryPanel.vue`) with search, audio playback, and book regeneration.
+  - Native folder browser command (`select_output_folder`) and cache cleanup command (`clear_cache`).
+  - Automatic Python FastAPI sidecar lifecycle management with health check and dev mode fallback.
+- **BYOK (Bring Your Own Key) & NVIDIA NIM Cloud Provider**:
+  - Dedicated `NimClient` (`src/audiobard/llm/nim_client.py`) for NVIDIA Inference Microservices (`https://integrate.api.nvidia.com/v1/chat/completions`).
+  - Support for `AUDIOBARD_NVIDIA_NIM_API_KEY`, `NVIDIA_NIM_API_KEY`, or `NIM_API_KEY` environment variables.
+  - Dynamic BYOK configuration fields in GUI Settings Modal for NVIDIA NIM, OpenRouter, Google Gemini, and Ollama.
+  - Preset selections for models including `meta/llama-3.3-70b-instruct`, `nvidia/llama-3.1-nemotron-70b-instruct`, `deepseek-ai/deepseek-r1`, `mistralai/mistral-large-2-instruct`, `gemini-2.5-flash`, `gemini-2.5-pro`, and `qwen2.5:7b`.
+- **GUI Multi-Language Support (i18n)**:
+  - Pinia store `useI18nStore` (`gui/src/stores/i18n.ts`) providing full reactive internationalization.
+  - Instant language switcher in Settings modal supporting **Spanish (🇪🇸)** and **English (🇺🇸)** across all components.
+
 ## [0.1.0] - 2026-08-20
 
 ### Added

@@ -26,11 +26,11 @@ It parses a book (**TXT or EPUB only** — no PDF yet, see below), detects who s
 
 ## Status & Capabilities
 
-**Status: ✅ v0.1.0-MVP Ready.** All core pipeline capabilities across text/EPUB parsing, LLM-based dialog attribution, voice mapping, neural TTS synthesis with Piper/Edge, SQLite persistence, and attribution benchmarking are fully implemented and verified.
+**Status: ✅ v0.2.0 Desktop GUI & CLI Production Ready.** All core pipeline capabilities across text/EPUB parsing, LLM-based dialog attribution, voice mapping, neural TTS synthesis with Piper/Edge, SQLite persistence, BYOK (Bring Your Own Key) for cloud providers (NVIDIA NIM, OpenRouter, Gemini), and a native Desktop GUI (Tauri v2 + Vue 3) with full i18n support (Spanish 🇪🇸 / English 🇺🇸) are fully implemented and verified.
 
 ## What this is
 
-A structured pipeline that turns plain text into a multi-voice audiobook:
+A structured pipeline that turns plain text into a multi-voice audiobook via a **Desktop GUI** or **CLI**:
 
 ```
 parse ──► extract characters ──► assign voices ──► attribute dialog ──► synthesize ──► assemble
@@ -42,7 +42,7 @@ TXT/EPUB     Who's in the          Unique voice       Who says each      Per-lin
                                     gender/age/tone                                        metadata
 ```
 
-The core pipeline is **provider-agnostic**: every external dependency (LLM, TTS) sits behind a small interface. Run it fully offline with [Ollama](https://ollama.com) + [Piper](https://github.com/rhasspy/piper) if you have the hardware, or fully via free cloud APIs (OpenRouter, Gemini, Edge TTS) if you don't — see [Extension model](#extension-model).
+The core pipeline is **provider-agnostic**: every external dependency (LLM, TTS) sits behind a small interface. Run it fully offline with [Ollama](https://ollama.com) + [Piper](https://github.com/rhasspy/piper) if you have the hardware, or fully via cloud APIs with BYOK (NVIDIA NIM, OpenRouter, Gemini, Edge TTS) if you don't — see [Extension model](#extension-model).
 
 **Supported input: TXT and EPUB only — no PDF.** This was a deliberate scope decision (see the dev plan's tech-stack notes): OCR quality on scanned classics is poor and would quietly wreck dialog attribution, while EPUB already ships clean chapter/paragraph structure. If you have a PDF, convert it to EPUB or TXT first — [Calibre](https://calibre-ebook.com) does this for free. **PDF support is a welcome contribution** if someone wants to tackle a solid extraction path (e.g. `pdfplumber` + layout-aware chapter detection) behind the same `BookParser` interface as `TextParser`/`EpubParser` — see [Extension model](#extension-model) and [Contributing](#contributing).
 
@@ -50,53 +50,64 @@ The core pipeline is **provider-agnostic**: every external dependency (LLM, TTS)
 
 - **Python 3.10+** — required either way.
 - **[ffmpeg](https://ffmpeg.org/download.html)** — required either way (audio assembly).
+- **Rust & Node.js** *(Optional)* — required only if building the Desktop GUI from source (`cargo tauri dev`).
 
 Pick one LLM path and one TTS path; they're independent, so you can mix (e.g. cloud LLM + local TTS):
 
-| | Local (offline, $0, no account) | Cloud (API, $0 free tier, no local compute) |
+| | Local (offline, $0, no account) | Cloud (API, BYOK / Free Tier, no local compute) |
 |---|---|---|
-| **LLM** | [Ollama](https://ollama.com) running (`ollama serve`) with a model: `ollama pull qwen2.5:7b` | `AUDIOBARD_LLM_PROVIDER=openrouter` or `gemini` + an API key (see below) |
+| **LLM** | [Ollama](https://ollama.com) running (`ollama serve`) with a model: `ollama pull qwen2.5:7b` | **NVIDIA NIM** (`nim`), **OpenRouter** (`openrouter`), or **Gemini** (`gemini`) with your own API Key (BYOK) |
 | **TTS** | [Piper](https://github.com/rhasspy/piper/releases) binary on `PATH` (lightweight, CPU-only — models auto-download on first use) | `AUDIOBARD_TTS_PROVIDER=edge` (Microsoft Edge TTS, no API key, no SLA) |
 
-**If your machine can't comfortably run a local 7B model** (no GPU, limited RAM), the cloud path needs nothing more than Python — no local model download at all. A working `.env` for a fully cloud-based, zero-local-compute setup:
+**If your machine can't comfortably run a local 7B model** (no GPU, limited RAM), the cloud path with **BYOK (Bring Your Own Key)** needs nothing more than Python — no local model download at all. You can enter your API Key directly in the Desktop GUI Settings modal or set a working `.env`:
 
 ```bash
-AUDIOBARD_LLM_PROVIDER=openrouter
-AUDIOBARD_LLM_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free   # any OpenRouter :free model ID works
-OPENROUTER_API_KEY=your_key_here
+# Example: NVIDIA NIM Cloud Provider (build.nvidia.com)
+AUDIOBARD_LLM_PROVIDER=nim
+AUDIOBARD_LLM_MODEL=meta/llama-3.3-70b-instruct
+NVIDIA_NIM_API_KEY=nvapi-your_key_here
 AUDIOBARD_TTS_PROVIDER=edge
 ```
 
-There's no dedicated NVIDIA client — OpenRouter's catalog includes NVIDIA-hosted free-tier models, so pointing `AUDIOBARD_LLM_MODEL` at one gets you NVIDIA inference through the existing `openrouter` provider, no code changes needed. [Gemini's free tier](https://ai.google.dev) works the same way via `AUDIOBARD_LLM_PROVIDER=gemini` + `GEMINI_API_KEY`.
-
-**Note:** cloud free tiers are non-commercial only (see [Extension model](#extension-model) and [SECURITY.md](SECURITY.md)); free-tier model availability rotates over time, so check [openrouter.ai/models](https://openrouter.ai/models) for what's currently live.
+You can also use [NVIDIA NIM models](https://build.nvidia.com/models), OpenRouter (`AUDIOBARD_LLM_PROVIDER=openrouter`), or Google Gemini (`AUDIOBARD_LLM_PROVIDER=gemini`).
 
 ## Quick start
+
+### 🖥️ Desktop GUI Application (Tauri v2 + Vue 3)
 
 ```bash
 # Clone and install dependencies
 git clone https://github.com/oscarbol09/audiobard.git
 cd audiobard
+pip install -e ".[dev,llm-gemini,llm-ollama,tts-piper]"
 
-# Local path (Ollama + Piper):
-pip install -e ".[dev,llm-ollama,tts-piper]"
+# Launch the Desktop GUI
+cargo tauri dev
+```
 
-# Cloud path (OpenRouter/Gemini + Edge TTS) — openrouter and edge-tts need no extras,
-# they're core dependencies already:
-pip install -e ".[dev,llm-gemini]"   # omit llm-gemini too if you're only using openrouter
+The Desktop GUI features:
+- 📄 **Drag & Drop Upload**: Simply drop any `.txt` or `.epub` file to start.
+- 🌐 **Multi-Language UI (i18n)**: Instant toggle between Spanish (🇪🇸) and English (🇺🇸).
+- ⚙️ **BYOK Settings Modal**: Configure API keys, server URLs, custom models, themes, output directory, and cache cleaner.
+- 📚 **Personal Audiobook Library**: Search, play, or regenerate previously converted audiobooks.
 
-# Generate an audiobook
+### 💻 Command Line Interface (CLI)
+
+```bash
+# Generate an audiobook via CLI
 audiobard generate book.epub --output audiobook.mp3
 
 # Or run a dry-run to test character extraction and dialog attribution without synthesis
 audiobard generate book.epub --dry-run
 ```
 
-## Command reference
+## Command & App Reference
 
-| Command | What it does |
+| Command / Interface | What it does |
 |---|---|
-| `audiobard generate <book> -o <out>` | Full pipeline: parse → attribute → synthesize → assemble |
+| `cargo tauri dev` | Launch the Desktop GUI in development mode |
+| `cargo tauri build` | Build standalone desktop executable installer (`.exe` / `.msi`) |
+| `audiobard generate <book> -o <out>` | Full CLI pipeline: parse → attribute → synthesize → assemble |
 | `audiobard generate <book> --dry-run` | Parse + LLM attribution only — no synthesis (fast prompt iteration) |
 | `audiobard benchmark --llm <provider>` | Attribution accuracy against the gold standard (see [eval/README.md](eval/README.md)) |
 | `audiobard stats` | Cache hit rate, books processed, and disk cache usage |

@@ -128,7 +128,7 @@ core contract: quality is measured, not asserted.
 - Unit tests in `tests/` mock external calls (`respx` for httpx).
 - Integration tests are marked `@pytest.mark.integration` and excluded
   from CI (they need local Ollama/Piper).
-- Coverage gate: 70%.
+- Coverage gate: 90%.
 
 ## Prompts: the versioning rule
 
