@@ -1,6 +1,6 @@
 [package]
 name = "audiobard"
-version = "0.1.0"
+version = "0.2.0"
 description = "AudioBard - AI-powered audiobook generator with multi-character voice synthesis"
 authors = ["Oscar Bol"]
 license = "MIT"
@@ -13,13 +13,13 @@ name = "audiobard_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.6.2" }
+tauri-build = { version = "2.6.2", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.11.2" }
+tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
