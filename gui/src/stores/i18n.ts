@@ -63,6 +63,8 @@ const translations = {
     noBooks: 'Aún no has generado audiolibros.',
     downloadBtn: 'Reproducir / Abrir Audio',
     regenerateBtn: 'Regenerar',
+    deleteBtn: 'Eliminar',
+    deleteConfirm: '¿Deseas eliminar este audiolibro y borrar su archivo de audio?',
 
     // Providers
     providerOllama: 'Ollama (Local en tu PC)',
@@ -131,6 +133,8 @@ const translations = {
     noBooks: 'No audiobooks generated yet.',
     downloadBtn: 'Play / Open Audio',
     regenerateBtn: 'Regenerate',
+    deleteBtn: 'Delete',
+    deleteConfirm: 'Are you sure you want to delete this audiobook and its audio file?',
 
     // Providers
     providerOllama: 'Ollama (Local on your PC)',

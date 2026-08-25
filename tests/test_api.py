@@ -411,3 +411,50 @@ def test_clear_cache_ok_when_no_cache_dir(
     r = client.post("/clear_cache")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
+
+
+def test_delete_book_success(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """DELETE /book/{book_id} deletes the book from persistence and unlinks audio file."""
+    fake_book = {
+        "id": 1,
+        "path": str(tmp_path / "book.epub"),
+        "title": "Test Book",
+        "total_paragraphs": 10,
+        "total_words": 100,
+        "dialog_ratio": 0.5,
+        "created_at": "2026-08-25T10:00:00",
+    }
+    audio_dir = tmp_path / "AudioBard" / "output"
+    audio_dir.mkdir(parents=True)
+    audio_file = audio_dir / "book.mp3"
+    audio_file.write_bytes(b"audio")
+
+    monkeypatch.setattr(
+        "audiobard.api._get_book_by_id",
+        lambda bid: fake_book if bid == 1 else None,
+    )
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    deleted_id = []
+    class DummyPersistence:
+        def delete_book(self, bid: int) -> bool:
+            deleted_id.append(bid)
+            return True
+
+    monkeypatch.setattr("audiobard.api._get_persistence", lambda: DummyPersistence())
+
+    r = client.delete("/book/1")
+    assert r.status_code == 200
+    assert r.json() == {"status": "deleted"}
+    assert deleted_id == [1]
+    assert not audio_file.exists()
+
+
+def test_delete_book_not_found(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """DELETE /book/{book_id} returns 404 when book does not exist."""
+    monkeypatch.setattr("audiobard.api._get_book_by_id", lambda bid: None)
+    r = client.delete("/book/999")
+    assert r.status_code == 404
+

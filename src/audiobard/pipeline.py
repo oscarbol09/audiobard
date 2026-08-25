@@ -332,6 +332,7 @@ class AudioBookPipeline:
             ),
         )
 
+        disable_rich = progress_callback is not None
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -339,6 +340,7 @@ class AudioBookPipeline:
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             TimeElapsedColumn(),
             TimeRemainingColumn(),
+            disable=disable_rich,
         ) as progress:
             task = progress.add_task("[cyan]Processing chunks...", total=len(chunks))
 

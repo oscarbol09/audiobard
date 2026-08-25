@@ -67,6 +67,17 @@ async function onRegenerate(book: LibraryBook) {
   }
 }
 
+async function onDelete(book: LibraryBook) {
+  if (!confirm(t('deleteConfirm'))) return
+  try {
+    await invoke('delete_book', { book_id: book.id })
+    await loadLibrary()
+  } catch (e) {
+    console.error('Delete failed:', e)
+    alert(`Error: ${e instanceof Error ? e.message : String(e)}`)
+  }
+}
+
 function formatDate(iso: string | null): string {
   if (!iso) return 'Unknown'
   const d = new Date(iso)
@@ -151,6 +162,13 @@ onMounted(() => {
             class="px-3 py-1.5 text-sm font-medium text-gray-900 bg-brand-500 hover:bg-brand-400 rounded-lg transition-colors"
           >
             {{ t('regenerateBtn') }}
+          </button>
+          <button
+            @click="onDelete(book)"
+            class="px-3 py-1.5 text-sm font-medium text-red-400 bg-gray-800 border border-gray-700 rounded-lg hover:border-red-500 hover:bg-red-500/10 transition-colors"
+            title="Eliminar audiolibro"
+          >
+            🗑️ {{ t('deleteBtn') }}
           </button>
         </div>
       </li>
