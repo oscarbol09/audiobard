@@ -12,6 +12,8 @@ const checking = ref(true)
 
 const generationStore = useGenerationStore()
 
+
+
 async function checkHealth() {
   checking.value = true
   healthError.value = null
@@ -76,7 +78,7 @@ async function onGenerate(): Promise<void> {
 
     <!-- Main App Content -->
     <div v-else class="flex-1 flex flex-col">
-      <header class="border-b border-gray-800 px-6 py-4">
+<header class="border-b border-gray-800 px-6 py-4">
         <div class="max-w-4xl mx-auto flex items-center justify-between">
           <h1 class="text-2xl font-extrabold tracking-tight text-brand-500">AudioBard</h1>
           <div class="flex items-center gap-4">
