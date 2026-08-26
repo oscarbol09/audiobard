@@ -27,6 +27,8 @@ class OllamaClient(LLMClient):
         Ollama API base URL (default: ``http://localhost:11434``).
     temperature:
         Sampling temperature.
+    timeout:
+        Request timeout in seconds (default: ``120.0``).
     max_retries:
         Maximum number of retry attempts on failure.
     """
@@ -36,6 +38,7 @@ class OllamaClient(LLMClient):
         model: str = "qwen2.5:7b",
         base_url: str = "http://localhost:11434",
         temperature: float = 0.2,
+        timeout: float = 120.0,
         max_retries: int = 3,
         persistence: PersistenceManager | None = None,
     ) -> None:
@@ -46,6 +49,7 @@ class OllamaClient(LLMClient):
             persistence=persistence,
         )
         self.base_url = base_url
+        self.timeout = timeout
 
     async def _raw_call(self, prompt: str, schema: dict[str, Any]) -> str:
         """Send *prompt* to Ollama with ``format=schema`` for JSON mode."""
@@ -56,7 +60,7 @@ class OllamaClient(LLMClient):
                 "ollama package is required: pip install audiobard[llm-ollama]"
             ) from exc
 
-        client = ollama.AsyncClient(host=self.base_url)
+        client = ollama.AsyncClient(host=self.base_url, timeout=self.timeout)
         response = await client.chat(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
