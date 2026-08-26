@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from audiobard import __version__
 from audiobard.cli import app
 from audiobard.models import AgeHint, GenderHint, Voice
 from audiobard.persistence import PersistenceManager
@@ -19,7 +20,7 @@ runner = CliRunner()
 def test_version_flag() -> None:
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "audiobard 0.1.0" in result.stdout
+    assert f"audiobard {__version__}" in result.stdout
 
 
 def test_no_args_shows_help() -> None:
