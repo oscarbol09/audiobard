@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
-import shutil
+import os
+import sys
 import tempfile
 from pathlib import Path
 
@@ -16,6 +17,77 @@ from audiobard.models import Emotion
 from audiobard.tts.base import EMOTION_PROSODY
 
 logger = logging.getLogger(__name__)
+
+FFMPEG_MISSING_MESSAGE = (
+    "FFmpeg is required for M4B/chapter support. "
+    "Please install FFmpeg or select MP3 output."
+)
+
+_FFMPEG_ENV_VARS = ("AUDIOBARD_FFMPEG", "FFMPEG_BINARY", "FFMPEG_PATH")
+_FFMPEG_TOOL_SUBDIRS = (
+    Path("tools"),
+    Path("tools") / "bin",
+    Path("tools") / "ffmpeg",
+    Path("bin"),
+)
+
+
+def find_ffmpeg() -> str | None:
+    """Locate an ``ffmpeg`` binary for M4B export.
+
+    Search order:
+    1. ``AUDIOBARD_FFMPEG`` / ``FFMPEG_BINARY`` / ``FFMPEG_PATH`` env vars
+    2. System ``PATH`` via ``shutil.which``
+    3. Bundled binary from optional ``imageio_ffmpeg`` package
+    4. Local ``tools/`` (and ``bin/``) directories under cwd and the repo root
+    """
+    import shutil
+
+    for env_name in _FFMPEG_ENV_VARS:
+        raw = os.environ.get(env_name)
+        if not raw:
+            continue
+        candidate = Path(raw).expanduser()
+        if candidate.is_file():
+            return str(candidate.resolve())
+
+    on_path = shutil.which("ffmpeg")
+    if on_path:
+        return on_path
+
+    try:
+        import imageio_ffmpeg  # type: ignore[import-not-found]
+    except ImportError:
+        imageio_ffmpeg = None
+    if imageio_ffmpeg is not None:
+        try:
+            bundled = imageio_ffmpeg.get_ffmpeg_exe()
+        except (OSError, RuntimeError) as exc:
+            logger.debug("imageio_ffmpeg lookup failed: %s", exc)
+        else:
+            if bundled and Path(bundled).is_file():
+                return str(Path(bundled).resolve())
+
+    names = ("ffmpeg.exe", "ffmpeg") if sys.platform == "win32" else ("ffmpeg",)
+    roots: list[Path] = [Path.cwd()]
+    # processor.py -> audio -> audiobard -> src -> repo root (editable installs)
+    here = Path(__file__).resolve()
+    for idx in (2, 3, 4):
+        if idx < len(here.parents):
+            roots.append(here.parents[idx])
+
+    seen: set[str] = set()
+    for root in roots:
+        for sub in _FFMPEG_TOOL_SUBDIRS:
+            for name in names:
+                candidate = (root / sub / name).resolve()
+                key = str(candidate)
+                if key in seen:
+                    continue
+                seen.add(key)
+                if candidate.is_file():
+                    return key
+    return None
 
 
 class AudioClip(BaseModel):
@@ -99,11 +171,9 @@ class AudioProcessor:
         chapters: list[ChapterMarker],
     ) -> None:
         """Convert MP3 bytes to AAC/M4B and inject chapter markers via FFmpeg."""
-        ffmpeg_bin = shutil.which("ffmpeg")
+        ffmpeg_bin = find_ffmpeg()
         if not ffmpeg_bin:
-            raise FileNotFoundError(
-                "ffmpeg executable not found on PATH. ffmpeg is required for M4B export."
-            )
+            raise FileNotFoundError(FFMPEG_MISSING_MESSAGE)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)

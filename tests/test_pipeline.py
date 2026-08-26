@@ -177,6 +177,12 @@ async def test_pipeline_run(
         await pipeline.run(book_file, output_m4b, resume=True, dry_run=False)
         mock_proc.export_m4b.assert_called_once()
 
+        # Missing FFmpeg during M4B export surfaces a friendly RuntimeError
+        mock_proc.export_m4b.side_effect = FileNotFoundError("ffmpeg missing")
+        with pytest.raises(RuntimeError, match="FFmpeg is required for M4B"):
+            await pipeline.run(book_file, output_m4b, resume=True, dry_run=False)
+        mock_proc.export_m4b.side_effect = None
+
         # Test dry-run branch
         output_dry = tmp_path / "output_dry.mp3"
         await pipeline.run(book_file, output_dry, resume=True, dry_run=True)

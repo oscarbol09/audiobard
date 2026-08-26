@@ -18,7 +18,12 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-from audiobard.audio.processor import AudioClip, AudioProcessor, ChapterMarker
+from audiobard.audio.processor import (
+    FFMPEG_MISSING_MESSAGE,
+    AudioClip,
+    AudioProcessor,
+    ChapterMarker,
+)
 from audiobard.config import AudioBardConfig
 from audiobard.llm import GeminiClient, LLMClient, OllamaClient, OpenRouterClient
 from audiobard.models import (
@@ -571,7 +576,12 @@ class AudioBookPipeline:
         logger.info("Exporting finished audio to: %s", output_path)
         try:
             if output_path.suffix.lower() == ".m4b":
-                await self.audio_processor.export_m4b(final_mp3_bytes, output_path, chapters)
+                try:
+                    await self.audio_processor.export_m4b(
+                        final_mp3_bytes, output_path, chapters
+                    )
+                except FileNotFoundError as e:
+                    raise RuntimeError(FFMPEG_MISSING_MESSAGE) from e
             else:
                 await self.audio_processor.export_mp3(final_mp3_bytes, output_path)
         except PermissionError as e:

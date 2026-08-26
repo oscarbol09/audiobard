@@ -10,6 +10,8 @@ from typing import Any
 
 import httpx
 
+from audiobard.audio.processor import find_ffmpeg
+
 
 def _key_state(*names: str) -> str:
     return "configured" if any(os.getenv(name) for name in names) else "missing"
@@ -19,7 +21,7 @@ def collect_diagnostics() -> list[tuple[str, str, str]]:
     """Return dependency checks as ``(name, status, detail)`` rows."""
     rows: list[tuple[str, str, str]] = []
 
-    ffmpeg = shutil.which("ffmpeg")
+    ffmpeg = find_ffmpeg()
     if ffmpeg:
         try:
             result = subprocess.run(
@@ -30,7 +32,13 @@ def collect_diagnostics() -> list[tuple[str, str, str]]:
         except OSError as exc:
             rows.append(("ffmpeg", "error", str(exc)))
     else:
-        rows.append(("ffmpeg", "missing", "not found on PATH"))
+        rows.append(
+            (
+                "ffmpeg",
+                "missing",
+                "not found on PATH, imageio_ffmpeg, or tools/",
+            )
+        )
 
     piper = shutil.which("piper")
     rows.append(("piper", "ok" if piper else "missing", piper or "not found on PATH"))

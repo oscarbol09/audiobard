@@ -3,15 +3,22 @@
 from __future__ import annotations
 
 import io
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydub import AudioSegment
 
-from audiobard.audio.processor import AudioClip, AudioProcessor, ChapterMarker
+from audiobard.audio.processor import (
+    FFMPEG_MISSING_MESSAGE,
+    AudioClip,
+    AudioProcessor,
+    ChapterMarker,
+    find_ffmpeg,
+)
 from audiobard.models import Emotion
 
 
@@ -110,14 +117,12 @@ async def test_audio_processor_export_mp3() -> None:
 
 
 @pytest.mark.asyncio
-@patch("shutil.which")
+@patch("audiobard.audio.processor.find_ffmpeg", return_value="/usr/bin/ffmpeg")
 @patch("asyncio.create_subprocess_exec")
 async def test_audio_processor_export_m4b(
-    mock_subproc: AsyncMock, mock_which: AsyncMock
+    mock_subproc: AsyncMock, mock_find: Any
 ) -> None:
     """Test that export_m4b generates ffmetadata and calls ffmpeg to convert and inject."""
-    mock_which.return_value = "/usr/bin/ffmpeg"
-
     # Mock both ffmpeg subprocess runs
     mock_proc1 = AsyncMock()
     mock_proc1.returncode = 0
@@ -163,18 +168,21 @@ async def test_audio_processor_concatenate_empty() -> None:
 
 
 @pytest.mark.asyncio
-@patch("shutil.which", return_value=None)
-async def test_audio_processor_export_m4b_missing_ffmpeg(mock_which: Any) -> None:
+@patch("audiobard.audio.processor.find_ffmpeg", return_value=None)
+async def test_audio_processor_export_m4b_missing_ffmpeg(mock_find: Any) -> None:
     processor = AudioProcessor()
-    with pytest.raises(FileNotFoundError, match="ffmpeg executable not found"):
+    with pytest.raises(FileNotFoundError, match="FFmpeg is required for M4B"):
         await processor.export_m4b(b"data", Path("out.m4b"), [])
+    with pytest.raises(FileNotFoundError) as exc_info:
+        await processor.export_m4b(b"data", Path("out.m4b"), [])
+    assert str(exc_info.value) == FFMPEG_MISSING_MESSAGE
 
 
 @pytest.mark.asyncio
-@patch("shutil.which", return_value="/usr/bin/ffmpeg")
+@patch("audiobard.audio.processor.find_ffmpeg", return_value="/usr/bin/ffmpeg")
 @patch("asyncio.create_subprocess_exec")
 async def test_audio_processor_export_m4b_proc1_error(
-    mock_subproc: AsyncMock, mock_which: Any
+    mock_subproc: AsyncMock, mock_find: Any
 ) -> None:
     mock_proc = AsyncMock()
     mock_proc.returncode = 1
@@ -187,10 +195,10 @@ async def test_audio_processor_export_m4b_proc1_error(
 
 
 @pytest.mark.asyncio
-@patch("shutil.which", return_value="/usr/bin/ffmpeg")
+@patch("audiobard.audio.processor.find_ffmpeg", return_value="/usr/bin/ffmpeg")
 @patch("asyncio.create_subprocess_exec")
 async def test_audio_processor_export_m4b_proc2_error(
-    mock_subproc: AsyncMock, mock_which: Any
+    mock_subproc: AsyncMock, mock_find: Any
 ) -> None:
     mock_proc1 = AsyncMock()
     mock_proc1.returncode = 0
@@ -205,3 +213,80 @@ async def test_audio_processor_export_m4b_proc2_error(
     processor = AudioProcessor()
     with pytest.raises(RuntimeError, match="FFmpeg chapter injection failed"):
         await processor.export_m4b(b"data", Path("out.m4b"), [])
+
+
+def _clear_ffmpeg_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("AUDIOBARD_FFMPEG", "FFMPEG_BINARY", "FFMPEG_PATH"):
+        monkeypatch.delenv(name, raising=False)
+
+
+def _block_imageio_import() -> Any:
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "imageio_ffmpeg":
+            raise ImportError("missing")
+        return real_import(name, *args, **kwargs)
+
+    return _import
+
+
+def test_find_ffmpeg_prefers_env_var(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    binary = tmp_path / ("ffmpeg.exe" if sys.platform == "win32" else "ffmpeg")
+    binary.write_bytes(b"")
+    monkeypatch.setenv("AUDIOBARD_FFMPEG", str(binary))
+    monkeypatch.delenv("FFMPEG_BINARY", raising=False)
+    monkeypatch.delenv("FFMPEG_PATH", raising=False)
+    with patch("shutil.which", return_value=None):
+        assert find_ffmpeg() == str(binary.resolve())
+
+
+def test_find_ffmpeg_uses_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_ffmpeg_env(monkeypatch)
+    with patch("shutil.which", return_value="/usr/local/bin/ffmpeg"):
+        assert find_ffmpeg() == "/usr/local/bin/ffmpeg"
+
+
+def test_find_ffmpeg_falls_back_to_imageio(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _clear_ffmpeg_env(monkeypatch)
+    bundled = tmp_path / "imageio-ffmpeg"
+    bundled.write_bytes(b"")
+    fake_mod = MagicMock()
+    fake_mod.get_ffmpeg_exe.return_value = str(bundled)
+    with (
+        patch("shutil.which", return_value=None),
+        patch.dict(sys.modules, {"imageio_ffmpeg": fake_mod}),
+    ):
+        assert find_ffmpeg() == str(bundled.resolve())
+
+
+def test_find_ffmpeg_falls_back_to_tools_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _clear_ffmpeg_env(monkeypatch)
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    binary = tools / ("ffmpeg.exe" if sys.platform == "win32" else "ffmpeg")
+    binary.write_bytes(b"")
+    monkeypatch.chdir(tmp_path)
+    with (
+        patch("shutil.which", return_value=None),
+        patch("builtins.__import__", side_effect=_block_imageio_import()),
+    ):
+        assert find_ffmpeg() == str(binary.resolve())
+
+
+def test_find_ffmpeg_returns_none_when_absent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _clear_ffmpeg_env(monkeypatch)
+    monkeypatch.chdir(tmp_path)
+    with (
+        patch("shutil.which", return_value=None),
+        patch("builtins.__import__", side_effect=_block_imageio_import()),
+    ):
+        assert find_ffmpeg() is None
