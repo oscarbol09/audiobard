@@ -15,6 +15,7 @@ from typing import Any, Literal, cast
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
+from audiobard.audio.processor import FFMPEG_MISSING_MESSAGE
 from audiobard.config import AudioBardConfig
 from audiobard.pipeline import AudioBookPipeline
 from audiobard.progress import PipelineProgress
@@ -402,12 +403,17 @@ async def generate_audiobook(request: dict[str, Any]) -> dict[str, str]:
         raise
     except Exception as exc:
         # Surface the failure on the progress channel so the Tauri UI can
-        # render it without parsing a one-off error path.
+        # render it without parsing a one-off error path. Normalize bare
+        # FFmpeg FileNotFoundError into the same user-facing install hint
+        # the pipeline raises as RuntimeError.
+        detail = str(exc)
+        if isinstance(exc, FileNotFoundError) and "ffmpeg" in detail.lower():
+            detail = FFMPEG_MISSING_MESSAGE
         progress_store.update(
             session_id,
-            PipelineProgress(stage="error", percent=0, message=str(exc)),
+            PipelineProgress(stage="error", percent=0, message=detail),
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Generation failed: {exc}",
+            detail=f"Generation failed: {detail}",
         ) from exc

@@ -195,6 +195,23 @@ def test_generate_audiobook_exception(client: TestClient) -> None:
     )
 
 
+def test_generate_audiobook_missing_ffmpeg_file_not_found(client: TestClient) -> None:
+    """Bare FFmpeg FileNotFoundError is rewritten to the install/MP3 hint."""
+    from audiobard.audio.processor import FFMPEG_MISSING_MESSAGE
+
+    def boom(*_args: Any, **_kwargs: Any) -> None:
+        raise FileNotFoundError("ffmpeg executable not found on PATH")
+
+    with patch("audiobard.api.AudioBookPipeline", side_effect=boom):
+        response = client.post("/generate", json=_generate_payload("session-ffmpeg"))
+
+    assert response.status_code == 500
+    assert FFMPEG_MISSING_MESSAGE in response.json()["detail"]
+    assert progress_store.get("session-ffmpeg") == PipelineProgress(
+        stage="error", percent=0, message=FFMPEG_MISSING_MESSAGE
+    )
+
+
 def test_generate_audiobook_missing_field(client: TestClient) -> None:
     response = client.post("/generate", json={"file_name": "book.txt"})
     assert response.status_code == 500
