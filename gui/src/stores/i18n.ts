@@ -66,11 +66,15 @@ const translations = {
     deleteBtn: 'Eliminar',
     deleteConfirm: '¿Deseas eliminar este audiolibro y borrar su archivo de audio?',
 
-    // Providers
     providerOllama: 'Ollama (Local en tu PC)',
     providerOpenRouter: 'OpenRouter (Nube / BYOK)',
     providerGemini: 'Google Gemini (BYOK)',
     providerNim: 'NVIDIA NIM (BYOK - build.nvidia.com)',
+    filterAll: 'Todos',
+    filterFree: '⭐ Gratis (Free)',
+    filterPremium: '💎 Prémium (Pago)',
+    freeBadge: 'GRATIS',
+    premiumBadge: 'PAGO',
   },
   en: {
     // General / Header
@@ -141,6 +145,11 @@ const translations = {
     providerOpenRouter: 'OpenRouter (Cloud / BYOK)',
     providerGemini: 'Google Gemini (BYOK)',
     providerNim: 'NVIDIA NIM (BYOK - build.nvidia.com)',
+    filterAll: 'All',
+    filterFree: '⭐ Free Tier',
+    filterPremium: '💎 Premium (Paid)',
+    freeBadge: 'FREE',
+    premiumBadge: 'PAID',
   },
 }
 
