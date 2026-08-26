@@ -211,5 +211,5 @@ class LLMClient(ABC):
                     await asyncio.sleep(_backoff(attempt))
 
         raise RuntimeError(
-            f"LLM call failed after {self.max_retries} attempts"
+            f"LLM call failed after {self.max_retries} attempts. Last error: {last_exc}"
         ) from last_exc
