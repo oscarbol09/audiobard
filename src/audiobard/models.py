@@ -8,9 +8,11 @@ them, so a change here is automatically reflected everywhere.
 
 from __future__ import annotations
 
+import re
 from enum import Enum
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class Emotion(str, Enum):
@@ -24,6 +26,45 @@ class Emotion(str, Enum):
     SURPRISED = "surprised"
     WHISPER = "whisper"
     SARCASTIC = "sarcastic"
+
+
+_EMOTION_SYNONYMS: dict[str, Emotion] = {
+    "impatient": Emotion.ANGRY,
+    "annoyed": Emotion.ANGRY,
+    "irritated": Emotion.ANGRY,
+    "furious": Emotion.ANGRY,
+    "rage": Emotion.ANGRY,
+    "joyful": Emotion.HAPPY,
+    "excited": Emotion.HAPPY,
+    "cheerful": Emotion.HAPPY,
+    "glad": Emotion.HAPPY,
+    "amused": Emotion.HAPPY,
+    "depressed": Emotion.SAD,
+    "grief": Emotion.SAD,
+    "sorrow": Emotion.SAD,
+    "crying": Emotion.SAD,
+    "scared": Emotion.FEARFUL,
+    "afraid": Emotion.FEARFUL,
+    "nervous": Emotion.FEARFUL,
+    "panicked": Emotion.FEARFUL,
+    "anxious": Emotion.FEARFUL,
+    "shocked": Emotion.SURPRISED,
+    "astonished": Emotion.SURPRISED,
+    "amazed": Emotion.SURPRISED,
+    "confused": Emotion.SURPRISED,
+    "quiet": Emotion.WHISPER,
+    "soft": Emotion.WHISPER,
+    "muffled": Emotion.WHISPER,
+    "whispering": Emotion.WHISPER,
+    "ironic": Emotion.SARCASTIC,
+    "mocking": Emotion.SARCASTIC,
+    "cynical": Emotion.SARCASTIC,
+    "calm": Emotion.NEUTRAL,
+    "serious": Emotion.NEUTRAL,
+    "curious": Emotion.NEUTRAL,
+    "thoughtful": Emotion.NEUTRAL,
+    "normal": Emotion.NEUTRAL,
+}
 
 
 class Tone(str, Enum):
@@ -74,6 +115,45 @@ class Character(BaseModel):
     gender_hint: GenderHint = GenderHint.NEUTRAL
     age_hint: AgeHint = AgeHint.ADULT
 
+    @field_validator("tone", mode="before")
+    @classmethod
+    def normalize_tone(cls, v: Any) -> Tone:
+        if isinstance(v, Tone):
+            return v
+        if isinstance(v, str):
+            val = v.strip().lower()
+            try:
+                return Tone(val)
+            except ValueError:
+                return Tone.NEUTRAL
+        return Tone.NEUTRAL
+
+    @field_validator("gender_hint", mode="before")
+    @classmethod
+    def normalize_gender(cls, v: Any) -> GenderHint:
+        if isinstance(v, GenderHint):
+            return v
+        if isinstance(v, str):
+            val = v.strip().lower()
+            try:
+                return GenderHint(val)
+            except ValueError:
+                return GenderHint.NEUTRAL
+        return GenderHint.NEUTRAL
+
+    @field_validator("age_hint", mode="before")
+    @classmethod
+    def normalize_age(cls, v: Any) -> AgeHint:
+        if isinstance(v, AgeHint):
+            return v
+        if isinstance(v, str):
+            val = v.strip().lower()
+            try:
+                return AgeHint(val)
+            except ValueError:
+                return AgeHint.ADULT
+        return AgeHint.ADULT
+
 
 class CharactersResult(BaseModel):
     """Response contract of the character-extraction LLM call."""
@@ -87,6 +167,36 @@ class DialogLine(BaseModel):
     text: str = Field(min_length=1)
     speaker: str = Field(pattern=r"^(Narrator|Character_[A-Z])$")
     emotion: Emotion = Emotion.NEUTRAL
+
+    @field_validator("speaker", mode="before")
+    @classmethod
+    def normalize_speaker(cls, v: Any) -> str:
+        if isinstance(v, str):
+            v_clean = v.strip()
+            if v_clean.lower() == "narrator":
+                return "Narrator"
+            m = re.match(r"^[Cc]haracter_?([A-Za-z0-9])$", v_clean)
+            if m:
+                char_suffix = m.group(1).upper()
+                if char_suffix.isdigit():
+                    idx = int(char_suffix)
+                    char_suffix = chr(ord("A") + min(idx, 25))
+                return f"Character_{char_suffix}"
+            return v_clean
+        return "Narrator"
+
+    @field_validator("emotion", mode="before")
+    @classmethod
+    def normalize_emotion(cls, v: Any) -> Emotion:
+        if isinstance(v, Emotion):
+            return v
+        if isinstance(v, str):
+            val = v.strip().lower()
+            try:
+                return Emotion(val)
+            except ValueError:
+                return _EMOTION_SYNONYMS.get(val, Emotion.NEUTRAL)
+        return Emotion.NEUTRAL
 
 
 class AttributionResult(BaseModel):

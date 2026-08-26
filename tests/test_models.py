@@ -42,14 +42,25 @@ def test_character_aliases_default_to_empty() -> None:
     assert c.aliases == []
 
 
-def test_character_tone_must_be_valid_enum() -> None:
-    with pytest.raises(ValidationError):
-        Character(canonical_id="Character_A", name="Alice", tone="aggressive")
+def test_character_tone_normalizes_unknown_to_neutral() -> None:
+    c = Character(canonical_id="Character_A", name="Alice", tone="aggressive")
+    assert c.tone == Tone.NEUTRAL
 
 
 def test_dialog_line_speaker_regex() -> None:
     with pytest.raises(ValidationError, match="speaker"):
         DialogLine(text="hello", speaker="the young woman")
+
+
+def test_dialog_line_normalizes_creative_emotions() -> None:
+    line1 = DialogLine(text="hello", speaker="Narrator", emotion="impatient")
+    assert line1.emotion == Emotion.ANGRY
+
+    line2 = DialogLine(text="hello", speaker="Character_A", emotion="joyful")
+    assert line2.emotion == Emotion.HAPPY
+
+    line3 = DialogLine(text="hello", speaker="Character_A", emotion="completely_unknown_emotion")
+    assert line3.emotion == Emotion.NEUTRAL
 
 
 def test_dialog_line_default_emotion_is_neutral() -> None:
