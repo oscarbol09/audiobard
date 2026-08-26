@@ -433,7 +433,8 @@ class AudioBookPipeline:
                             encoding="utf-8",
                         )
 
-                self.persistence.save_checkpoint(book_id, checkpoint_name, "completed", {})
+                    self.persistence.save_checkpoint(book_id, checkpoint_name, "completed", {})
+
                 progress.update(task, advance=1)
                 _emit_chunk_progress(
                     progress_callback,

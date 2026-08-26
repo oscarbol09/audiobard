@@ -234,6 +234,6 @@ async def test_piper_ensure_model_cached(tmp_path: Path) -> None:
 async def test_piper_ensure_model_invalid_voice_id(tmp_path: Path) -> None:
     config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
     provider = PiperProvider(config)
-    with pytest.raises(ValueError, match="Invalid voice ID format"):
+    with pytest.raises(ValueError, match="Invalid Piper voice ID format"):
         await provider._ensure_model("invalid_id")
 

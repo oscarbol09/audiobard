@@ -98,6 +98,21 @@ def generate(
         "--dry-run",
         help="Perform parsing, character extraction, and mapping without voice synthesis.",
     ),
+    chunk_words: int | None = typer.Option(
+        None,
+        "--chunk-words",
+        help="Words per LLM attribution chunk.",
+    ),
+    llm_temperature: float | None = typer.Option(
+        None,
+        "--llm-temperature",
+        help="Sampling temperature for LLM.",
+    ),
+    log_level: str | None = typer.Option(
+        None,
+        "--log-level",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR).",
+    ),
 ) -> None:
     """Generate a multi-character audiobook from a book file."""
     # 1. Load config and override with CLI args
@@ -110,6 +125,12 @@ def generate(
         config_overrides["tts_provider"] = tts
     if locale:
         config_overrides["tts_locale"] = locale
+    if chunk_words is not None:
+        config_overrides["chunk_words"] = chunk_words
+    if llm_temperature is not None:
+        config_overrides["llm_temperature"] = llm_temperature
+    if log_level is not None:
+        config_overrides["log_level"] = log_level
 
     try:
         config = AudioBardConfig.model_validate(config_overrides)

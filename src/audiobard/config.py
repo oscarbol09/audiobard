@@ -75,7 +75,7 @@ def _default_voices_dir() -> Path:
     pkg_dir = Path(__file__).resolve().parent.parent.parent / "data" / "voices"
     if pkg_dir.is_dir():
         return pkg_dir
-    return Path("data/voices")
+    return Path("~/.local/share/audiobard/voices").expanduser()
 
 
 class AudioBardConfig(BaseSettings):
