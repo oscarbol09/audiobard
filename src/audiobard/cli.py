@@ -52,6 +52,25 @@ def main(
     )
 
 
+@app.command("doctor")
+def doctor() -> None:
+    """Check external dependencies and local configuration."""
+    from audiobard.doctor import collect_diagnostics
+
+    table = Table(title="AudioBard Doctor")
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("Detail")
+    failed = False
+    for name, status, detail in collect_diagnostics():
+        style = "green" if status == "ok" or status == "configured" else "yellow"
+        table.add_row(name, f"[{style}]{status}[/{style}]", detail)
+        failed |= status in {"missing", "error"}
+    console.print(table)
+    if failed:
+        raise typer.Exit(code=1)
+
+
 @app.command("generate")
 def generate(
     book: Path = typer.Argument(
