@@ -301,10 +301,25 @@ class AudioBookPipeline:
             )
         voice_map = {v.id: v for v in voices}
         checkpoint = self.persistence.get_checkpoint(book_id, "voice_assignment")
-        if resume and checkpoint and checkpoint["status"] == "completed":
+        stale_provider = (
+            checkpoint is not None
+            and isinstance(checkpoint.get("payload"), dict)
+            and (
+                checkpoint["payload"].get("tts_provider") != self.config.tts_provider
+                or checkpoint["payload"].get("tts_locale") != self.config.tts_locale
+            )
+        )
+        if resume and checkpoint and checkpoint["status"] == "completed" and not stale_provider:
             voice_assignments = self.persistence.get_voice_mapping(book_id)
             logger.info("Loaded voice mappings from checkpoint")
         else:
+            if stale_provider and checkpoint is not None:
+                logger.info(
+                    "Voice assignment checkpoint was computed for a different "
+                    "provider/locale (%s/%s); recomputing.",
+                    checkpoint.get("payload", {}).get("tts_provider"),
+                    checkpoint.get("payload", {}).get("tts_locale"),
+                )
             voices_path = self.config.voices_dir / f"{self.config.tts_locale}.json"
             if voices_path.exists():
                 mapper = VoiceMapper(voices_path=voices_path)
@@ -312,7 +327,15 @@ class AudioBookPipeline:
                 mapper = VoiceMapper(voices=voices)
             voice_assignments = list(mapper.assign_all(characters).values())
             self.persistence.save_voice_mapping(book_id, voice_assignments)
-            self.persistence.save_checkpoint(book_id, "voice_assignment", "completed", {})
+            self.persistence.save_checkpoint(
+                book_id,
+                "voice_assignment",
+                "completed",
+                {
+                    "tts_provider": self.config.tts_provider,
+                    "tts_locale": self.config.tts_locale,
+                },
+            )
             logger.info("Mapped %d speakers to voices", len(voice_assignments))
         _emit(
             progress_callback,
@@ -370,6 +393,16 @@ class AudioBookPipeline:
 
                 # Match attributed dialog lines back to paragraphs sequentially
                 dialog_lines = attr_result.lines
+                dialog_paragraph_count = sum(1 for p in chunk if p.is_dialog)
+                if len(dialog_lines) != dialog_paragraph_count:
+                    logger.warning(
+                        "Attribution count mismatch in chunk %d: "
+                        "%d dialog paragraphs vs %d attributed lines.",
+                        idx + 1,
+                        dialog_paragraph_count,
+                        len(dialog_lines),
+                    )
+
                 dl_idx = 0
                 assigned_paragraphs: list[tuple[Paragraph, str, Emotion]] = []
 

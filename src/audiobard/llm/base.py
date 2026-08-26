@@ -22,6 +22,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, TypeVar
 
+import httpx
 from pydantic import BaseModel, ValidationError
 
 from audiobard.models import AttributionResult, CharactersResult
@@ -36,6 +37,16 @@ _T = TypeVar("_T", bound=BaseModel)
 # Bump this when prompts or schema logic changes — old cache entries are
 # automatically invalidated because the key includes this version.
 _CACHE_VERSION = "v1"
+
+_NON_RETRIABLE_STATUS_CODES = {400, 401, 403, 404, 410}
+
+
+def _is_non_retriable(exc: Exception) -> bool:
+    """True if *exc* represents a permanent client or authentication error."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in _NON_RETRIABLE_STATUS_CODES
+    msg = str(exc)
+    return any(f"HTTP {code}" in msg for code in _NON_RETRIABLE_STATUS_CODES)
 
 
 def _backoff(attempt: int) -> float:
@@ -197,7 +208,7 @@ class LLMClient(ABC):
                     except Exception as cache_exc:
                         logger.warning("Failed to write LLM cache: %s", cache_exc)
                 return result
-            except (ValidationError, json.JSONDecodeError, Exception) as exc:
+            except Exception as exc:
                 last_exc = exc
                 elapsed = time.monotonic() - t0
                 logger.warning(
@@ -207,6 +218,8 @@ class LLMClient(ABC):
                     exc,
                     extra={"elapsed_s": round(elapsed, 3)},
                 )
+                if _is_non_retriable(exc):
+                    raise RuntimeError(f"Non-retriable LLM error: {exc}") from exc
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(_backoff(attempt))
 
