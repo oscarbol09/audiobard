@@ -5,4 +5,4 @@ assigns consistent voices, and synthesizes a multi-voice audiobook — entirely
 offline, entirely free.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

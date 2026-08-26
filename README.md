@@ -109,6 +109,7 @@ audiobard generate book.epub --dry-run
 | `cargo tauri build` | Build standalone desktop executable installer (`.exe` / `.msi`) |
 | `audiobard generate <book> -o <out>` | Full CLI pipeline: parse → attribute → synthesize → assemble |
 | `audiobard generate <book> --dry-run` | Parse + LLM attribution only — no synthesis (fast prompt iteration) |
+| `audiobard doctor` | Check environment, dependencies, FFmpeg, Piper, Ollama, API keys, and cache |
 | `audiobard benchmark --llm <provider>` | Attribution accuracy against the gold standard (see [eval/README.md](eval/README.md)) |
 | `audiobard stats` | Cache hit rate, books processed, and disk cache usage |
 | `audiobard voices --locale en_US` | List available TTS voices for a locale |
@@ -119,25 +120,28 @@ audiobard generate book.epub --dry-run
 ```
 audiobard/
 ├── src/audiobard/
-│   ├── cli.py                    # CLI entry point
+│   ├── cli.py                    # CLI entry point (Typer app)
 │   ├── config.py                 # Pydantic settings
+│   ├── doctor.py                 # Environment diagnostics
 │   ├── parser/                   # TXT/EPUB parsers (BookParser ABC)
 │   ├── llm/                      # LLM clients (LLMClient ABC) + versioned prompts
 │   ├── tts/                      # TTS providers (TTSProvider ABC) + voice mapper
 │   ├── audio/                    # Audio assembly (pydub/ffmpeg)
 │   ├── pipeline.py               # Orchestrator
 │   └── persistence.py            # SQLite: speakers, voices, cache, runs
-├── tests/                        # pytest suite (unit + integration)
+├── gui/                          # Vue 3 + Tailwind CSS frontend
+├── src-tauri/                    # Tauri v2 native desktop application wrapper
+├── tests/                        # pytest suite (236+ unit & integration tests)
 ├── eval/
 │   ├── gold_standard/            # Hand-labeled dialog attribution (immutable)
 │   └── benchmark.py              # Accuracy scorer
 ├── data/
-│   └── books/                    # Sample books (gitignored — public domain only)
+│   ├── books/                    # Sample books (gitignored — public domain only)
+│   └── voices/                   # Regional voice metadata pools (en_US, es_MX, es_CO, es_ES)
 ├── tools/
-│   ├── guards.py                 # Security guards run by CI
-│   └── lint_skills.py            # (planned) prompt/skill linting
+│   ├── guards.py                 # Security & supply-chain guards run by CI
+│   └── lint_skills.py            # Prompt/skill linting
 ├── .github/workflows/            # CI, benchmark, notifications
-├── AudioBard_DevPlan.md          # Full development plan (phases, costs, ethics)
 └── docs/                         # Provider and prompt-engineering guides
 ```
 

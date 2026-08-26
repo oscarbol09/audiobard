@@ -4,7 +4,7 @@ build_backend = "setuptools.build_meta"
 
 [project]
 name = "audiobard"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI-powered audiobook generator with multi-character voice synthesis. 100% free, FOSS-first, offline-capable."
 readme = "README.md"
 requires-python = ">=3.10"
