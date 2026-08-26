@@ -27,7 +27,7 @@ import zlib
 from pathlib import Path
 from typing import Any
 
-from audiobard.models import Character, Tone, Voice, VoiceAssignment
+from audiobard.models import Character, GenderHint, Tone, Voice, VoiceAssignment
 
 logger = logging.getLogger(__name__)
 
@@ -165,14 +165,30 @@ class VoiceMapper:
         logger.debug("Loaded %d voices from %s", len(self._pool), self.voices_path)
 
     def _compute_assignment(self, character: Character) -> VoiceAssignment:
-        # Step 1: filter by gender_hint (mandatory)
-        gender_pool = [v for v in self._pool if v.gender == character.gender_hint]
+        # Step 1: filter by gender_hint (mandatory when available)
+        effective_gender = character.gender_hint
+        if effective_gender == GenderHint.NEUTRAL:
+            # Check text / alias clues for first-person narrators (e.g., "soñador", "él", "he")
+            combined_text = f"{character.name} {' '.join(character.aliases)}".lower()
+            male_clues = [
+                "soñador", "hombre", "él", "he", "him", "boy", "man", "mr", "señor", "don"
+            ]
+            female_clues = [
+                "mujer", "ella", "she", "her", "girl", "woman", "mrs", "ms", "señora", "doña"
+            ]
+            if any(w in combined_text for w in male_clues):
+                effective_gender = GenderHint.MALE
+            elif any(w in combined_text for w in female_clues):
+                effective_gender = GenderHint.FEMALE
+
+        gender_pool = [v for v in self._pool if v.gender == effective_gender]
         if not gender_pool:
-            logger.warning(
-                "No voices matching gender_hint=%s for %s; using full pool.",
-                character.gender_hint,
-                character.canonical_id,
-            )
+            if character.gender_hint != GenderHint.NEUTRAL:
+                logger.warning(
+                    "No voices matching gender_hint=%s for %s; using full pool.",
+                    character.gender_hint,
+                    character.canonical_id,
+                )
             gender_pool = list(self._pool)
 
         # Step 2: filter by age_hint (best-effort)
