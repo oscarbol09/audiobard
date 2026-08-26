@@ -111,9 +111,37 @@ async def test_ollama_client_success() -> None:
     with patch.dict(sys.modules, {"ollama": mock_ollama}):
         raw = await client._raw_call("prompt", {})
         assert raw == '{"characters": []}'
+        mock_async_client_cls.assert_called_once_with(
+            host="http://localhost:11434", timeout=120.0
+        )
+
+
+@pytest.mark.asyncio
+async def test_ollama_client_custom_timeout() -> None:
+    import sys
+    import types
+
+    client = OllamaClient(model="test-model", timeout=60.0)
+    mock_msg = MagicMock()
+    mock_msg.content = '{"characters": []}'
+    mock_resp = MagicMock()
+    mock_resp.message = mock_msg
+
+    mock_ollama = types.ModuleType("ollama")
+    mock_async_client_cls = MagicMock()
+    mock_instance = AsyncMock()
+    mock_instance.chat.return_value = mock_resp
+    mock_async_client_cls.return_value = mock_instance
+    mock_ollama.AsyncClient = mock_async_client_cls
+
+    with patch.dict(sys.modules, {"ollama": mock_ollama}):
+        raw = await client._raw_call("prompt", {})
+        assert raw == '{"characters": []}'
+        mock_async_client_cls.assert_called_once_with(
+            host="http://localhost:11434", timeout=60.0
+        )
 
 
 def test_gemini_client_extract_json_unfenced() -> None:
     raw = '{"key": "value"}'
     assert GeminiClient._extract_json_from_response(raw) == '{"key": "value"}'
-
