@@ -120,7 +120,7 @@ class AudioBardConfig(BaseSettings):
     openrouter_api_key: str = ""
     gemini_api_key: str = ""
     nim_api_key: str = ""
-    nim_model: str = "meta/llama-3.3-70b-instruct"
+    nim_model: str = "nvidia/llama-3.1-nemotron-70b-instruct"
 
     # ------------------------------------------------------------------ TTS
     tts_provider: Literal["piper", "edge"] = "piper"

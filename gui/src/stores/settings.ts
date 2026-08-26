@@ -49,7 +49,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   openrouterApiKey: '',
   openrouterModel: 'meta-llama/llama-3.3-70b-instruct',
   nimApiKey: '',
-  nimModel: 'meta/llama-3.3-70b-instruct',
+  nimModel: 'nvidia/llama-3.1-nemotron-70b-instruct',
   ttsProvider: 'piper',
   ttsLocale: 'en_US',
   piperVoice: '',

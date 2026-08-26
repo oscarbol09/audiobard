@@ -88,7 +88,7 @@ class GeminiClient(LLMClient):
 
         try:
             val: str = data["candidates"][0]["content"]["parts"][0]["text"]
-            return val
+            return self._extract_json_from_response(val)
         except (KeyError, IndexError) as exc:
             raise RuntimeError(f"Unexpected Gemini response structure: {data}") from exc
 
@@ -104,6 +104,5 @@ class GeminiClient(LLMClient):
         return raw
 
     async def _raw_call_validated(self, prompt: str, schema: dict[str, Any]) -> str:
-        """Wrapper that also strips markdown fences before returning."""
-        raw = await self._raw_call(prompt, schema)
-        return self._extract_json_from_response(raw)
+        """Alias for _raw_call for backwards compatibility."""
+        return await self._raw_call(prompt, schema)

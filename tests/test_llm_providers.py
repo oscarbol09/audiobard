@@ -32,7 +32,7 @@ async def test_gemini_client_success() -> None:
         respx.post(url__regex=r"https://generativelanguage\.googleapis\.com/.*").respond(
             status_code=200, json=mock_resp
         )
-        raw = await client._raw_call_validated(prompt, schema)
+        raw = await client._raw_call(prompt, schema)
         assert raw == '{"characters": []}'
 
 
