@@ -309,6 +309,8 @@ pub struct LibraryBook {
     pub dialog_ratio: f64,
     #[serde(alias = "createdAt")]
     pub created_at: Option<String>,
+    #[serde(alias = "hasAudio", default)]
+    pub has_audio: Option<bool>,
 }
 
 /// Fetch the full library from FastAPI.

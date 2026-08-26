@@ -11,6 +11,7 @@
 
   body {
     @apply bg-gray-950 text-gray-100 font-sans antialiased;
+    transition: background-color 0.15s ease, color 0.15s ease;
   }
 
   /* Custom scrollbar */
@@ -18,4 +19,62 @@
   ::-webkit-scrollbar-track { @apply bg-gray-900; }
   ::-webkit-scrollbar-thumb { @apply bg-gray-700 rounded-full; }
   ::-webkit-scrollbar-thumb:hover { @apply bg-gray-500; }
+}
+
+/* Responsive Theme Adaptation for Light Mode */
+html:not(.dark) {
+  color-scheme: light;
+}
+
+html:not(.dark) body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+html:not(.dark) .bg-gray-950 {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) .bg-gray-900 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) .bg-gray-800 {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .border-gray-800,
+html:not(.dark) .border-gray-700 {
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) .text-gray-100 {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .text-gray-300 {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-gray-400 {
+  color: #64748b !important;
+}
+
+html:not(.dark) .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .divide-gray-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
 }

@@ -183,11 +183,13 @@ async function onGenerate(): Promise<void> {
                   @change="e => settingsStore.updateSetting('ttsLocale', (e.target as HTMLSelectElement).value)"
                   class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                 >
-                  <option value="en_US">English (US)</option>
-                  <option value="es_ES">Spanish (Spain)</option>
-                  <option value="fr_FR">French (France)</option>
-                  <option value="de_DE">German (Germany)</option>
-                  <option value="it_IT">Italian (Italy)</option>
+                  <option value="es_MX">{{ t('localeEsMx') }}</option>
+                  <option value="es_CO">{{ t('localeEsCo') }}</option>
+                  <option value="es_ES">{{ t('localeEsEs') }}</option>
+                  <option value="en_US">{{ t('localeEnUs') }}</option>
+                  <option value="fr_FR">{{ t('localeFrFr') }}</option>
+                  <option value="de_DE">{{ t('localeDeDe') }}</option>
+                  <option value="it_IT">{{ t('localeItIt') }}</option>
                 </select>
               </div>
 

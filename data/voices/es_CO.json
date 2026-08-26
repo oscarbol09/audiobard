@@ -1,0 +1,18 @@
+﻿[
+  {
+    "id": "es-CO-GonzaloNeural",
+    "locale": "es_CO",
+    "gender": "male",
+    "age": "adult",
+    "energy": 0.6,
+    "sample_text": "El sol ya se habia puesto cuando finalmente llego a la mansion."
+  },
+  {
+    "id": "es-CO-SalomeNeural",
+    "locale": "es_CO",
+    "gender": "female",
+    "age": "adult",
+    "energy": 0.55,
+    "sample_text": "Hablaba en voz baja, con absoluta serenidad y misterio."
+  }
+]
