@@ -89,7 +89,12 @@ class NimClient(LLMClient):
                     "temperature": self.temperature,
                 }
                 response = await client.post(_NIM_URL, json=payload_no_rf, headers=headers)
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                raise RuntimeError(
+                    f"NVIDIA NIM API error (HTTP {exc.response.status_code}): {exc.response.text}"
+                ) from exc
             data = response.json()
 
         try:
