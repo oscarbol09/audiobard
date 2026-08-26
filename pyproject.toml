@@ -51,7 +51,7 @@ dev = [
 ]
 
 [project.scripts]
-audiobard = "audiobard.cli:main"
+audiobard = "audiobard.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
