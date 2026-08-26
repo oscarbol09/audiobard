@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import re
 import shutil
 from pathlib import Path
 
@@ -119,14 +120,15 @@ class PiperProvider(TTSProvider):
         if onnx_path.exists() and json_path.exists():
             return onnx_path
 
-        # Parse voice ID parts (e.g. en_US-amy-medium)
-        parts = voice_id.split("-")
-        if len(parts) < 3:
-            raise ValueError(f"Invalid voice ID format for Piper: {voice_id}")
+        regex = r"^([a-z]{2,3}_[A-Z]{2,3})-([a-zA-Z0-9_]+)-(x_low|low|medium|high)$"
+        match = re.match(regex, voice_id)
+        if not match:
+            raise ValueError(
+                f"Invalid Piper voice ID format: {voice_id}. "
+                "Expected format: locale-name-quality (e.g. en_US-amy-medium)"
+            )
 
-        locale = parts[0]
-        name = parts[1]
-        quality = parts[2]
+        locale, name, quality = match.groups()
         lang_prefix = locale.split("_")[0]
 
         base_url = (
@@ -137,7 +139,7 @@ class PiperProvider(TTSProvider):
         onnx_url = f"{base_url}.onnx"
         json_url = f"{base_url}.onnx.json"
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             # Download config (json) first
             logger.info("Downloading Piper config from %s", json_url)
             res = await client.get(json_url, follow_redirects=True)
