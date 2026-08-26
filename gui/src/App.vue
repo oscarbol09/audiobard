@@ -27,12 +27,24 @@ const settingsStore = useSettingsStore()
 const i18n = useI18nStore()
 const { t } = i18n
 
+const modelTierFilter = ref<'all' | 'free' | 'premium'>('all')
+
 const availableModels = computed(() => {
   const provider = settingsStore.settings.llmProvider
   if (provider === 'nim') return NIM_MODELS
   if (provider === 'openrouter') return OPENROUTER_MODELS
   if (provider === 'gemini') return GEMINI_MODELS
   return OLLAMA_MODELS
+})
+
+const filteredModels = computed(() => {
+  if (modelTierFilter.value === 'free') {
+    return availableModels.value.filter((m) => m.freeTier)
+  }
+  if (modelTierFilter.value === 'premium') {
+    return availableModels.value.filter((m) => !m.freeTier)
+  }
+  return availableModels.value
 })
 
 const activeModelInfo = computed(() => {
@@ -209,14 +221,43 @@ async function onGenerate(): Promise<void> {
 
               <!-- LLM Model -->
               <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('modelPresetLabel') }}</label>
+                <div class="flex items-center justify-between mb-2">
+                  <label class="text-sm font-medium text-gray-300">{{ t('modelPresetLabel') }}</label>
+                  <div class="inline-flex rounded-lg bg-gray-900/90 p-0.5 border border-gray-700 text-xs">
+                    <button
+                      type="button"
+                      @click="modelTierFilter = 'all'"
+                      class="px-2 py-0.5 rounded transition-colors"
+                      :class="modelTierFilter === 'all' ? 'bg-brand-500 text-gray-900 font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                    >
+                      {{ t('filterAll') }}
+                    </button>
+                    <button
+                      type="button"
+                      @click="modelTierFilter = 'free'"
+                      class="px-2 py-0.5 rounded transition-colors"
+                      :class="modelTierFilter === 'free' ? 'bg-green-500 text-gray-900 font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                    >
+                      {{ t('filterFree') }}
+                    </button>
+                    <button
+                      type="button"
+                      @click="modelTierFilter = 'premium'"
+                      class="px-2 py-0.5 rounded transition-colors"
+                      :class="modelTierFilter === 'premium' ? 'bg-purple-500 text-white font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                    >
+                      {{ t('filterPremium') }}
+                    </button>
+                  </div>
+                </div>
+
                 <select
                   :value="settingsStore.getEffectiveModel()"
                   @change="e => updateActiveModel((e.target as HTMLSelectElement).value)"
                   class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                 >
-                  <option v-for="m in availableModels" :key="m.value" :value="m.value">
-                    {{ m.badge.split(' ')[0] }} {{ m.label }}
+                  <option v-for="m in filteredModels" :key="m.value" :value="m.value">
+                    {{ m.freeTier ? '⭐ [FREE]' : '💎 [PRO]' }} {{ m.label }}
                   </option>
                 </select>
 

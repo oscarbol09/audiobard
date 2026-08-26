@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from audiobard.persistence import PersistenceManager
 
 _OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-_DEFAULT_MODEL = "deepseek/deepseek-chat-v3-0324:free"
+_DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
 
 
 class OpenRouterClient(LLMClient):

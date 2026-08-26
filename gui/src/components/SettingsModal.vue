@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../stores/settings'
 import { useI18nStore } from '../stores/i18n'
@@ -17,6 +17,32 @@ const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 const settingsStore = useSettingsStore()
 const i18n = useI18nStore()
 const { t } = i18n
+
+const modelFilter = ref<'all' | 'free' | 'premium'>('all')
+
+const filteredNimModels = computed(() => {
+  if (modelFilter.value === 'free') return NIM_MODELS.filter((m) => m.freeTier)
+  if (modelFilter.value === 'premium') return NIM_MODELS.filter((m) => !m.freeTier)
+  return NIM_MODELS
+})
+
+const filteredOpenrouterModels = computed(() => {
+  if (modelFilter.value === 'free') return OPENROUTER_MODELS.filter((m) => m.freeTier)
+  if (modelFilter.value === 'premium') return OPENROUTER_MODELS.filter((m) => !m.freeTier)
+  return OPENROUTER_MODELS
+})
+
+const filteredGeminiModels = computed(() => {
+  if (modelFilter.value === 'free') return GEMINI_MODELS.filter((m) => m.freeTier)
+  if (modelFilter.value === 'premium') return GEMINI_MODELS.filter((m) => !m.freeTier)
+  return GEMINI_MODELS
+})
+
+const filteredOllamaModels = computed(() => {
+  if (modelFilter.value === 'free') return OLLAMA_MODELS.filter((m) => m.freeTier)
+  if (modelFilter.value === 'premium') return OLLAMA_MODELS.filter((m) => !m.freeTier)
+  return OLLAMA_MODELS
+})
 
 function closeModal() {
   emit('update:modelValue', false)
@@ -152,207 +178,323 @@ async function clearCache() {
                 </select>
               </div>
 
-              <!-- Ollama Options -->
-              <div v-if="settingsStore.settings.llmProvider === 'ollama'" class="space-y-4 p-4 rounded-xl bg-gray-800/50 border border-gray-700/50">
-                <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('ollamaHostLabel') }}</label>
-                  <input
-                    type="text"
-                    v-model="settingsStore.settings.ollamaUrl"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                    placeholder="http://localhost:11434"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('ollamaModelLabel') }}</label>
-                  <select
-                    v-model="settingsStore.settings.ollamaModel"
-                    @change="settingsStore.settings.llmModel = settingsStore.settings.ollamaModel"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                  >
-                    <option v-for="m in OLLAMA_MODELS" :key="m.value" :value="m.value">
-                      {{ m.badge.split(' ')[0] }} {{ m.label }}
-                    </option>
-                  </select>
-
-                  <!-- Model Info Card -->
-                  <div v-if="selectedOllamaModelInfo" class="p-3.5 rounded-lg bg-gray-900/80 border border-gray-700/80 space-y-2 mb-3">
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="font-medium text-gray-200 text-sm">{{ selectedOllamaModelInfo.label }}</span>
-                      <span class="text-xs px-2 py-0.5 rounded-full border" :class="selectedOllamaModelInfo.badgeClass">
-                        {{ selectedOllamaModelInfo.badge }}
-                      </span>
-                    </div>
-                    <p class="text-xs text-gray-300 leading-relaxed">{{ selectedOllamaModelInfo.description }}</p>
-                    <div class="text-[11px] text-gray-500 font-mono flex items-center gap-2">
-                      <span>{{ selectedOllamaModelInfo.specs }}</span>
-                      <span>•</span>
-                      <code>{{ selectedOllamaModelInfo.value }}</code>
-                    </div>
-                  </div>
-
-                  <details class="text-xs text-gray-400">
-                    <summary class="cursor-pointer hover:text-gray-300 mb-2">Ingresar modelo personalizado de Ollama...</summary>
+                <!-- Ollama Options -->
+                <div v-if="settingsStore.settings.llmProvider === 'ollama'" class="space-y-4 p-4 rounded-xl bg-gray-800/50 border border-gray-700/50">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">{{ t('ollamaHostLabel') }}</label>
                     <input
                       type="text"
+                      v-model="settingsStore.settings.ollamaUrl"
+                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                      placeholder="http://localhost:11434"
+                    />
+                  </div>
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <label class="text-sm font-medium text-gray-300">{{ t('ollamaModelLabel') }}</label>
+                      <div class="inline-flex rounded-lg bg-gray-900/90 p-0.5 border border-gray-700 text-xs">
+                        <button
+                          type="button"
+                          @click="modelFilter = 'all'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'all' ? 'bg-brand-500 text-gray-900 font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterAll') }}
+                        </button>
+                        <button
+                          type="button"
+                          @click="modelFilter = 'free'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'free' ? 'bg-green-500 text-gray-900 font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterFree') }}
+                        </button>
+                        <button
+                          type="button"
+                          @click="modelFilter = 'premium'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'premium' ? 'bg-purple-500 text-white font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterPremium') }}
+                        </button>
+                      </div>
+                    </div>
+
+                    <select
                       v-model="settingsStore.settings.ollamaModel"
-                      @input="settingsStore.settings.llmModel = settingsStore.settings.ollamaModel"
-                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                      :placeholder="t('customModelPlaceholder')"
-                    />
-                  </details>
-                </div>
-              </div>
+                      @change="settingsStore.settings.llmModel = settingsStore.settings.ollamaModel"
+                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                    >
+                      <option v-for="m in filteredOllamaModels" :key="m.value" :value="m.value">
+                        {{ m.freeTier ? '⭐ [FREE]' : '💎 [PRO]' }} {{ m.label }}
+                      </option>
+                    </select>
 
-              <!-- NVIDIA NIM Options (BYOK) -->
-              <div v-if="settingsStore.settings.llmProvider === 'nim'" class="space-y-4 p-4 rounded-xl bg-green-950/20 border border-green-800/40">
-                <div class="flex items-center justify-between text-sm">
-                  <div class="flex items-center gap-2 text-green-400 font-semibold">
-                    <span>⚡ NVIDIA NIM (build.nvidia.com)</span>
-                  </div>
-                  <span class="text-xs text-green-400/80 bg-green-900/30 px-2 py-0.5 rounded border border-green-700/30">
-                    Free Tier API
-                  </span>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">NVIDIA NIM {{ t('apiKeyLabel') }}</label>
-                  <input
-                    type="password"
-                    v-model="settingsStore.settings.nimApiKey"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="nvapi-..."
-                  />
-                  <p class="text-xs text-gray-500 mt-1">Obtén tu API key gratuita en <a href="https://build.nvidia.com" target="_blank" class="text-green-400 underline">build.nvidia.com</a> (sin tarjeta requerida).</p>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">Catálogo de Modelos NVIDIA NIM</label>
-                  <select
-                    v-model="settingsStore.settings.nimModel"
-                    @change="settingsStore.settings.llmModel = settingsStore.settings.nimModel"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  >
-                    <option v-for="m in NIM_MODELS" :key="m.value" :value="m.value">
-                      {{ m.badge.split(' ')[0] }} {{ m.label }}
-                    </option>
-                  </select>
-
-                  <!-- Model Info Card / Recommendation -->
-                  <div v-if="selectedNimModelInfo" class="p-3.5 rounded-lg bg-gray-900/90 border border-green-800/50 space-y-2 mb-3">
-                    <div class="flex items-center justify-between gap-2 flex-wrap">
-                      <span class="font-semibold text-green-300 text-sm">{{ selectedNimModelInfo.label }}</span>
-                      <span class="text-xs px-2.5 py-0.5 rounded-full border font-medium" :class="selectedNimModelInfo.badgeClass">
-                        {{ selectedNimModelInfo.badge }}
-                      </span>
+                    <!-- Model Info Card -->
+                    <div v-if="selectedOllamaModelInfo" class="p-3.5 rounded-lg bg-gray-900/80 border border-gray-700/80 space-y-2 mb-3">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="font-medium text-gray-200 text-sm">{{ selectedOllamaModelInfo.label }}</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full border" :class="selectedOllamaModelInfo.badgeClass">
+                          {{ selectedOllamaModelInfo.badge }}
+                        </span>
+                      </div>
+                      <p class="text-xs text-gray-300 leading-relaxed">{{ selectedOllamaModelInfo.description }}</p>
+                      <div class="text-[11px] text-gray-500 font-mono flex items-center gap-2">
+                        <span>{{ selectedOllamaModelInfo.specs }}</span>
+                        <span>•</span>
+                        <code>{{ selectedOllamaModelInfo.value }}</code>
+                      </div>
                     </div>
-                    <p class="text-xs text-gray-300 leading-relaxed">{{ selectedNimModelInfo.description }}</p>
-                    <div class="text-[11px] text-gray-400 font-mono flex items-center justify-between pt-1 border-t border-gray-800">
-                      <span>{{ selectedNimModelInfo.specs }}</span>
-                      <code class="text-green-400">{{ selectedNimModelInfo.value }}</code>
-                    </div>
-                  </div>
 
-                  <details class="text-xs text-gray-400">
-                    <summary class="cursor-pointer hover:text-green-300 mb-2">Ingresar ID de modelo personalizado de NVIDIA NIM...</summary>
+                    <details class="text-xs text-gray-400">
+                      <summary class="cursor-pointer hover:text-gray-300 mb-2">Ingresar modelo personalizado de Ollama...</summary>
+                      <input
+                        type="text"
+                        v-model="settingsStore.settings.ollamaModel"
+                        @input="settingsStore.settings.llmModel = settingsStore.settings.ollamaModel"
+                        class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                        :placeholder="t('customModelPlaceholder')"
+                      />
+                    </details>
+                  </div>
+                </div>
+
+                <!-- NVIDIA NIM Options (BYOK) -->
+                <div v-if="settingsStore.settings.llmProvider === 'nim'" class="space-y-4 p-4 rounded-xl bg-green-950/20 border border-green-800/40">
+                  <div class="flex items-center justify-between text-sm">
+                    <div class="flex items-center gap-2 text-green-400 font-semibold">
+                      <span>⚡ NVIDIA NIM (build.nvidia.com)</span>
+                    </div>
+                    <span class="text-xs text-green-400/80 bg-green-900/30 px-2 py-0.5 rounded border border-green-700/30">
+                      Free Tier API
+                    </span>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">NVIDIA NIM {{ t('apiKeyLabel') }}</label>
                     <input
-                      type="text"
+                      type="password"
+                      v-model="settingsStore.settings.nimApiKey"
+                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      placeholder="nvapi-..."
+                    />
+                    <p class="text-xs text-gray-500 mt-1">Obtén tu API key gratuita en <a href="https://build.nvidia.com" target="_blank" class="text-green-400 underline">build.nvidia.com</a> (sin tarjeta requerida).</p>
+                  </div>
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <label class="text-sm font-medium text-gray-300">Catálogo de Modelos NVIDIA NIM</label>
+                      <div class="inline-flex rounded-lg bg-gray-900/90 p-0.5 border border-gray-700 text-xs">
+                        <button
+                          type="button"
+                          @click="modelFilter = 'all'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'all' ? 'bg-brand-500 text-gray-900 font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterAll') }}
+                        </button>
+                        <button
+                          type="button"
+                          @click="modelFilter = 'free'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'free' ? 'bg-green-500 text-gray-900 font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterFree') }}
+                        </button>
+                        <button
+                          type="button"
+                          @click="modelFilter = 'premium'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'premium' ? 'bg-purple-500 text-white font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterPremium') }}
+                        </button>
+                      </div>
+                    </div>
+
+                    <select
                       v-model="settingsStore.settings.nimModel"
-                      @input="settingsStore.settings.llmModel = settingsStore.settings.nimModel"
-                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      :placeholder="t('customModelPlaceholder')"
-                    />
-                  </details>
-                </div>
-              </div>
+                      @change="settingsStore.settings.llmModel = settingsStore.settings.nimModel"
+                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    >
+                      <option v-for="m in filteredNimModels" :key="m.value" :value="m.value">
+                        {{ m.freeTier ? '⭐ [FREE]' : '💎 [PRO]' }} {{ m.label }}
+                      </option>
+                    </select>
 
-              <!-- OpenRouter Options (BYOK) -->
-              <div v-if="settingsStore.settings.llmProvider === 'openrouter'" class="space-y-4 p-4 rounded-xl bg-purple-950/20 border border-purple-800/40">
-                <div class="flex items-center justify-between text-sm">
-                  <div class="flex items-center gap-2 text-purple-400 font-semibold">
-                    <span>🌐 OpenRouter Cloud</span>
-                  </div>
-                  <span class="text-xs text-purple-400/80 bg-purple-900/30 px-2 py-0.5 rounded border border-purple-700/30">
-                    Modelos Free & BYOK
-                  </span>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">OpenRouter {{ t('apiKeyLabel') }}</label>
-                  <input
-                    type="password"
-                    v-model="settingsStore.settings.openrouterApiKey"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    placeholder="sk-or-v1-..."
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">Catálogo de Modelos OpenRouter</label>
-                  <select
-                    v-model="settingsStore.settings.openrouterModel"
-                    @change="settingsStore.settings.llmModel = settingsStore.settings.openrouterModel"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    <option v-for="m in OPENROUTER_MODELS" :key="m.value" :value="m.value">
-                      {{ m.badge.split(' ')[0] }} {{ m.label }}
-                    </option>
-                  </select>
-
-                  <!-- Model Info Card -->
-                  <div v-if="selectedOpenrouterModelInfo" class="p-3.5 rounded-lg bg-gray-900/90 border border-purple-800/50 space-y-2 mb-3">
-                    <div class="flex items-center justify-between gap-2 flex-wrap">
-                      <span class="font-semibold text-purple-300 text-sm">{{ selectedOpenrouterModelInfo.label }}</span>
-                      <span class="text-xs px-2.5 py-0.5 rounded-full border font-medium" :class="selectedOpenrouterModelInfo.badgeClass">
-                        {{ selectedOpenrouterModelInfo.badge }}
-                      </span>
+                    <!-- Model Info Card / Recommendation -->
+                    <div v-if="selectedNimModelInfo" class="p-3.5 rounded-lg bg-gray-900/90 border border-green-800/50 space-y-2 mb-3">
+                      <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <span class="font-semibold text-green-300 text-sm">{{ selectedNimModelInfo.label }}</span>
+                        <span class="text-xs px-2.5 py-0.5 rounded-full border font-medium" :class="selectedNimModelInfo.badgeClass">
+                          {{ selectedNimModelInfo.badge }}
+                        </span>
+                      </div>
+                      <p class="text-xs text-gray-300 leading-relaxed">{{ selectedNimModelInfo.description }}</p>
+                      <div class="text-[11px] text-gray-400 font-mono flex items-center justify-between pt-1 border-t border-gray-800">
+                        <span>{{ selectedNimModelInfo.specs }}</span>
+                        <code class="text-green-400">{{ selectedNimModelInfo.value }}</code>
+                      </div>
                     </div>
-                    <p class="text-xs text-gray-300 leading-relaxed">{{ selectedOpenrouterModelInfo.description }}</p>
-                    <div class="text-[11px] text-gray-400 font-mono flex items-center justify-between pt-1 border-t border-gray-800">
-                      <span>{{ selectedOpenrouterModelInfo.specs }}</span>
-                      <code class="text-purple-400">{{ selectedOpenrouterModelInfo.value }}</code>
-                    </div>
-                  </div>
 
-                  <details class="text-xs text-gray-400">
-                    <summary class="cursor-pointer hover:text-purple-300 mb-2">Ingresar ID de modelo personalizado de OpenRouter...</summary>
+                    <details class="text-xs text-gray-400">
+                      <summary class="cursor-pointer hover:text-green-300 mb-2">Ingresar ID de modelo personalizado de NVIDIA NIM...</summary>
+                      <input
+                        type="text"
+                        v-model="settingsStore.settings.nimModel"
+                        @input="settingsStore.settings.llmModel = settingsStore.settings.nimModel"
+                        class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        :placeholder="t('customModelPlaceholder')"
+                      />
+                    </details>
+                  </div>
+                </div>
+
+                <!-- OpenRouter Options (BYOK) -->
+                <div v-if="settingsStore.settings.llmProvider === 'openrouter'" class="space-y-4 p-4 rounded-xl bg-purple-950/20 border border-purple-800/40">
+                  <div class="flex items-center justify-between text-sm">
+                    <div class="flex items-center gap-2 text-purple-400 font-semibold">
+                      <span>🌐 OpenRouter Cloud</span>
+                    </div>
+                    <span class="text-xs text-purple-400/80 bg-purple-900/30 px-2 py-0.5 rounded border border-purple-700/30">
+                      Modelos Free & BYOK
+                    </span>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">OpenRouter {{ t('apiKeyLabel') }}</label>
                     <input
-                      type="text"
-                      v-model="settingsStore.settings.openrouterModel"
-                      @input="settingsStore.settings.llmModel = settingsStore.settings.openrouterModel"
-                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      :placeholder="t('customModelPlaceholder')"
+                      type="password"
+                      v-model="settingsStore.settings.openrouterApiKey"
+                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      placeholder="sk-or-v1-..."
                     />
-                  </details>
-                </div>
-              </div>
-
-              <!-- Gemini Options (BYOK) -->
-              <div v-if="settingsStore.settings.llmProvider === 'gemini'" class="space-y-4 p-4 rounded-xl bg-blue-950/20 border border-blue-800/40">
-                <div class="flex items-center justify-between text-sm">
-                  <div class="flex items-center gap-2 text-blue-400 font-semibold">
-                    <span>✨ Google Gemini API</span>
                   </div>
-                  <span class="text-xs text-blue-400/80 bg-blue-900/30 px-2 py-0.5 rounded border border-blue-700/30">
-                    Google AI Studio
-                  </span>
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <label class="text-sm font-medium text-gray-300">Catálogo de Modelos OpenRouter</label>
+                      <div class="inline-flex rounded-lg bg-gray-900/90 p-0.5 border border-gray-700 text-xs">
+                        <button
+                          type="button"
+                          @click="modelFilter = 'all'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'all' ? 'bg-brand-500 text-gray-900 font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterAll') }}
+                        </button>
+                        <button
+                          type="button"
+                          @click="modelFilter = 'free'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'free' ? 'bg-green-500 text-gray-900 font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterFree') }}
+                        </button>
+                        <button
+                          type="button"
+                          @click="modelFilter = 'premium'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'premium' ? 'bg-purple-500 text-white font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterPremium') }}
+                        </button>
+                      </div>
+                    </div>
+
+                    <select
+                      v-model="settingsStore.settings.openrouterModel"
+                      @change="settingsStore.settings.llmModel = settingsStore.settings.openrouterModel"
+                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      <option v-for="m in filteredOpenrouterModels" :key="m.value" :value="m.value">
+                        {{ m.freeTier ? '⭐ [FREE]' : '💎 [PRO]' }} {{ m.label }}
+                      </option>
+                    </select>
+
+                    <!-- Model Info Card -->
+                    <div v-if="selectedOpenrouterModelInfo" class="p-3.5 rounded-lg bg-gray-900/90 border border-purple-800/50 space-y-2 mb-3">
+                      <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <span class="font-semibold text-purple-300 text-sm">{{ selectedOpenrouterModelInfo.label }}</span>
+                        <span class="text-xs px-2.5 py-0.5 rounded-full border font-medium" :class="selectedOpenrouterModelInfo.badgeClass">
+                          {{ selectedOpenrouterModelInfo.badge }}
+                        </span>
+                      </div>
+                      <p class="text-xs text-gray-300 leading-relaxed">{{ selectedOpenrouterModelInfo.description }}</p>
+                      <div class="text-[11px] text-gray-400 font-mono flex items-center justify-between pt-1 border-t border-gray-800">
+                        <span>{{ selectedOpenrouterModelInfo.specs }}</span>
+                        <code class="text-purple-400">{{ selectedOpenrouterModelInfo.value }}</code>
+                      </div>
+                    </div>
+
+                    <details class="text-xs text-gray-400">
+                      <summary class="cursor-pointer hover:text-purple-300 mb-2">Ingresar ID de modelo personalizado de OpenRouter...</summary>
+                      <input
+                        type="text"
+                        v-model="settingsStore.settings.openrouterModel"
+                        @input="settingsStore.settings.llmModel = settingsStore.settings.openrouterModel"
+                        class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        :placeholder="t('customModelPlaceholder')"
+                      />
+                    </details>
+                  </div>
                 </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">Gemini {{ t('apiKeyLabel') }}</label>
-                  <input
-                    type="password"
-                    v-model="settingsStore.settings.geminiApiKey"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="AIzaSy..."
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">Modelos Google Gemini</label>
-                  <select
-                    v-model="settingsStore.settings.geminiModel"
-                    @change="settingsStore.settings.llmModel = settingsStore.settings.geminiModel"
-                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option v-for="m in GEMINI_MODELS" :key="m.value" :value="m.value">
-                      {{ m.badge.split(' ')[0] }} {{ m.label }}
-                    </option>
-                  </select>
+
+                <!-- Gemini Options (BYOK) -->
+                <div v-if="settingsStore.settings.llmProvider === 'gemini'" class="space-y-4 p-4 rounded-xl bg-blue-950/20 border border-blue-800/40">
+                  <div class="flex items-center justify-between text-sm">
+                    <div class="flex items-center gap-2 text-blue-400 font-semibold">
+                      <span>✨ Google Gemini API</span>
+                    </div>
+                    <span class="text-xs text-blue-400/80 bg-blue-900/30 px-2 py-0.5 rounded border border-blue-700/30">
+                      Google AI Studio
+                    </span>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Gemini {{ t('apiKeyLabel') }}</label>
+                    <input
+                      type="password"
+                      v-model="settingsStore.settings.geminiApiKey"
+                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="AIzaSy..."
+                    />
+                  </div>
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <label class="text-sm font-medium text-gray-300">Modelos Google Gemini</label>
+                      <div class="inline-flex rounded-lg bg-gray-900/90 p-0.5 border border-gray-700 text-xs">
+                        <button
+                          type="button"
+                          @click="modelFilter = 'all'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'all' ? 'bg-brand-500 text-gray-900 font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterAll') }}
+                        </button>
+                        <button
+                          type="button"
+                          @click="modelFilter = 'free'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'free' ? 'bg-green-500 text-gray-900 font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterFree') }}
+                        </button>
+                        <button
+                          type="button"
+                          @click="modelFilter = 'premium'"
+                          class="px-2 py-0.5 rounded transition-colors"
+                          :class="modelFilter === 'premium' ? 'bg-purple-500 text-white font-semibold shadow' : 'text-gray-400 hover:text-gray-200'"
+                        >
+                          {{ t('filterPremium') }}
+                        </button>
+                      </div>
+                    </div>
+
+                    <select
+                      v-model="settingsStore.settings.geminiModel"
+                      @change="settingsStore.settings.llmModel = settingsStore.settings.geminiModel"
+                      class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option v-for="m in filteredGeminiModels" :key="m.value" :value="m.value">
+                        {{ m.freeTier ? '⭐ [FREE]' : '💎 [PRO]' }} {{ m.label }}
+                      </option>
+                    </select>
 
                   <!-- Model Info Card -->
                   <div v-if="selectedGeminiModelInfo" class="p-3.5 rounded-lg bg-gray-900/90 border border-blue-800/50 space-y-2 mb-3">
