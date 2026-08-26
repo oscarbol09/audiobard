@@ -304,6 +304,51 @@ class TestEpubParser:
         assert res == "'Hello' © 2026 \u2019test\u2019 \u2019hex\u2019 ® € £ ¢ § … •"
 
 
+class TestEpubStyleScriptStripping:
+    def test_style_block_contents_are_not_narrated(self) -> None:
+        from audiobard.parser.epub_parser import _html_to_text
+
+        raw = "<style>body { color: #333; }</style><p>Hello world</p>"
+        res = _html_to_text(raw).strip()
+        assert res == "Hello world"
+        assert "color" not in res
+
+    def test_script_block_contents_are_not_narrated(self) -> None:
+        from audiobard.parser.epub_parser import _html_to_text
+
+        raw = "<script>console.log('hi');</script><p>Hello world</p>"
+        res = _html_to_text(raw).strip()
+        assert res == "Hello world"
+        assert "console" not in res
+
+    def test_style_block_with_attributes_is_stripped(self) -> None:
+        from audiobard.parser.epub_parser import _html_to_text
+
+        raw = '<style type="text/css">p { margin: 0; }</style><p>Text.</p>'
+        res = _html_to_text(raw).strip()
+        assert res == "Text."
+
+    def test_epub_parser_end_to_end_excludes_style_contents(self) -> None:
+        from unittest.mock import patch
+
+        from audiobard.parser.epub_parser import EpubParser
+
+        items = [
+            _MockEpubItem(
+                "ch1",
+                "ch1.xhtml",
+                b"<style>body { color: #333; }</style><p>Hello world</p>",
+            ),
+        ]
+        mock_book = _MockEpubBook(items)
+
+        with patch("ebooklib.epub.read_epub", return_value=mock_book):
+            parser = EpubParser()
+            paragraphs = parser.parse(b"dummy-epub-bytes")
+            assert len(paragraphs) == 1
+            assert paragraphs[0].text == "Hello world"
+
+
 class TestProjectGutenbergBoilerplate:
     def test_both_start_and_end_markers(self) -> None:
         text = (
