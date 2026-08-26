@@ -168,18 +168,25 @@ async def cancel_generation(request: dict[str, Any]) -> dict[str, str]:
 async def get_library() -> list[dict[str, Any]]:
     """Return all generated books with metadata."""
     books = _get_all_books()
-    return [
-        {
-            "id": book["id"],
-            "title": book["title"],
-            "path": book["path"],
-            "total_paragraphs": book["total_paragraphs"],
-            "total_words": book["total_words"],
-            "dialog_ratio": book["dialog_ratio"],
-            "created_at": book["created_at"],
-        }
-        for book in books
-    ]
+    output_dir = Path.home() / "AudioBard" / "output"
+    result = []
+    for book in books:
+        stem = Path(book["path"]).stem if book.get("path") else f"book_{book['id']}"
+        audio_file = output_dir / f"{stem}.mp3"
+        has_audio = audio_file.exists() and audio_file.stat().st_size > 1024
+        result.append(
+            {
+                "id": book["id"],
+                "title": book["title"],
+                "path": book["path"],
+                "total_paragraphs": book["total_paragraphs"],
+                "total_words": book["total_words"],
+                "dialog_ratio": book["dialog_ratio"],
+                "created_at": book["created_at"],
+                "has_audio": has_audio,
+            }
+        )
+    return result
 
 
 @app.get("/book/{book_id}")

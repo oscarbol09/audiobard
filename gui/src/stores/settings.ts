@@ -38,10 +38,20 @@ interface AppSettings {
   outputFolder: string
 }
 
+export const DEFAULT_LOCALE_EDGE_VOICES: Record<string, string> = {
+  es_MX: 'es-MX-JorgeNeural',
+  es_CO: 'es-CO-GonzaloNeural',
+  es_ES: 'es-ES-AlvaroNeural',
+  en_US: 'en-US-JennyNeural',
+  fr_FR: 'fr-FR-HenriNeural',
+  de_DE: 'de-DE-ConradNeural',
+  it_IT: 'it-IT-DiegoNeural',
+}
+
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'es',
-  llmProvider: 'ollama',
-  llmModel: 'qwen2.5:7b',
+  llmProvider: 'openrouter',
+  llmModel: 'nvidia/nemotron-3-ultra-550b-a55b:free',
   ollamaUrl: 'http://localhost:11434',
   ollamaModel: 'qwen2.5:7b',
   geminiApiKey: '',
@@ -50,11 +60,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   openrouterModel: 'nvidia/nemotron-3-ultra-550b-a55b:free',
   nimApiKey: '',
   nimModel: 'nvidia/llama-3.1-nemotron-70b-instruct',
-  ttsProvider: 'piper',
-  ttsLocale: 'en_US',
+  ttsProvider: 'edge',
+  ttsLocale: 'es_MX',
   piperVoice: '',
-  edgeVoice: 'en-US-AriaNeural',
-  theme: 'system',
+  edgeVoice: 'es-MX-JorgeNeural',
+  theme: 'dark',
   maxCacheSizeGB: 5,
   outputFolder: '',
 }
@@ -66,7 +76,8 @@ export const useSettingsStore = defineStore('settings', () => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
       if (stored) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) }
+        const parsed = JSON.parse(stored)
+        return { ...DEFAULT_SETTINGS, ...parsed }
       }
     } catch (e) {
       console.warn('Failed to load settings:', e)
@@ -105,6 +116,12 @@ export const useSettingsStore = defineStore('settings', () => {
     settings.value = {
       ...settings.value,
       [key]: value,
+    }
+    if (key === 'ttsLocale' && typeof value === 'string') {
+      const defaultVoice = DEFAULT_LOCALE_EDGE_VOICES[value]
+      if (defaultVoice) {
+        settings.value.edgeVoice = defaultVoice
+      }
     }
     saveSettings()
   }
