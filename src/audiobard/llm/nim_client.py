@@ -96,20 +96,21 @@ class NimClient(LLMClient):
                     f"NVIDIA NIM API error (HTTP {exc.response.status_code}): {exc.response.text}"
                 ) from exc
             data = response.json()
-
         try:
             content = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError) as exc:
             raise RuntimeError(f"Unexpected NVIDIA NIM response structure: {data}") from exc
 
         # 1. Strip reasoning blocks like <think>...</think> (common in DeepSeek R1 / Kimi)
-        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+        content = re.sub(
+            r"<think>.*?</think>", "", content, flags=re.DOTALL
+        ).strip().lstrip("\ufeff")
 
         # 2. Strip markdown code fences (```json ... ```)
         if content.startswith("```"):
             lines = content.splitlines()
             inner = lines[1:-1] if lines[-1].startswith("```") else lines[1:]
-            content = "\n".join(inner).strip()
+            content = "\n".join(inner).strip().lstrip("\ufeff")
 
         # 3. Extract JSON substring if surrounded by extra commentary
         if not (content.startswith("{") and content.endswith("}")):
@@ -118,4 +119,4 @@ class NimClient(LLMClient):
             if start != -1 and end != -1 and end > start:
                 content = content[start : end + 1]
 
-        return str(content)
+        return str(content).strip().lstrip("\ufeff")

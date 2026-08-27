@@ -174,7 +174,7 @@ class LLMClient(ABC):
                     "LLM cache hit: hash=%s model=%s", prompt_hash[:12], self.model
                 )
                 try:
-                    return model_cls.model_validate(json.loads(cached_raw))
+                    return model_cls.model_validate(json.loads(cached_raw.lstrip("\ufeff")))
                 except (ValidationError, json.JSONDecodeError) as exc:
                     # Stale or corrupt cache entry — fall through to live call
                     logger.warning("LLM cache entry invalid, re-querying: %s", exc)
@@ -187,7 +187,8 @@ class LLMClient(ABC):
             t0 = time.monotonic()
             try:
                 raw = await self._raw_call(prompt, schema)
-                data = json.loads(raw)
+                cleaned_raw = raw.strip().lstrip("\ufeff")
+                data = json.loads(cleaned_raw)
                 result = model_cls.model_validate(data)
                 elapsed = time.monotonic() - t0
                 logger.debug(

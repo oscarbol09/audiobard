@@ -107,11 +107,11 @@ class TextParser(BookParser):
             Ordered list of paragraphs with chapter and index metadata.
         """
         if isinstance(source, Path):
-            raw = source.read_text(encoding="utf-8", errors="replace")
+            raw = source.read_text(encoding="utf-8-sig", errors="replace")
         elif isinstance(source, bytes):
-            raw = source.decode("utf-8", errors="replace")
+            raw = source.decode("utf-8-sig", errors="replace")
         else:
-            raw = source  # already a string
+            raw = str(source).lstrip("\ufeff")  # already a string
 
         raw = _strip_pg_boilerplate(raw)
         blocks = _split_paragraphs(raw)

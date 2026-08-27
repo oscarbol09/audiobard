@@ -95,12 +95,12 @@ class GeminiClient(LLMClient):
     @staticmethod
     def _extract_json_from_response(raw: str) -> str:
         """Strip optional markdown fences the API might still return."""
-        raw = raw.strip()
+        raw = raw.strip().lstrip("\ufeff")
         if raw.startswith("```"):
             lines = raw.splitlines()
             # Drop first and last fence lines.
             inner = lines[1:-1] if lines[-1].startswith("```") else lines[1:]
-            return "\n".join(inner)
+            return "\n".join(inner).strip().lstrip("\ufeff")
         return raw
 
     async def _raw_call_validated(self, prompt: str, schema: dict[str, Any]) -> str:
