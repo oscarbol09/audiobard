@@ -133,6 +133,78 @@ def test_neutral_character_gets_neutral_voice(mapper: VoiceMapper) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Gender clue deduction (NEUTRAL → male/female from name/aliases)
+# Issue #79: must be whole-word, not substring
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "name,aliases",
+    [
+        ("Amanda", []),
+        ("Michelle", []),
+        ("Shelly", []),
+        ("Hermione", []),  # contains "he"/"her" as substrings only
+        ("humana", []),  # Spanish: "man" inside "humana"
+    ],
+)
+def test_neutral_name_with_male_substring_stays_neutral(
+    mapper: VoiceMapper, name: str, aliases: list[str]
+) -> None:
+    """Names that embed male clue substrings must not flip to male voices."""
+    char = Character(
+        canonical_id="Character_A",
+        name=name,
+        aliases=aliases,
+        gender_hint=GenderHint.NEUTRAL,
+        age_hint=AgeHint.ADULT,
+        tone=Tone.NEUTRAL,
+    )
+    result = mapper.assign(char)
+    assert "male" not in result.voice_id, (
+        f"{name!r} was wrongly gender-clued male via substring match → {result.voice_id}"
+    )
+    assert "neutral" in result.voice_id
+
+
+def test_neutral_with_whole_word_male_clue_gets_male_voice(mapper: VoiceMapper) -> None:
+    char = Character(
+        canonical_id="Character_B",
+        name="Alex",
+        aliases=["the man from the shop"],
+        gender_hint=GenderHint.NEUTRAL,
+        age_hint=AgeHint.ADULT,
+        tone=Tone.NEUTRAL,
+    )
+    result = mapper.assign(char)
+    assert "male" in result.voice_id
+
+
+def test_neutral_with_whole_word_female_clue_gets_female_voice(mapper: VoiceMapper) -> None:
+    char = Character(
+        canonical_id="Character_A",
+        name="Alex",
+        aliases=["she who waits"],
+        gender_hint=GenderHint.NEUTRAL,
+        age_hint=AgeHint.ADULT,
+        tone=Tone.NEUTRAL,
+    )
+    result = mapper.assign(char)
+    assert "female" in result.voice_id
+
+
+def test_has_whole_word_clue_helper() -> None:
+    from audiobard.tts.voice_mapper import _has_whole_word_clue
+
+    assert _has_whole_word_clue("Amanda", ("man",)) is False
+    assert _has_whole_word_clue("the man arrived", ("man",)) is True
+    assert _has_whole_word_clue("Michelle", ("he",)) is False
+    assert _has_whole_word_clue("he said", ("he",)) is True
+    assert _has_whole_word_clue("humana", ("man",)) is False
+    assert _has_whole_word_clue("Mr. Darcy", ("mr",)) is True
+
+
+# ---------------------------------------------------------------------------
 # Age filtering
 # ---------------------------------------------------------------------------
 

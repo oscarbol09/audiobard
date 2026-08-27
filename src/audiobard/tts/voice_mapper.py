@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import re
 import zlib
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,41 @@ from typing import Any
 from audiobard.models import Character, GenderHint, Tone, Voice, VoiceAssignment
 
 logger = logging.getLogger(__name__)
+
+# Whole-word gender clues for NEUTRAL characters (names/aliases/description text).
+# Matched with word boundaries so short tokens like "man"/"he" do not fire inside
+# names such as Amanda / Michelle (issue #79).
+_MALE_GENDER_CLUES: tuple[str, ...] = (
+    "soñador",
+    "hombre",
+    "él",
+    "he",
+    "him",
+    "boy",
+    "man",
+    "mr",
+    "señor",
+    "don",
+)
+_FEMALE_GENDER_CLUES: tuple[str, ...] = (
+    "mujer",
+    "ella",
+    "she",
+    "her",
+    "girl",
+    "woman",
+    "mrs",
+    "ms",
+    "señora",
+    "doña",
+)
+
+
+def _has_whole_word_clue(text: str, clues: tuple[str, ...]) -> bool:
+    """True if any clue appears as a whole word in *text* (case-insensitive)."""
+    return any(
+        re.search(rf"\b{re.escape(w)}\b", text, flags=re.IGNORECASE) for w in clues
+    )
 
 # ---------------------------------------------------------------------------
 # Tone vector space
@@ -168,17 +204,11 @@ class VoiceMapper:
         # Step 1: filter by gender_hint (mandatory when available)
         effective_gender = character.gender_hint
         if effective_gender == GenderHint.NEUTRAL:
-            # Check text / alias clues for first-person narrators (e.g., "soñador", "él", "he")
-            combined_text = f"{character.name} {' '.join(character.aliases)}".lower()
-            male_clues = [
-                "soñador", "hombre", "él", "he", "him", "boy", "man", "mr", "señor", "don"
-            ]
-            female_clues = [
-                "mujer", "ella", "she", "her", "girl", "woman", "mrs", "ms", "señora", "doña"
-            ]
-            if any(w in combined_text for w in male_clues):
+            # Whole-word clues only — substring "man"/"he" mis-gendered Amanda/Michelle (#79).
+            combined_text = f"{character.name} {' '.join(character.aliases)}"
+            if _has_whole_word_clue(combined_text, _MALE_GENDER_CLUES):
                 effective_gender = GenderHint.MALE
-            elif any(w in combined_text for w in female_clues):
+            elif _has_whole_word_clue(combined_text, _FEMALE_GENDER_CLUES):
                 effective_gender = GenderHint.FEMALE
 
         gender_pool = [v for v in self._pool if v.gender == effective_gender]
