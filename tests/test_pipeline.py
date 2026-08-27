@@ -335,4 +335,16 @@ async def test_pipeline_missing_clip_file_during_assembly(tmp_path: Path) -> Non
         await pipeline.run(book_file, tmp_path / "out.mp3", resume=True, dry_run=False)
 
 
+@pytest.mark.asyncio
+async def test_pipeline_pdf_file_raises_pdf2bard_hint(tmp_path: Path) -> None:
+    pdf_file = tmp_path / "sample.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 dummy")
+    config = AudioBardConfig(db_path=tmp_path / "test.db", cache_dir=tmp_path / "cache")
+    pipeline = AudioBookPipeline(config)
+
+    with pytest.raises(ValueError, match="PDF2Bard"):
+        await pipeline.run(pdf_file, tmp_path / "out.mp3")
+
+
+
 

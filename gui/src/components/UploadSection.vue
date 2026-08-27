@@ -184,6 +184,24 @@ function triggerFileInput() {
       />
     </div>
 
+    <!-- PDF2Bard companion tip -->
+    <div class="mt-3 text-center">
+      <p class="text-xs text-gray-400 flex items-center justify-center gap-1.5">
+        <span>💡 {{ t('pdfTip') }}</span>
+        <a
+          href="https://github.com/oscarbol09/pdf2bard"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="font-medium text-brand-400 hover:text-brand-300 underline inline-flex items-center gap-0.5"
+        >
+          PDF2Bard
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+      </p>
+    </div>
+
     <!-- Error message -->
     <div v-if="dragError" class="mt-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
       <div class="flex items-center gap-2">

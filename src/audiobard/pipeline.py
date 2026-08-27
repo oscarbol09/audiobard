@@ -214,6 +214,13 @@ class AudioBookPipeline:
         if not book_path.exists():  # noqa: ASYNC240
             raise FileNotFoundError(f"Book file not found: {book_path}")
 
+        if book_path.suffix.lower() == ".pdf":
+            raise ValueError(
+                f"AudioBard accepts .epub and .txt books. Raw PDF '{book_path.name}' lacks "
+                "dialogue and layout structure for neural narration. Please convert it to EPUB "
+                "using PDF2Bard: https://github.com/oscarbol09/pdf2bard"
+            )
+
         # Choose correct parser
         parser: BookParser = (
             EpubParser() if book_path.suffix.lower() == ".epub" else TextParser()

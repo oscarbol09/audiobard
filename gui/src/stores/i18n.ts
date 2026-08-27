@@ -21,6 +21,7 @@ const translations = {
     selectFile: 'Seleccionar Archivo',
     generateBtn: 'Comenzar Conversión a Audiolibro',
     selectedBook: 'Libro Seleccionado:',
+    pdfTip: '¿Tienes un libro en PDF? Conviértelo a EPUB limpio con',
 
     // Settings Modal
     settingsTitle: 'Configuración de AudioBard',
@@ -115,6 +116,7 @@ const translations = {
     selectFile: 'Select File',
     generateBtn: 'Start Audiobook Conversion',
     selectedBook: 'Selected Book:',
+    pdfTip: 'Have a PDF book? Convert it to clean EPUB with',
 
     // Settings Modal
     settingsTitle: 'AudioBard Settings',

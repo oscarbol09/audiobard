@@ -101,6 +101,19 @@ audiobard generate book.epub --output audiobook.mp3
 audiobard generate book.epub --dry-run
 ```
 
+## Companion Tools
+
+### 📖 [PDF2Bard](https://github.com/oscarbol09/pdf2bard) — PDF to EPUB Converter for AudioBard
+
+AudioBard accepts **EPUB** and **TXT** files natively. If your book is currently in **PDF format**, use our dedicated companion converter:
+
+👉 [**PDF2Bard (`oscarbol09/pdf2bard`)**](https://github.com/oscarbol09/pdf2bard)
+
+- 🧩 **Smart Paragraph Reflow**: Unwraps hard visual line breaks while respecting genuine paragraph and dialogue boundaries.
+- ✂️ **Automatic De-Hyphenation**: Reconnects split words across margins without altering legitimate hyphenated words.
+- 🧹 **Header & Footer Stripper**: Detects and strips page numbers, running headers, and disclaimers so the narrator doesn't read them aloud.
+- 💬 **Dialogue Integrity**: Preserves and normalizes em-dashes (`—`), guillemets (`«»`), and quotes for character attribution.
+
 ## Command & App Reference
 
 | Command / Interface | What it does |
