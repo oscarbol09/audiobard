@@ -40,7 +40,7 @@ python tools/guards.py
 All phases (1–5 including Desktop GUI) are complete and production-ready:
 - `src/audiobard/` — all modules implemented (parser, llm, tts, audio, pipeline, persistence, cli, config, api, nim_client)
 - `gui/` & `src-tauri/` — native Desktop GUI (Tauri v2 + Vue 3) with BYOK (NVIDIA NIM, OpenRouter, Gemini, Ollama) and i18n multi-language support (Spanish 🇪🇸 / English 🇺🇸)
-- 242 unit tests passing across all source files
+- 244 unit tests passing across all source files
 - CI gates green: ruff, mypy, guards, tests on Python 3.10/3.11/3.12, vue-tsc & vite build
 - The project is in **production desktop release mode** — contributions welcome
 

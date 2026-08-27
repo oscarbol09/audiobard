@@ -180,3 +180,14 @@ async def test_raises_after_max_retries_schema() -> None:
     client = _EchoClient([bad, bad, bad], max_retries=3)
     with patch("asyncio.sleep"), pytest.raises(RuntimeError, match="3 attempts"):
         await client.extract_characters("text")
+
+
+@pytest.mark.asyncio
+async def test_handles_utf8_bom_in_response() -> None:
+    """UTF-8 BOM in LLM response string is cleanly stripped without raising JSONDecodeError."""
+    bom_response = "\ufeff" + _VALID_CHARACTERS_JSON
+    client = _EchoClient([bom_response], max_retries=1)
+    result = await client.extract_characters("text")
+    assert isinstance(result, CharactersResult)
+    assert len(result.characters) == 1
+

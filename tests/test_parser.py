@@ -6,6 +6,8 @@ any data/ dependencies.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from audiobard.models import Paragraph
@@ -211,6 +213,16 @@ class TestParserStats:
         parser.parse(text)
         stats = parser.stats()
         assert stats.dialog_ratio == 0.0
+
+    def test_text_parser_with_utf8_bom(self, tmp_path: Path) -> None:
+        bom_file = tmp_path / "bom_book.txt"
+        bom_file.write_bytes(b"\xef\xbb\xbfChapter 1\n\nHello from BOM file.")
+        parser = TextParser()
+        paragraphs = parser.parse(bom_file)
+        assert len(paragraphs) == 1
+        assert paragraphs[0].text == "Hello from BOM file."
+        assert not paragraphs[0].text.startswith("\ufeff")
+
 
 
 # ---------------------------------------------------------------------------

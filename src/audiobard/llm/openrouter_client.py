@@ -94,10 +94,10 @@ class OpenRouterClient(LLMClient):
             raise RuntimeError(f"Unexpected OpenRouter response structure: {data}") from exc
 
         # Some models wrap with markdown fences even with json_object mode.
-        content = content.strip()
+        content = content.strip().lstrip("\ufeff")
         if content.startswith("```"):
             lines = content.splitlines()
             inner = lines[1:-1] if lines[-1].startswith("```") else lines[1:]
-            content = "\n".join(inner)
+            content = "\n".join(inner).strip().lstrip("\ufeff")
 
         return str(content)
