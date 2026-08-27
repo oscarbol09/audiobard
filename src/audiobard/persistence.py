@@ -22,9 +22,13 @@ class PersistenceManager:
 
     @contextlib.contextmanager
     def _get_conn(self) -> Iterator[sqlite3.Connection]:
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON;")
+        # WAL mode allows concurrent readers while a writer is active, and
+        # together with the busy timeout avoids intermittent
+        # "database is locked" errors during parallel background writes.
+        conn.execute("PRAGMA journal_mode = WAL;")
         try:
             yield conn
             conn.commit()
