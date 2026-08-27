@@ -125,9 +125,26 @@ class PersistenceManager:
         path_str = str(path.resolve())
         with self._get_conn() as conn:
             row = conn.execute(
-                "SELECT id FROM books WHERE path = ?", (path_str,)
+                "SELECT id FROM books WHERE path = ? OR (title = ? AND total_paragraphs = ?)",
+                (path_str, title, stats.total_paragraphs),
             ).fetchone()
             if row:
+                conn.execute(
+                    """
+                    UPDATE books
+                    SET path = ?, title = ?, total_paragraphs = ?, total_words = ?, dialog_ratio = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        path_str,
+                        title,
+                        stats.total_paragraphs,
+                        stats.total_words,
+                        stats.dialog_ratio,
+                        row["id"],
+                    ),
+                )
+                conn.commit()
                 return int(row["id"])
 
             cursor = conn.execute(
@@ -328,18 +345,24 @@ class PersistenceManager:
                 FROM books b
                 LEFT JOIN pipeline_runs pr ON b.id = pr.book_id
                 GROUP BY b.id
-                ORDER BY last_run_at DESC NULLS LAST
+                ORDER BY last_run_at DESC NULLS LAST, b.id DESC
                 """
             ).fetchall()
-            return [
-                {
-                    "id": row["id"],
-                    "path": row["path"],
-                    "title": row["title"],
-                    "total_paragraphs": row["total_paragraphs"],
-                    "total_words": row["total_words"],
-                    "dialog_ratio": row["dialog_ratio"],
-                    "created_at": row["last_run_at"],
-                }
-                for row in rows
-            ]
+            seen_titles: set[str] = set()
+            result: list[dict[str, Any]] = []
+            for row in rows:
+                if row["title"] in seen_titles:
+                    continue
+                seen_titles.add(row["title"])
+                result.append(
+                    {
+                        "id": row["id"],
+                        "path": row["path"],
+                        "title": row["title"],
+                        "total_paragraphs": row["total_paragraphs"],
+                        "total_words": row["total_words"],
+                        "dialog_ratio": row["dialog_ratio"],
+                        "created_at": row["last_run_at"],
+                    }
+                )
+            return result
