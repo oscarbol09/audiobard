@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -236,4 +237,39 @@ async def test_piper_ensure_model_invalid_voice_id(tmp_path: Path) -> None:
     provider = PiperProvider(config)
     with pytest.raises(ValueError, match="Invalid Piper voice ID format"):
         await provider._ensure_model("invalid_id")
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_piper_ensure_model_concurrent_downloads_once(tmp_path: Path) -> None:
+    """Concurrent _ensure_model calls must download each voice file only once."""
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    provider = PiperProvider(config)
+
+    base_url = (
+        "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
+        "en/en_US/dummy/medium/en_US-dummy-medium"
+    )
+    onnx_route = respx.get(f"{base_url}.onnx").mock(
+        return_value=Response(200, content=b"onnx-data")
+    )
+    json_route = respx.get(f"{base_url}.onnx.json").mock(
+        return_value=Response(200, content=b'{"config": true}')
+    )
+
+    results = await asyncio.gather(
+        provider._ensure_model("en_US-dummy-medium"),
+        provider._ensure_model("en_US-dummy-medium"),
+        provider._ensure_model("en_US-dummy-medium"),
+    )
+
+    assert len({p.resolve() for p in results}) == 1
+    assert results[0].exists()
+    assert results[0].read_bytes() == b"onnx-data"
+    assert (tmp_path / "piper" / "en_US-dummy-medium.onnx.json").read_bytes() == (
+        b'{"config": true}'
+    )
+    # Without the lock, each concurrent caller would hit the network.
+    assert onnx_route.call_count == 1
+    assert json_route.call_count == 1
 

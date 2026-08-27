@@ -34,6 +34,9 @@ class PiperProvider(TTSProvider):
         super().__init__(config)
         self.piper_dir = config.cache_dir / "piper"
         self.piper_dir.mkdir(parents=True, exist_ok=True)
+        # Serializes model downloads so concurrent synthesizers cannot
+        # race-write the same .onnx / .onnx.json paths.
+        self._download_lock = asyncio.Lock()
 
     async def list_voices(self, locale: str) -> list[Voice]:
         path = self.config.voices_dir / f"{locale}.json"
@@ -113,43 +116,55 @@ class PiperProvider(TTSProvider):
         return await asyncio.to_thread(_wav_to_mp3, stdout)
 
     async def _ensure_model(self, voice_id: str) -> Path:
-        """Download model and config if they do not exist locally."""
+        """Download model and config if they do not exist locally.
+
+        Concurrent callers for the same (or different) missing voices are
+        serialized via ``_download_lock``. Existence is re-checked under the
+        lock so only the first waiter performs the download.
+        """
         onnx_path = self.piper_dir / f"{voice_id}.onnx"
         json_path = self.piper_dir / f"{voice_id}.onnx.json"
 
+        # Fast path: already cached (no lock contention on hot path).
         if onnx_path.exists() and json_path.exists():
             return onnx_path
 
-        regex = r"^([a-z]{2,3}_[A-Z]{2,3})-([a-zA-Z0-9_]+)-(x_low|low|medium|high)$"
-        match = re.match(regex, voice_id)
-        if not match:
-            raise ValueError(
-                f"Invalid Piper voice ID format: {voice_id}. "
-                "Expected format: locale-name-quality (e.g. en_US-amy-medium)"
+        async with self._download_lock:
+            # Re-check after acquiring the lock — another task may have
+            # finished downloading while we waited.
+            if onnx_path.exists() and json_path.exists():
+                return onnx_path
+
+            regex = r"^([a-z]{2,3}_[A-Z]{2,3})-([a-zA-Z0-9_]+)-(x_low|low|medium|high)$"
+            match = re.match(regex, voice_id)
+            if not match:
+                raise ValueError(
+                    f"Invalid Piper voice ID format: {voice_id}. "
+                    "Expected format: locale-name-quality (e.g. en_US-amy-medium)"
+                )
+
+            locale, name, quality = match.groups()
+            lang_prefix = locale.split("_")[0]
+
+            base_url = (
+                f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
+                f"{lang_prefix}/{locale}/{name}/{quality}/{voice_id}"
             )
 
-        locale, name, quality = match.groups()
-        lang_prefix = locale.split("_")[0]
+            onnx_url = f"{base_url}.onnx"
+            json_url = f"{base_url}.onnx.json"
 
-        base_url = (
-            f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
-            f"{lang_prefix}/{locale}/{name}/{quality}/{voice_id}"
-        )
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                # Download config (json) first
+                logger.info("Downloading Piper config from %s", json_url)
+                res = await client.get(json_url, follow_redirects=True)
+                res.raise_for_status()
+                json_path.write_bytes(res.content)
 
-        onnx_url = f"{base_url}.onnx"
-        json_url = f"{base_url}.onnx.json"
+                # Download model (onnx)
+                logger.info("Downloading Piper model from %s", onnx_url)
+                res = await client.get(onnx_url, follow_redirects=True)
+                res.raise_for_status()
+                onnx_path.write_bytes(res.content)
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            # Download config (json) first
-            logger.info("Downloading Piper config from %s", json_url)
-            res = await client.get(json_url, follow_redirects=True)
-            res.raise_for_status()
-            json_path.write_bytes(res.content)
-
-            # Download model (onnx)
-            logger.info("Downloading Piper model from %s", onnx_url)
-            res = await client.get(onnx_url, follow_redirects=True)
-            res.raise_for_status()
-            onnx_path.write_bytes(res.content)
-
-        return onnx_path
+            return onnx_path
