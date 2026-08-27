@@ -38,7 +38,7 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
         if not config_path.exists():
             return {}
         try:
-            text = config_path.read_text(encoding="utf-8")
+            text = config_path.read_text(encoding="utf-8-sig")
             if config_path.suffix in (".yaml", ".yml"):
                 try:
                     import yaml

@@ -47,7 +47,7 @@ class PiperProvider(TTSProvider):
         def load() -> list[dict[str, object]]:
             import json
 
-            with open(path, encoding="utf-8") as f:
+            with open(path, encoding="utf-8-sig") as f:
                 res = json.load(f)
                 if isinstance(res, list):
                     return res

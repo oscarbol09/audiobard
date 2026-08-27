@@ -527,7 +527,7 @@ class AudioBookPipeline:
                     f"Missing audio clip or metadata for paragraph index {p.index}"
                 )
 
-            meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            meta = json.loads(meta_file.read_text(encoding="utf-8-sig"))
             duration = int(meta["duration_ms"])
             emotion = Emotion(meta["emotion"])
 

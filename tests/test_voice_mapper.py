@@ -250,6 +250,18 @@ def test_empty_pool_raises(tmp_path: Path) -> None:
         VoiceMapper(voices_path=p)
 
 
+def test_pool_with_utf8_bom(tmp_path: Path) -> None:
+    """VoiceMapper loads voice pool files containing Windows UTF-8 BOM without error."""
+    p = tmp_path / "bom_pool.json"
+    p.write_bytes(b"\xef\xbb\xbf" + json.dumps([
+        {"id": "v1", "locale": "es_CO", "gender": "male", "age": "adult", "energy": 0.5}
+    ]).encode("utf-8"))
+    mapper = VoiceMapper(voices_path=p)
+    assert len(mapper.pool) == 1
+    assert mapper.pool[0].id == "v1"
+
+
+
 def test_pool_property_returns_copy(mapper: VoiceMapper) -> None:
     pool = mapper.pool
     pool.clear()  # mutating the returned list should not affect mapper

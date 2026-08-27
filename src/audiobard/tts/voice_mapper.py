@@ -139,7 +139,7 @@ class VoiceMapper:
         src = Path(path) if path else self.mapping_path
         if src is None or not src.exists():
             return
-        data = json.loads(src.read_text(encoding="utf-8"))
+        data = json.loads(src.read_text(encoding="utf-8-sig"))
         for cid, raw in data.get("assignments", {}).items():
             self._mapping[cid] = VoiceAssignment.model_validate(raw)
         logger.info("Voice mapping loaded from %s (%d entries)", src, len(self._mapping))
@@ -157,7 +157,7 @@ class VoiceMapper:
         if self.voices_path is None or not self.voices_path.exists():
             raise FileNotFoundError(f"Voice pool not found: {self.voices_path}")
         raw: list[dict[str, Any]] = json.loads(
-            self.voices_path.read_text(encoding="utf-8")
+            self.voices_path.read_text(encoding="utf-8-sig")
         )
         self._pool = [Voice.model_validate(v) for v in raw]
         if not self._pool:
