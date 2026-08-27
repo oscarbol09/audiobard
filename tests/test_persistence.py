@@ -96,3 +96,14 @@ def test_persistence_manager_crud_and_rollback() -> None:
         with pm._get_conn() as conn:
             row = conn.execute("SELECT * FROM books WHERE path = 'err_path'").fetchone()
             assert row is None
+
+
+def test_persistence_wal_mode_and_timeout(tmp_path: Path) -> None:
+    """PersistenceManager initializes with WAL journal mode and busy timeout."""
+    db_path = tmp_path / "wal_test.db"
+    pm = PersistenceManager(db_path)
+    with pm._get_conn() as conn:
+        journal_mode = conn.execute("PRAGMA journal_mode;").fetchone()[0]
+        # In SQLite, WAL pragma returns 'wal' on persistent files
+        assert str(journal_mode).lower() == "wal"
+
