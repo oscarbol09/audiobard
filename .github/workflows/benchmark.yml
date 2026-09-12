@@ -93,13 +93,17 @@ jobs:
 
       - name: Check Gemini key is available (PR runs only)
         if: github.event_name == 'pull_request'
+        id: check_key
         run: |
           if [ -z "${{ secrets.GEMINI_API_KEY }}" ]; then
-            echo "::error::GEMINI_API_KEY secret is not set. PRs from forks don't receive repo secrets by default - see .github/workflows/benchmark.yml for options (e.g. require maintainer to re-run from a branch, or switch this job's default to a provider that doesn't need a secret)."
-            exit 1
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::GEMINI_API_KEY secret is not configured in repository secrets. Automated PR attribution benchmark was skipped. Configure GEMINI_API_KEY in repository secrets to activate this check."
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run benchmark
+        if: github.event_name != 'pull_request' || steps.check_key.outputs.available == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -116,7 +120,7 @@ jobs:
         # around it.
 
       - name: Comment PR with benchmark results
-        if: always() && github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request' && steps.check_key.outputs.available == 'true'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
