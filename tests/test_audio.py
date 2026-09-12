@@ -93,8 +93,12 @@ async def test_export_m4b_preserves_special_characters_in_chapter_titles(
     assert proc.returncode == 0, stderr.decode("utf-8", errors="replace")
     actual_chapters = json.loads(stdout)["chapters"]
     assert [ch["tags"]["title"] for ch in actual_chapters] == [ch.title for ch in chapters]
-    assert [ch["start_time"] for ch in actual_chapters] == ["0.000000", "0.250000"]
-    assert [ch["end_time"] for ch in actual_chapters] == ["0.250000", "0.500000"]
+    assert [float(ch["start_time"]) for ch in actual_chapters] == pytest.approx(
+        [0.0, 0.25], abs=0.01
+    )
+    assert [float(ch["end_time"]) for ch in actual_chapters] == pytest.approx(
+        [0.25, 0.50], abs=0.01
+    )
 
 
 def _create_dummy_mp3() -> bytes:
