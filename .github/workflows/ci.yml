@@ -24,36 +24,64 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Cancel in-flight runs when a new push arrives on the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
+  # =========================================================================
+  # GATE 1: Fast Static Checks (Fail-Early Gate < 2 minutes)
+  # =========================================================================
   lint:
     name: Lint (ruff + mypy)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
+          cache: "pip"
       - run: pip install ".[dev,api]"
       - run: ruff check src tests tools
-      - run: mypy src/audiobard
+      - run: mypy src/audiobard tests
 
+  # =========================================================================
+  # GATE 2: Multi-OS / Multi-Version Test Matrix
+  # =========================================================================
   test:
-    name: Tests (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    name: Tests (${{ matrix.os }} - Python ${{ matrix.python-version }})
+    needs: [lint]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.10", "3.11", "3.12"]
+        # Windows desktop runtime is tested on Python 3.12 (modern desktop target)
+        # to conserve CI runner minutes while ensuring cross-platform path and OS compatibility.
+        exclude:
+          - os: windows-latest
+            python-version: "3.10"
+          - os: windows-latest
+            python-version: "3.11"
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install system dependencies (ffmpeg)
+          cache: "pip"
+      - name: Install system dependencies (ffmpeg - Linux)
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install system dependencies (ffmpeg - Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --no-progress
       - run: pip install ".[dev,api]"
       - name: Run unit tests with coverage
         run: |
@@ -61,18 +89,23 @@ jobs:
       - name: Upload coverage artifact
         uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392 # v4.0.0
         with:
-          name: coverage-${{ matrix.python-version }}
+          name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
           path: .coverage
         if: always()
 
+  # =========================================================================
+  # GATE 3: Security & Supply Chain Guards
+  # =========================================================================
   guards:
     name: Security guards (secrets, gitignore, data/)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
+          cache: "pip"
       - run: python tools/guards.py
 
   dependency-review:
@@ -83,6 +116,7 @@ jobs:
     # for optional tooling.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Probe Dependency graph availability

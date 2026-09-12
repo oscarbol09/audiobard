@@ -25,16 +25,31 @@ def test_paragraph_accepts_whitespace_text() -> None:
     assert p.is_dialog is False
 
 
-def test_character_canonical_id_regex() -> None:
-    for bad in ["she", "Character_1", "character_a", "NarratorX"]:
-        with pytest.raises(ValidationError, match="canonical_id"):
-            Character(canonical_id=bad, name="x")
+@pytest.mark.parametrize(
+    "bad_id",
+    ["she", "Character_1", "character_a", "NarratorX", "", "Character_AA"],
+    ids=[
+        "pronoun_rejected",
+        "numeric_suffix_rejected",
+        "lowercase_suffix_rejected",
+        "prefix_extension_rejected",
+        "empty_string_rejected",
+        "multi_letter_suffix_rejected",
+    ],
+)
+def test_character_canonical_id_regex_rejects_invalid(bad_id: str) -> None:
+    with pytest.raises(ValidationError, match="canonical_id"):
+        Character(canonical_id=bad_id, name="x")
 
 
-def test_character_accepts_canonical_ids() -> None:
-    for good in ["Narrator", "Character_A", "Character_Z"]:
-        c = Character(canonical_id=good, name="x")
-        assert c.canonical_id == good
+@pytest.mark.parametrize(
+    "good_id",
+    ["Narrator", "Character_A", "Character_M", "Character_Z"],
+    ids=["narrator", "character_a", "character_middle", "character_z"],
+)
+def test_character_accepts_canonical_ids(good_id: str) -> None:
+    c = Character(canonical_id=good_id, name="x")
+    assert c.canonical_id == good_id
 
 
 def test_character_aliases_default_to_empty() -> None:
@@ -42,9 +57,26 @@ def test_character_aliases_default_to_empty() -> None:
     assert c.aliases == []
 
 
-def test_character_tone_normalizes_unknown_to_neutral() -> None:
-    c = Character(canonical_id="Character_A", name="Alice", tone="aggressive")
-    assert c.tone == Tone.NEUTRAL
+@pytest.mark.parametrize(
+    ("raw_tone", "expected_tone"),
+    [
+        ("aggressive", Tone.NEUTRAL),
+        ("warm", Tone.WARM),
+        ("completely_unknown_tone", Tone.NEUTRAL),
+    ],
+    ids=[
+        "unknown_aggressive_normalizes_to_neutral",
+        "valid_string_normalizes_to_warm",
+        "arbitrary_string_normalizes_to_neutral",
+    ],
+)
+def test_character_tone_normalizes_unknown_to_neutral(
+    raw_tone: str, expected_tone: Tone
+) -> None:
+    c = Character.model_validate(
+        {"canonical_id": "Character_A", "name": "Alice", "tone": raw_tone}
+    )
+    assert c.tone == expected_tone
 
 
 def test_dialog_line_speaker_regex() -> None:
@@ -52,15 +84,30 @@ def test_dialog_line_speaker_regex() -> None:
         DialogLine(text="hello", speaker="the young woman")
 
 
-def test_dialog_line_normalizes_creative_emotions() -> None:
-    line1 = DialogLine(text="hello", speaker="Narrator", emotion="impatient")
-    assert line1.emotion == Emotion.ANGRY
-
-    line2 = DialogLine(text="hello", speaker="Character_A", emotion="joyful")
-    assert line2.emotion == Emotion.HAPPY
-
-    line3 = DialogLine(text="hello", speaker="Character_A", emotion="completely_unknown_emotion")
-    assert line3.emotion == Emotion.NEUTRAL
+@pytest.mark.parametrize(
+    ("raw_emotion", "expected_emotion"),
+    [
+        ("impatient", Emotion.ANGRY),
+        ("joyful", Emotion.HAPPY),
+        ("completely_unknown_emotion", Emotion.NEUTRAL),
+        ("whispering", Emotion.WHISPER),
+        ("furious", Emotion.ANGRY),
+    ],
+    ids=[
+        "synonym_impatient_to_angry",
+        "synonym_joyful_to_happy",
+        "unknown_emotion_to_neutral",
+        "synonym_whispering_to_whisper",
+        "synonym_furious_to_angry",
+    ],
+)
+def test_dialog_line_normalizes_creative_emotions(
+    raw_emotion: str, expected_emotion: Emotion
+) -> None:
+    line = DialogLine.model_validate(
+        {"text": "hello", "speaker": "Character_A", "emotion": raw_emotion}
+    )
+    assert line.emotion == expected_emotion
 
 
 def test_dialog_line_default_emotion_is_neutral() -> None:
@@ -83,3 +130,4 @@ def test_tone_enum_has_expected_members() -> None:
         "timid",
         "sarcastic",
     }
+

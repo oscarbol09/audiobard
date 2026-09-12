@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Coroutine, Generator
 from contextlib import contextmanager
 from dataclasses import FrozenInstanceError
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -39,7 +41,9 @@ def test_progress_is_immutable() -> None:
 
 
 @contextmanager
-def _stubbed_pipeline(tmp_path: Path):
+def _stubbed_pipeline(
+    tmp_path: Path,
+) -> Generator[tuple[AudioBookPipeline, MagicMock, MagicMock, MagicMock], None, None]:
     """Yield (pipeline, llm_client, tts_provider, audio_processor) with heavy deps stubbed.
 
     Patches the AudioBookPipeline factories and chunk_paragraphs so the
@@ -90,7 +94,7 @@ def _stubbed_pipeline(tmp_path: Path):
     from audiobard import pipeline as pipeline_mod
 
     original_chunk = pipeline_mod.chunk_paragraphs
-    pipeline_mod.chunk_paragraphs = lambda _p, chunk_size=1500: [[paragraph_mock]]
+    pipeline_mod.chunk_paragraphs = lambda _p, chunk_size=1500: [[paragraph_mock]]  # type: ignore[assignment]
 
     with (
         patch("audiobard.pipeline.create_llm_client", return_value=llm_client),
@@ -116,7 +120,7 @@ def _stubbed_pipeline(tmp_path: Path):
         pipeline_mod.chunk_paragraphs = original_chunk
 
 
-def _run(coro: object) -> None:
+def _run(coro: Coroutine[Any, Any, Any]) -> None:
     asyncio.run(coro)
 
 

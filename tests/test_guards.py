@@ -23,10 +23,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 GUARD_SCRIPT = REPO_ROOT / "tools" / "guards.py"
 
 sys.path.insert(0, str(REPO_ROOT / "tools"))
-import guards  # noqa: E402  (imported for its allowlist constants)
+import guards  # type: ignore[import-not-found]  # noqa: E402  (imported for its allowlist constants)
 
 
-def run_guards(root: Path) -> subprocess.CompletedProcess:
+def run_guards(root: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(root / "tools" / "guards.py")],
         capture_output=True,
@@ -66,7 +66,7 @@ def git_init_and_commit_all(root: Path) -> None:
 class GuardRepoFixture(unittest.TestCase):
     """Builds a minimal repo tree the guards pass on, then breaks one thing per test."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
 
@@ -102,14 +102,14 @@ class GuardRepoFixture(unittest.TestCase):
 
 
 class CleanTreeTests(GuardRepoFixture):
-    def test_clean_tree_passes(self):
+    def test_clean_tree_passes(self) -> None:
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("guards: OK", result.stdout)
 
 
 class SecretGuardTests(GuardRepoFixture):
-    def test_gemini_key_literal_fails(self):
+    def test_gemini_key_literal_fails(self) -> None:
         # Key split so GitHub secret-scanning does not flag this test file
         # as containing a real credential. The concatenation is identical at
         # runtime and the guards pattern still matches.
@@ -121,7 +121,7 @@ class SecretGuardTests(GuardRepoFixture):
         self.assertIn("possible API key", result.stdout)
         self.assertIn("client.py", result.stdout)
 
-    def test_openai_style_key_fails(self):
+    def test_openai_style_key_fails(self) -> None:
         # Key split to avoid GitHub secret-scanning false positives.
         _fake = "sk-" + "abcdef1234567890abcdef1234567890"
         self.add_tracked_file("config.py", f'api_key = "{_fake}"\n')
@@ -129,19 +129,19 @@ class SecretGuardTests(GuardRepoFixture):
         self.assertEqual(result.returncode, 1)
         self.assertIn("possible API key", result.stdout)
 
-    def test_env_reference_is_allowed(self):
+    def test_env_reference_is_allowed(self) -> None:
         self.add_tracked_file("src/audiobard/config.py", 'key = os.environ["GEMINI_API_KEY"]\n')
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_dotenv_load_is_allowed(self):
+    def test_dotenv_load_is_allowed(self) -> None:
         self.add_tracked_file("src/audiobard/config.py", 'load_dotenv()  # reads .env\n')
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 class GitignoreGuardTests(GuardRepoFixture):
-    def test_each_missing_personal_data_rule_fails(self):
+    def test_each_missing_personal_data_rule_fails(self) -> None:
         for rule in guards.REQUIRED_IGNORE_RULES:
             with self.subTest(rule=rule):
                 remaining = [r for r in guards.REQUIRED_IGNORE_RULES if r != rule]
@@ -153,7 +153,7 @@ class GitignoreGuardTests(GuardRepoFixture):
         rules_text = "\n".join(guards.REQUIRED_IGNORE_RULES) + "\n"
         (self.root / ".gitignore").write_text(rules_text, encoding="utf-8")
 
-    def test_negation_reincluding_books_fails(self):
+    def test_negation_reincluding_books_fails(self) -> None:
         # `!data/books/*` after `data/books/*` re-includes the directory, so
         # the required rule is still present but no longer takes effect. Set
         # membership on the required rules cannot see this.
@@ -166,7 +166,7 @@ class GitignoreGuardTests(GuardRepoFixture):
         self.assertIn("negation rule not in the reviewed allowlist", result.stdout)
         self.assertIn("!data/books/*", result.stdout)
 
-    def test_allowlisted_negations_pass(self):
+    def test_allowlisted_negations_pass(self) -> None:
         rules = list(guards.REQUIRED_IGNORE_RULES) + sorted(guards.ALLOWED_IGNORE_NEGATIONS)
         text = "\n".join(rules) + "\n"
         (self.root / ".gitignore").write_text(text, encoding="utf-8")
@@ -175,14 +175,14 @@ class GitignoreGuardTests(GuardRepoFixture):
 
 
 class DataBooksGuardTests(GuardRepoFixture):
-    def test_copyrighted_book_fails(self):
+    def test_copyrighted_book_fails(self) -> None:
         self.add_tracked_file("data/books/white_nights.txt", "Chapter 1\n")
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 1)
         self.assertIn("allowlisted data/books set", result.stdout)
         self.assertIn("white_nights.txt", result.stdout)
 
-    def test_allowlisted_file_passes(self):
+    def test_allowlisted_file_passes(self) -> None:
         # Mutate the *copied* guard script (subprocess runs its own module,
         # so mutating the imported one here would not reach it) — the same
         # pattern the upstream-style guard tests use to exercise an allowlist
@@ -201,13 +201,13 @@ class DataBooksGuardTests(GuardRepoFixture):
 
 
 class AudioOutputGuardTests(GuardRepoFixture):
-    def test_tracked_mp3_fails(self):
+    def test_tracked_mp3_fails(self) -> None:
         self.add_tracked_file("output/audiobook.mp3", "")
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 1)
         self.assertIn("audio output must not be tracked", result.stdout)
 
-    def test_tracked_m4b_fails(self):
+    def test_tracked_m4b_fails(self) -> None:
         self.add_tracked_file("out/book.m4b", "")
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 1)
@@ -215,19 +215,19 @@ class AudioOutputGuardTests(GuardRepoFixture):
 
 
 class DataVoicesGuardTests(GuardRepoFixture):
-    def test_voice_model_binary_fails(self):
+    def test_voice_model_binary_fails(self) -> None:
         self.add_tracked_file("data/voices/en_US-amy-medium.onnx", "")
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 1)
         self.assertIn("extension not allowed under data/voices/", result.stdout)
         self.assertIn("en_US-amy-medium.onnx", result.stdout)
 
-    def test_catalog_json_passes(self):
+    def test_catalog_json_passes(self) -> None:
         self.add_tracked_file("data/voices/en_US.json", '{"voices": []}\n')
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_allowlisted_extension_passes(self):
+    def test_allowlisted_extension_passes(self) -> None:
         # Mutate the *copied* guard script (subprocess runs its own module)
         # to admit a new extension in the same PR, mirroring the data/books
         # allowlist test above.
@@ -245,7 +245,7 @@ class DataVoicesGuardTests(GuardRepoFixture):
 
 
 class RealRepoTests(unittest.TestCase):
-    def test_guards_pass_on_this_repo(self):
+    def test_guards_pass_on_this_repo(self) -> None:
         # The live check CI runs: the actual repo tree must satisfy its own guards.
         result = run_guards(REPO_ROOT)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

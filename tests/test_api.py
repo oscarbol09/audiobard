@@ -298,7 +298,9 @@ def test_generate_audiobook_cancelled_writes_stage_before_http_exception(
         response = client.post("/generate", json=_generate_payload("session-cb"))
 
     assert response.status_code == 499
-    assert progress_store.get("session-cb").stage == "cancelled"
+    session_progress = progress_store.get("session-cb")
+    assert session_progress is not None
+    assert session_progress.stage == "cancelled"
 
 def test_get_book_path_success(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

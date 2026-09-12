@@ -106,7 +106,7 @@ async def test_ollama_client_success() -> None:
     mock_instance = AsyncMock()
     mock_instance.chat.return_value = mock_resp
     mock_async_client_cls.return_value = mock_instance
-    mock_ollama.AsyncClient = mock_async_client_cls
+    mock_ollama.__dict__["AsyncClient"] = mock_async_client_cls
 
     with patch.dict(sys.modules, {"ollama": mock_ollama}):
         raw = await client._raw_call("prompt", {})
@@ -132,7 +132,7 @@ async def test_ollama_client_custom_timeout() -> None:
     mock_instance = AsyncMock()
     mock_instance.chat.return_value = mock_resp
     mock_async_client_cls.return_value = mock_instance
-    mock_ollama.AsyncClient = mock_async_client_cls
+    mock_ollama.__dict__["AsyncClient"] = mock_async_client_cls
 
     with patch.dict(sys.modules, {"ollama": mock_ollama}):
         raw = await client._raw_call("prompt", {})

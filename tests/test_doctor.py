@@ -1,11 +1,17 @@
+from __future__ import annotations
+
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import httpx
+import pytest
 
 from audiobard.doctor import collect_diagnostics
 
 
-def test_collect_diagnostics_reports_dependencies_and_redacts_keys(tmp_path, monkeypatch):
+def test_collect_diagnostics_reports_dependencies_and_redacts_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("AUDIOBARD_CACHE_DIR", str(tmp_path))
     monkeypatch.setenv("OPENROUTER_API_KEY", "secret-value")
     response = Mock()
@@ -29,7 +35,9 @@ def test_collect_diagnostics_reports_dependencies_and_redacts_keys(tmp_path, mon
     assert values["offline TTS directory"][0] == "ok"
 
 
-def test_collect_diagnostics_handles_ollama_failure(tmp_path, monkeypatch):
+def test_collect_diagnostics_handles_ollama_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("AUDIOBARD_CACHE_DIR", str(tmp_path))
     with (
         patch("audiobard.doctor.find_ffmpeg", return_value=None),
