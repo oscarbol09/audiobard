@@ -62,7 +62,9 @@ const hasAnyIncomplete = computed(() => {
 async function onDownload(book: LibraryBook) {
   try {
     const path = await invoke<string>('download_book', { bookId: book.id, book_id: book.id })
-    await invoke('shell.open', { path })
+    // Tauri v2 has no `shell.open` command; opening a file in the system viewer is handled
+    // by the opener plugin, which is registered in src-tauri and allowed in capabilities/default.json.
+    await invoke('plugin:opener|open_path', { path })
   } catch (e) {
     console.error('Download/Open failed:', e)
   }
