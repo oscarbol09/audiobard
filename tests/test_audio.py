@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
+import json
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -18,8 +21,80 @@ from audiobard.audio.processor import (
     AudioProcessor,
     ChapterMarker,
     find_ffmpeg,
+    generate_ffmetadata,
 )
 from audiobard.models import Emotion
+
+
+@pytest.mark.parametrize(
+    ("title", "escaped_title"),
+    [
+        ("Chapter 1", "Chapter 1"),
+        ("", ""),
+        ("A=B; #C\\D", r"A\=B\; \#C\\D"),
+        ("line one\nline two", "line one\\\nline two"),
+        ("line one\rline two", "line one\\\rline two"),
+        ("line one\r\nline two", "line one\\\r\\\nline two"),
+        ("[CHAPTER]\nSTART=100", "[CHAPTER]\\\nSTART\\=100"),
+        ("Épilogue 日本語", "Épilogue 日本語"),
+    ],
+)
+def test_generate_ffmetadata_escapes_chapter_titles(title: str, escaped_title: str) -> None:
+    chapters = [ChapterMarker(title=title, start_ms=0, end_ms=500)]
+    assert generate_ffmetadata(chapters) == (
+        ";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=500\n"
+        f"title={escaped_title}\n"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("windows_newlines", [False, True], ids=["native", "windows"])
+async def test_export_m4b_preserves_special_characters_in_chapter_titles(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows_newlines: bool
+) -> None:
+    ffprobe = shutil.which("ffprobe")
+    if ffprobe is None or find_ffmpeg() is None:
+        pytest.skip("requires ffmpeg and ffprobe")
+
+    if windows_newlines:
+        original_write_text = Path.write_text
+
+        def write_text(
+            path: Path,
+            data: str,
+            encoding: str | None = None,
+            errors: str | None = None,
+            newline: str | None = None,
+        ) -> int:
+            return original_write_text(
+                path, data, encoding=encoding, errors=errors,
+                newline="\r\n" if newline is None else newline,
+            )
+
+        monkeypatch.setattr(Path, "write_text", write_text)
+
+    chapters = [
+        ChapterMarker(
+            title="Épilogue: A=B; #C\\D\n[CHAPTER]\r\nSTART=100",
+            start_ms=0,
+            end_ms=250,
+        ),
+        ChapterMarker(title="Chapter 2", start_ms=250, end_ms=500),
+    ]
+    output = tmp_path / "chapters.m4b"
+    await AudioProcessor().export_m4b(_create_dummy_mp3(), output, chapters)
+
+    proc = await asyncio.create_subprocess_exec(
+        ffprobe, "-v", "error", "-show_chapters", "-of", "json", str(output),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    assert proc.returncode == 0, stderr.decode("utf-8", errors="replace")
+    actual_chapters = json.loads(stdout)["chapters"]
+    assert [ch["tags"]["title"] for ch in actual_chapters] == [ch.title for ch in chapters]
+    assert [ch["start_time"] for ch in actual_chapters] == ["0.000000", "0.250000"]
+    assert [ch["end_time"] for ch in actual_chapters] == ["0.250000", "0.500000"]
 
 
 def _create_dummy_mp3() -> bytes:

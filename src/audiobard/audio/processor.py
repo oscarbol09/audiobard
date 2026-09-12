@@ -107,8 +107,15 @@ class ChapterMarker(BaseModel):
     end_ms: int = Field(ge=0)
 
 
+def _escape_ffmetadata(value: str) -> str:
+    """Escape metadata delimiters and line breaks, starting with backslashes."""
+    for char in ("\\", "=", ";", "#", "\r", "\n"):
+        value = value.replace(char, f"\\{char}")
+    return value
+
+
 def generate_ffmetadata(chapters: list[ChapterMarker]) -> str:
-    """Generate FFmpeg FFMETADATA1 content for chapter markers."""
+    """Generate FFMETADATA1 chapter markers with escaped, literal title values."""
     lines = [";FFMETADATA1"]
     for ch in chapters:
         lines.extend(
@@ -117,7 +124,7 @@ def generate_ffmetadata(chapters: list[ChapterMarker]) -> str:
                 "TIMEBASE=1/1000",
                 f"START={ch.start_ms}",
                 f"END={ch.end_ms}",
-                f"title={ch.title}",
+                f"title={_escape_ffmetadata(ch.title)}",
                 "",
             ]
         )
@@ -203,7 +210,7 @@ class AudioProcessor:
 
             # 2. Write metadata file
             metadata_content = generate_ffmetadata(chapters)
-            metadata_file.write_text(metadata_content, encoding="utf-8")
+            metadata_file.write_text(metadata_content, encoding="utf-8", newline="\n")
 
             # 3. Inject metadata into final M4B file
             logger.info("Injecting chapter markers into final M4B...")
