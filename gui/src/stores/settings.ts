@@ -143,6 +143,14 @@ export const useSettingsStore = defineStore('settings', () => {
     { immediate: true }
   )
 
+  watch(
+    settings,
+    () => {
+      saveSettings()
+    },
+    { deep: true }
+  )
+
   function getEffectiveModel(): string {
     const provider = settings.value.llmProvider
     if (provider === 'nim') return settings.value.nimModel || 'meta/llama-3.3-70b-instruct'

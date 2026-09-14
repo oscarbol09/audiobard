@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18nStore } from '../stores/i18n'
 import { useGenerationStore } from '../stores/generation'
+import { useSettingsStore } from '../stores/settings'
 
 interface LibraryBook {
   id: number
@@ -24,6 +25,7 @@ const showIncomplete = ref(false)
 const i18n = useI18nStore()
 const { t } = i18n
 const generationStore = useGenerationStore()
+const settingsStore = useSettingsStore()
 
 watch(() => generationStore.stage, (newStage) => {
   if (newStage === 'complete') {
@@ -31,11 +33,19 @@ watch(() => generationStore.stage, (newStage) => {
   }
 })
 
+watch(() => settingsStore.settings.outputFolder, () => {
+  loadLibrary()
+})
+
 async function loadLibrary() {
   loading.value = true
   error.value = null
   try {
-    const result = await invoke<LibraryBook[]>('get_library')
+    const outputFolder = settingsStore.settings.outputFolder || undefined
+    const result = await invoke<LibraryBook[]>('get_library', {
+      outputFolder,
+      output_folder: outputFolder,
+    })
     books.value = result
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
@@ -59,9 +69,21 @@ const hasAnyIncomplete = computed(() => {
   return books.value.some((b) => b.has_audio === false)
 })
 
+function getBookAudioUrl(bookId: number): string {
+  const base = `http://127.0.0.1:8000/book/${bookId}/download`
+  const folder = settingsStore.settings.outputFolder
+  return folder ? `${base}?output_folder=${encodeURIComponent(folder)}` : base
+}
+
 async function onDownload(book: LibraryBook) {
   try {
-    const path = await invoke<string>('download_book', { bookId: book.id, book_id: book.id })
+    const outputFolder = settingsStore.settings.outputFolder || undefined
+    const path = await invoke<string>('download_book', {
+      bookId: book.id,
+      book_id: book.id,
+      outputFolder,
+      output_folder: outputFolder,
+    })
     // Tauri v2 has no `shell.open` command; opening a file in the system viewer is handled
     // by the opener plugin, which is registered in src-tauri and allowed in capabilities/default.json.
     await invoke('plugin:opener|open_path', { path })
@@ -73,7 +95,12 @@ async function onDownload(book: LibraryBook) {
 async function onRegenerate(book: LibraryBook) {
   if (!confirm(`Regenerate "${book.title}"? This will overwrite the existing audio.`)) return
   try {
-    await invoke('regenerate_book', { bookId: book.id, book_id: book.id, settings: {} })
+    const outputFolder = settingsStore.settings.outputFolder || undefined
+    await invoke('regenerate_book', {
+      bookId: book.id,
+      book_id: book.id,
+      settings: { output_folder: outputFolder },
+    })
     alert('Regeneration started! Check the generation progress.')
   } catch (e) {
     console.error('Regenerate failed:', e)
@@ -84,7 +111,13 @@ async function onRegenerate(book: LibraryBook) {
 async function onDelete(book: LibraryBook) {
   if (!confirm(t('deleteConfirm'))) return
   try {
-    await invoke('delete_book', { bookId: book.id, book_id: book.id })
+    const outputFolder = settingsStore.settings.outputFolder || undefined
+    await invoke('delete_book', {
+      bookId: book.id,
+      book_id: book.id,
+      outputFolder,
+      output_folder: outputFolder,
+    })
     books.value = books.value.filter((b) => b.id !== book.id)
     await loadLibrary()
   } catch (e) {
@@ -194,7 +227,7 @@ onMounted(() => {
           <audio 
             v-if="book.has_audio !== false"
             controls 
-            :src="`http://127.0.0.1:8000/book/${book.id}/download`" 
+            :src="getBookAudioUrl(book.id)" 
             preload="none" 
             class="h-8 max-w-[200px] outline-none"
           ></audio>

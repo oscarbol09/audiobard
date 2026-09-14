@@ -172,6 +172,7 @@ pub async fn generate_audiobook(
     llm_provider: String,
     llm_model: String,
     session_id: String,
+    output_folder: Option<String>,
     openrouter_api_key: Option<String>,
     gemini_api_key: Option<String>,
     nim_api_key: Option<String>,
@@ -182,7 +183,7 @@ pub async fn generate_audiobook(
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = "http://127.0.0.1:8000/generate";
 
-    let payload = serde_json::json!({
+    let mut payload = serde_json::json!({
         "file_base64": file_base64,
         "file_name": file_name,
         "locale": locale,
@@ -194,6 +195,11 @@ pub async fn generate_audiobook(
         "gemini_api_key": gemini_api_key.unwrap_or_default(),
         "nim_api_key": nim_api_key.unwrap_or_default(),
     });
+    if let Some(ref folder) = output_folder {
+        if !folder.is_empty() {
+            payload["output_folder"] = serde_json::Value::String(folder.clone());
+        }
+    }
 
     let response = client
         .post(url)
@@ -315,14 +321,21 @@ pub struct LibraryBook {
 
 /// Fetch the full library from FastAPI.
 #[tauri::command]
-pub async fn get_library() -> Result<Vec<LibraryBook>, String> {
+pub async fn get_library(output_folder: Option<String>) -> Result<Vec<LibraryBook>, String> {
     let client = reqwest::Client::builder()
         .timeout(PROBE_TIMEOUT)
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = "http://127.0.0.1:8000/library";
 
-    match client.get(url).send().await {
+    let mut request = client.get(url);
+    if let Some(ref folder) = output_folder {
+        if !folder.is_empty() {
+            request = request.query(&[("output_folder", folder.as_str())]);
+        }
+    }
+
+    match request.send().await {
         Ok(response) => {
             if response.status().is_success() {
                 let books: Vec<LibraryBook> = response.json().await
@@ -344,14 +357,24 @@ pub async fn get_library() -> Result<Vec<LibraryBook>, String> {
 ///
 /// Returns the local file path so the UI can open it with the system default player.
 #[tauri::command]
-pub async fn download_book(book_id: i64) -> Result<String, String> {
+pub async fn download_book(
+    book_id: i64,
+    output_folder: Option<String>,
+) -> Result<String, String> {
     let client = reqwest::Client::builder()
         .timeout(PROBE_TIMEOUT)
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = format!("http://127.0.0.1:8000/book/{}/path", book_id);
 
-    match client.get(url).send().await {
+    let mut request = client.get(&url);
+    if let Some(ref folder) = output_folder {
+        if !folder.is_empty() {
+            request = request.query(&[("output_folder", folder.as_str())]);
+        }
+    }
+
+    match request.send().await {
         Ok(response) => {
             if response.status().is_success() {
                 let body: serde_json::Value = response.json().await
@@ -443,14 +466,24 @@ pub async fn select_output_folder(app: AppHandle) -> Result<Option<String>, Stri
 
 /// Delete a book from the library and database.
 #[tauri::command]
-pub async fn delete_book(book_id: i64) -> Result<(), String> {
+pub async fn delete_book(
+    book_id: i64,
+    output_folder: Option<String>,
+) -> Result<(), String> {
     let client = reqwest::Client::builder()
         .timeout(PROBE_TIMEOUT)
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let url = format!("http://127.0.0.1:8000/book/{}", book_id);
 
-    match client.delete(url).send().await {
+    let mut request = client.delete(&url);
+    if let Some(ref folder) = output_folder {
+        if !folder.is_empty() {
+            request = request.query(&[("output_folder", folder.as_str())]);
+        }
+    }
+
+    match request.send().await {
         Ok(response) => {
             if response.status().is_success() {
                 Ok(())

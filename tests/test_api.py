@@ -313,6 +313,7 @@ def test_generate_audiobook_cancelled_writes_stage_before_http_exception(
     assert session_progress is not None
     assert session_progress.stage == "cancelled"
 
+
 def test_get_book_path_success(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -362,6 +363,7 @@ def test_get_book_path_404_missing_audio_file(
     r = client.get("/book/2/path")
     assert r.status_code == 404
     assert "Audio file not found" in r.json()["detail"]
+
 
 def test_regenerate_book_success(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -468,6 +470,7 @@ def test_delete_book_success(
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
     deleted_id = []
+
     class DummyPersistence:
         def delete_book(self, bid: int) -> bool:
             deleted_id.append(bid)
@@ -487,6 +490,215 @@ def test_delete_book_not_found(client: TestClient, monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr("audiobard.api._get_book_by_id", lambda bid: None)
     r = client.delete("/book/999")
     assert r.status_code == 404
+
+
+def test_generate_audiobook_custom_output_folder(client: TestClient, tmp_path: Path) -> None:
+    """POST /generate writes the output file to the configured output_folder."""
+    custom_dir = tmp_path / "custom_audio_books"
+    custom_dir.mkdir()
+    fake_pipeline = MagicMock()
+    fake_pipeline.run = AsyncMock(side_effect=_stub_pipeline_run)
+
+    payload = _generate_payload("session-custom-out")
+    payload["output_folder"] = str(custom_dir)
+
+    with (
+        patch("audiobard.api.AudioBookPipeline", return_value=fake_pipeline),
+        patch("audiobard.api.AudioBardConfig"),
+    ):
+        response = client.post("/generate", json=payload)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["session_id"] == "session-custom-out"
+    out_path = Path(body["output_path"])
+    assert out_path.parent.resolve() == custom_dir.resolve()
+    assert out_path.name.startswith("book_")
+    assert out_path.exists()
+
+
+def test_get_library_custom_output_folder(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """GET /library detects audio files residing in a custom output folder."""
+    fake_book = {
+        "id": 1,
+        "path": str(tmp_path / "book.epub"),
+        "title": "Custom Library Book",
+        "total_paragraphs": 10,
+        "total_words": 100,
+        "dialog_ratio": 0.5,
+        "created_at": "2026-08-25T10:00:00",
+    }
+    custom_dir = tmp_path / "custom_output"
+    custom_dir.mkdir()
+    audio_file = custom_dir / "book.mp3"
+    audio_file.write_bytes(b"x" * 2000)
+
+    monkeypatch.setattr("audiobard.api._get_all_books", lambda: [fake_book])
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
+
+    # Without output_folder parameter, file is not found in default home
+    r_default = client.get("/library")
+    assert r_default.status_code == 200
+    assert r_default.json()[0]["has_audio"] is False
+
+    # With output_folder parameter, file is detected in custom folder
+    r_custom = client.get("/library", params={"output_folder": str(custom_dir)})
+    assert r_custom.status_code == 200
+    assert r_custom.json()[0]["has_audio"] is True
+
+
+def test_get_book_path_custom_output_folder(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """GET /book/{id}/path returns disk path in custom output directory."""
+    fake_book = {
+        "id": 1,
+        "path": str(tmp_path / "book.epub"),
+        "title": "Custom Path Book",
+        "total_paragraphs": 10,
+        "total_words": 100,
+        "dialog_ratio": 0.5,
+        "created_at": "2026-08-25T10:00:00",
+    }
+    custom_dir = tmp_path / "custom_output"
+    custom_dir.mkdir()
+    audio_file = custom_dir / "book.mp3"
+    audio_file.write_bytes(b"x" * 2000)
+
+    monkeypatch.setattr(
+        "audiobard.api._get_book_by_id", lambda bid: fake_book if bid == 1 else None
+    )
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
+
+    # Without custom folder, returns 404
+    r_default = client.get("/book/1/path")
+    assert r_default.status_code == 404
+
+    # With custom folder, returns correct path
+    r_custom = client.get("/book/1/path", params={"output_folder": str(custom_dir)})
+    assert r_custom.status_code == 200
+    assert Path(r_custom.json()["path"]).resolve() == audio_file.resolve()
+
+
+def test_download_book_custom_output_folder(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """GET /book/{id}/download serves audio file from custom output directory."""
+    fake_book = {
+        "id": 1,
+        "path": str(tmp_path / "book.epub"),
+        "title": "Download Book",
+        "total_paragraphs": 10,
+        "total_words": 100,
+        "dialog_ratio": 0.5,
+        "created_at": "2026-08-25T10:00:00",
+    }
+    custom_dir = tmp_path / "custom_output"
+    custom_dir.mkdir()
+    audio_file = custom_dir / "book.mp3"
+    audio_file.write_bytes(b"mp3-custom-bytes")
+
+    monkeypatch.setattr(
+        "audiobard.api._get_book_by_id", lambda bid: fake_book if bid == 1 else None
+    )
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
+
+    # Without custom folder, returns 404
+    r_default = client.get("/book/1/download")
+    assert r_default.status_code == 404
+
+    # With custom folder, serves file
+    r_custom = client.get("/book/1/download", params={"output_folder": str(custom_dir)})
+    assert r_custom.status_code == 200
+    assert r_custom.content == b"mp3-custom-bytes"
+
+
+def test_delete_book_custom_output_folder(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """DELETE /book/{id} removes audio file from custom output directory."""
+    fake_book = {
+        "id": 1,
+        "path": str(tmp_path / "book.epub"),
+        "title": "Delete Book",
+        "total_paragraphs": 10,
+        "total_words": 100,
+        "dialog_ratio": 0.5,
+        "created_at": "2026-08-25T10:00:00",
+    }
+    custom_dir = tmp_path / "custom_output"
+    custom_dir.mkdir()
+    audio_file = custom_dir / "book.mp3"
+    audio_file.write_bytes(b"audio-data")
+
+    monkeypatch.setattr(
+        "audiobard.api._get_book_by_id", lambda bid: fake_book if bid == 1 else None
+    )
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
+
+    deleted_id: list[int] = []
+
+    class DummyPersistence:
+        def delete_book(self, bid: int) -> bool:
+            deleted_id.append(bid)
+            return True
+
+    monkeypatch.setattr("audiobard.api._get_persistence", lambda: DummyPersistence())
+
+    r = client.delete("/book/1", params={"output_folder": str(custom_dir)})
+    assert r.status_code == 200
+    assert r.json() == {"status": "deleted"}
+    assert deleted_id == [1]
+    assert not audio_file.exists()
+
+
+@pytest.mark.asyncio
+async def test_regenerate_book_custom_output_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """POST /book/{id}/regenerate saves output to custom output directory."""
+    from audiobard.api import regenerate_book
+
+    source_file = tmp_path / "book.epub"
+    source_file.write_bytes(b"epub-content")
+    custom_dir = tmp_path / "custom_output"
+
+    fake_book = {
+        "id": 1,
+        "path": str(source_file),
+        "title": "Regenerate Book",
+        "total_paragraphs": 10,
+        "total_words": 100,
+        "dialog_ratio": 0.5,
+        "created_at": "2026-08-25T10:00:00",
+    }
+
+    monkeypatch.setattr(
+        "audiobard.api._get_book_by_id", lambda bid: fake_book if bid == 1 else None
+    )
+
+    run_event = asyncio.Event()
+    captured_out: list[Path] = []
+
+    async def _capture_run(src: Path, out: Path, **kwargs: Any) -> None:
+        captured_out.append(out)
+        run_event.set()
+
+    fake_pipeline = MagicMock()
+    fake_pipeline.run = AsyncMock(side_effect=_capture_run)
+
+    with (
+        patch("audiobard.api.AudioBookPipeline", return_value=fake_pipeline),
+        patch("audiobard.api.AudioBardConfig"),
+    ):
+        result = await regenerate_book(1, {"output_folder": str(custom_dir)})
+        await asyncio.wait_for(run_event.wait(), timeout=2.0)
+
+    assert result["status"] == "started"
+    assert len(captured_out) == 1
+    assert captured_out[0].resolve() == (custom_dir / "book.mp3").resolve()
 
 
 def test_generate_audiobook_persists_uploaded_file(
@@ -777,8 +989,3 @@ def test_repeated_upload_registering_pipeline_cleans_superseded_files(
         assert del_resp.status_code == 200
         assert not out2.exists()
         assert list(books_dir.glob("book_*.txt")) == []
-
-
-
-
-

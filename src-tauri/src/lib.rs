@@ -24,6 +24,7 @@ pub fn run() {
             crate::commands::sidecar::select_output_folder,
             crate::commands::sidecar::clear_cache,
             crate::commands::sidecar::delete_book,
+            crate::commands::sidecar::regenerate_book,
         ])
         .setup(|app| {
             // Start the Python sidecar on app launch

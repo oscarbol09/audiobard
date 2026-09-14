@@ -625,6 +625,7 @@ async function clearCache() {
                 <input
                   type="text"
                   v-model="settingsStore.settings.outputFolder"
+                  @change="settingsStore.updateSetting('outputFolder', settingsStore.settings.outputFolder)"
                   placeholder="Default: ~/AudioBard/output"
                   class="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                 />

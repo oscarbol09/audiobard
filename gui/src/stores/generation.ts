@@ -25,13 +25,17 @@ interface GenerateAudiobookArgs {
   llmProvider: LLMProvider
   llmModel: string
   sessionId: string
+  outputFolder?: string
   openrouterApiKey?: string
   geminiApiKey?: string
   nimApiKey?: string
 }
 
 function toInvokeArgs(args: GenerateAudiobookArgs): Record<string, unknown> {
-  return { ...args }
+  return {
+    ...args,
+    output_folder: args.outputFolder,
+  }
 }
 
 const PROGRESS_POLL_INTERVAL_MS = 1000
@@ -178,6 +182,7 @@ export const useGenerationStore = defineStore('generation', () => {
       llmProvider: effectiveLlmProvider as LLMProvider,
       llmModel: effectiveModel,
       sessionId: sid,
+      outputFolder: settingsStore.settings.outputFolder || undefined,
       openrouterApiKey: settingsStore.settings.openrouterApiKey,
       geminiApiKey: settingsStore.settings.geminiApiKey,
       nimApiKey: settingsStore.settings.nimApiKey,
