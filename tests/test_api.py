@@ -688,7 +688,7 @@ async def test_regenerate_book_custom_output_folder(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """POST /book/{id}/regenerate saves output to custom output directory."""
-    from audiobard.api import regenerate_book
+    from audiobard.api import RegenerateRequest, regenerate_book
 
     source_file = tmp_path / "book.epub"
     source_file.write_bytes(b"epub-content")
@@ -722,7 +722,9 @@ async def test_regenerate_book_custom_output_folder(
         patch("audiobard.api.AudioBookPipeline", return_value=fake_pipeline),
         patch("audiobard.api.AudioBardConfig"),
     ):
-        result = await regenerate_book(1, {"output_folder": str(custom_dir)})
+        result = await regenerate_book(
+            1, RegenerateRequest(output_folder=str(custom_dir))
+        )
         await asyncio.wait_for(run_event.wait(), timeout=2.0)
 
     assert result["status"] == "started"
