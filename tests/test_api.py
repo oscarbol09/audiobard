@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import time
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -90,6 +91,35 @@ def test_progress_store_thread_safe() -> None:
     for t in threads:
         t.join()
     assert store.size() == 4 * 200
+
+
+def test_progress_store_ttl_eviction(monkeypatch: pytest.MonkeyPatch) -> None:
+    store = ProgressStore()
+    store._TTL_SECONDS = 10  # fast TTL for testing
+
+    # Session 1: complete, timestamp at t=0
+    current_time = 1000.0
+    monkeypatch.setattr(time, "monotonic", lambda: current_time)
+    store.update("s1", PipelineProgress(stage="complete", percent=100, message="done"))
+    store.cancel("s1")
+
+    # Session 2: still running, timestamp at t=0
+    store.update("s2", PipelineProgress(stage="synthesis", percent=50, message="working"))
+
+    assert store.size() == 2
+
+    # Advance time beyond TTL (t=1020) and update a new session s3
+    current_time = 1020.0
+    store.update("s3", PipelineProgress(stage="parsing", percent=10, message="started"))
+
+    # s1 should be evicted (completed and >10s old)
+    assert store.get("s1") is None
+    assert not store.is_cancelled("s1")
+    # s2 should remain (not completed)
+    assert store.get("s2") is not None
+    # s3 should exist
+    assert store.get("s3") is not None
+    assert store.size() == 2
 
 
 def _stub_pipeline_run(input_path: Path, output_path: Path, **_kwargs: Any) -> None:

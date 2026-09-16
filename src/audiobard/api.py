@@ -8,6 +8,7 @@ import contextlib
 import shutil
 import tempfile
 import threading
+import time
 import uuid
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -33,18 +34,23 @@ class ProgressStore:
     generation. The Tauri shell polls /progress?session_id=... once a
     second while generation runs; a periodic poll after success or
     failure reports *stage="complete"* until the Tauri shell stops
-    asking. Sessions are never evicted: the sidecar restarts with the
-    app, so memory pressure is bounded by session count during one run.
+    asking. Completed sessions are auto-evicted after ``_TTL_SECONDS``
+    to prevent unbounded memory growth during long-running sessions.
     """
+
+    _TTL_SECONDS = 1800  # 30 minutes
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._entries: dict[str, PipelineProgress] = {}
+        self._timestamps: dict[str, float] = {}
         self._cancelled: set[str] = set()
 
     def update(self, session_id: str, progress: PipelineProgress) -> None:
         with self._lock:
             self._entries[session_id] = progress
+            self._timestamps[session_id] = time.monotonic()
+            self._evict_expired()
 
     def get(self, session_id: str) -> PipelineProgress | None:
         with self._lock:
@@ -53,6 +59,7 @@ class ProgressStore:
     def clear(self, session_id: str) -> None:
         with self._lock:
             self._entries.pop(session_id, None)
+            self._timestamps.pop(session_id, None)
 
     def size(self) -> int:
         """Test/diagnostic hook: number of tracked sessions."""
@@ -63,7 +70,26 @@ class ProgressStore:
         """Drop every tracked session; only used by the test suite."""
         with self._lock:
             self._entries.clear()
+            self._timestamps.clear()
             self._cancelled.clear()
+
+    def _evict_expired(self) -> None:
+        """Remove completed sessions older than ``_TTL_SECONDS``.
+
+        Must be called while holding ``self._lock``.
+        """
+        now = time.monotonic()
+        expired = [
+            sid
+            for sid, ts in self._timestamps.items()
+            if now - ts > self._TTL_SECONDS
+            and sid in self._entries
+            and self._entries[sid].stage in ("complete", "error")
+        ]
+        for sid in expired:
+            del self._entries[sid]
+            del self._timestamps[sid]
+            self._cancelled.discard(sid)
 
     def cancel(self, session_id: str) -> None:
         """Mark *session_id* as cancelled.
