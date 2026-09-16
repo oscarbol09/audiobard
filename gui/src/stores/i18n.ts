@@ -96,6 +96,30 @@ const translations = {
     filterPremium: '💎 Prémium (Pago)',
     freeBadge: 'GRATIS',
     premiumBadge: 'PAGO',
+
+    // Custom model inputs & hints
+    customOllamaModel: 'Ingresar modelo personalizado de Ollama...',
+    customNimModel: 'Ingresar ID de modelo personalizado de NVIDIA NIM...',
+    customOpenRouterModel: 'Ingresar ID de modelo personalizado de OpenRouter...',
+    customGeminiModel: 'Ingresar modelo personalizado de Gemini...',
+    nimCatalogTitle: 'Catálogo de Modelos NVIDIA NIM',
+    openrouterCatalogTitle: 'Catálogo de Modelos OpenRouter',
+    geminiCatalogTitle: 'Modelos Google Gemini',
+    nimApiKeyHint: 'Obtén tu API key gratuita en',
+    nimApiKeyNoCard: '(sin tarjeta requerida).',
+    openrouterApiKeyHint: 'Obtén tu API key gratuita en',
+    openrouterCreditNote: '(incluye modelos gratuitos).',
+    geminiApiKeyHint: 'Obtén tu API key en',
+    openrouterModelsBadge: 'Modelos Free & BYOK',
+
+    // Dialogs & Validation
+    invalidFileType: 'Tipo de archivo no válido. Aceptados: {types}',
+    fileTooLarge: 'Archivo demasiado grande. Tamaño máximo: {size} MB',
+    clearCacheConfirm: 'Esto eliminará toda la caché de audio y respuestas LLM. ¿Continuar?',
+    clearCacheFailed: 'Error al limpiar la caché',
+    regenerateConfirm: '¿Regenerar "{title}"? Esto sobrescribirá el audio existente.',
+    regenerationStarted: '¡Regeneración iniciada! Revisa el progreso de generación.',
+    regenerateFailed: 'Error al regenerar:',
   },
   en: {
     // General / Header
@@ -192,6 +216,30 @@ const translations = {
     filterPremium: '💎 Premium (Paid)',
     freeBadge: 'FREE',
     premiumBadge: 'PAID',
+
+    // Custom model inputs & hints
+    customOllamaModel: 'Enter custom Ollama model name...',
+    customNimModel: 'Enter custom NVIDIA NIM model ID...',
+    customOpenRouterModel: 'Enter custom OpenRouter model ID...',
+    customGeminiModel: 'Enter custom Gemini model name...',
+    nimCatalogTitle: 'NVIDIA NIM Model Catalog',
+    openrouterCatalogTitle: 'OpenRouter Model Catalog',
+    geminiCatalogTitle: 'Google Gemini Models',
+    nimApiKeyHint: 'Get your free API key at',
+    nimApiKeyNoCard: '(no credit card required).',
+    openrouterApiKeyHint: 'Get your free API key at',
+    openrouterCreditNote: '(includes free models).',
+    geminiApiKeyHint: 'Get your API key at',
+    openrouterModelsBadge: 'Free & BYOK Models',
+
+    // Dialogs & Validation
+    invalidFileType: 'Invalid file type. Accepted: {types}',
+    fileTooLarge: 'File too large. Maximum size: {size} MB',
+    clearCacheConfirm: 'This will delete all cached audio and LLM responses. Continue?',
+    clearCacheFailed: 'Failed to clear cache',
+    regenerateConfirm: 'Regenerate "{title}"? This will overwrite the existing audio.',
+    regenerationStarted: 'Regeneration started! Check the generation progress.',
+    regenerateFailed: 'Regenerate failed:',
   },
 }
 
@@ -200,9 +248,15 @@ export type TranslationKey = keyof typeof translations.es
 export const useI18nStore = defineStore('i18n', () => {
   const settingsStore = useSettingsStore()
 
-  function t(key: TranslationKey): string {
+  function t(key: TranslationKey, params?: Record<string, string | number>): string {
     const lang = settingsStore.settings.language || 'es'
-    return translations[lang]?.[key] || translations['es']?.[key] || key
+    let text = translations[lang]?.[key] || translations['es']?.[key] || (key as string)
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        text = text.replaceAll(`{${k}}`, String(v))
+      }
+    }
+    return text
   }
 
   function setLanguage(lang: 'es' | 'en') {

@@ -35,12 +35,12 @@ function formatFileSize(bytes: number): string {
 function validateFile(file: File): string | null {
   const extension = file.name.split('.').pop()?.toLowerCase()
   if (!extension || !props.acceptedTypes.includes(extension)) {
-    return `Invalid file type. Accepted: ${props.acceptedTypes.join(', ')}`
+    return t('invalidFileType', { types: props.acceptedTypes.join(', ') })
   }
 
   const maxBytes = props.maxSizeMB * 1024 * 1024
   if (file.size > maxBytes) {
-    return `File too large. Maximum size: ${props.maxSizeMB} MB`
+    return t('fileTooLarge', { size: props.maxSizeMB })
   }
 
   return null

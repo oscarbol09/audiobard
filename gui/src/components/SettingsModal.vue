@@ -247,7 +247,7 @@ async function clearCache() {
                     </div>
 
                     <details class="text-xs text-gray-400">
-                      <summary class="cursor-pointer hover:text-gray-300 mb-2">Ingresar modelo personalizado de Ollama...</summary>
+                      <summary class="cursor-pointer hover:text-gray-300 mb-2">{{ t('customOllamaModel') }}</summary>
                       <input
                         type="text"
                         v-model="settingsStore.settings.ollamaModel"
@@ -277,11 +277,11 @@ async function clearCache() {
                       class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       placeholder="nvapi-..."
                     />
-                    <p class="text-xs text-gray-500 mt-1">Obtén tu API key gratuita en <a href="https://build.nvidia.com" target="_blank" class="text-green-400 underline">build.nvidia.com</a> (sin tarjeta requerida).</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ t('nimApiKeyHint') }} <a href="https://build.nvidia.com" target="_blank" class="text-green-400 underline">build.nvidia.com</a> {{ t('nimApiKeyNoCard') }}</p>
                   </div>
                   <div>
                     <div class="flex items-center justify-between mb-2">
-                      <label class="text-sm font-medium text-gray-300">Catálogo de Modelos NVIDIA NIM</label>
+                      <label class="text-sm font-medium text-gray-300">{{ t('nimCatalogTitle') }}</label>
                       <div class="inline-flex rounded-lg bg-gray-900/90 p-0.5 border border-gray-700 text-xs">
                         <button
                           type="button"
@@ -336,7 +336,7 @@ async function clearCache() {
                     </div>
 
                     <details class="text-xs text-gray-400">
-                      <summary class="cursor-pointer hover:text-green-300 mb-2">Ingresar ID de modelo personalizado de NVIDIA NIM...</summary>
+                      <summary class="cursor-pointer hover:text-green-300 mb-2">{{ t('customNimModel') }}</summary>
                       <input
                         type="text"
                         v-model="settingsStore.settings.nimModel"
@@ -355,7 +355,7 @@ async function clearCache() {
                       <span>🌐 OpenRouter Cloud</span>
                     </div>
                     <span class="text-xs text-purple-400/80 bg-purple-900/30 px-2 py-0.5 rounded border border-purple-700/30">
-                      Modelos Free & BYOK
+                      {{ t('openrouterModelsBadge') }}
                     </span>
                   </div>
                   <div>
@@ -366,10 +366,11 @@ async function clearCache() {
                       class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       placeholder="sk-or-v1-..."
                     />
+                    <p class="text-xs text-gray-500 mt-1">{{ t('openrouterApiKeyHint') }} <a href="https://openrouter.ai" target="_blank" class="text-purple-400 underline">openrouter.ai</a> {{ t('openrouterCreditNote') }}</p>
                   </div>
                   <div>
                     <div class="flex items-center justify-between mb-2">
-                      <label class="text-sm font-medium text-gray-300">Catálogo de Modelos OpenRouter</label>
+                      <label class="text-sm font-medium text-gray-300">{{ t('openrouterCatalogTitle') }}</label>
                       <div class="inline-flex rounded-lg bg-gray-900/90 p-0.5 border border-gray-700 text-xs">
                         <button
                           type="button"
@@ -424,7 +425,7 @@ async function clearCache() {
                     </div>
 
                     <details class="text-xs text-gray-400">
-                      <summary class="cursor-pointer hover:text-purple-300 mb-2">Ingresar ID de modelo personalizado de OpenRouter...</summary>
+                      <summary class="cursor-pointer hover:text-purple-300 mb-2">{{ t('customOpenRouterModel') }}</summary>
                       <input
                         type="text"
                         v-model="settingsStore.settings.openrouterModel"
@@ -454,10 +455,11 @@ async function clearCache() {
                       class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="AIzaSy..."
                     />
+                    <p class="text-xs text-gray-500 mt-1">{{ t('geminiApiKeyHint') }} <a href="https://aistudio.google.com" target="_blank" class="text-blue-400 underline">aistudio.google.com</a>.</p>
                   </div>
                   <div>
                     <div class="flex items-center justify-between mb-2">
-                      <label class="text-sm font-medium text-gray-300">Modelos Google Gemini</label>
+                      <label class="text-sm font-medium text-gray-300">{{ t('geminiCatalogTitle') }}</label>
                       <div class="inline-flex rounded-lg bg-gray-900/90 p-0.5 border border-gray-700 text-xs">
                         <button
                           type="button"
