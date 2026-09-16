@@ -84,6 +84,11 @@ pub async fn start_python_sidecar<R: Runtime>(
     // Store the child process for later shutdown
     {
         let mut guard = sidecar.child.lock().map_err(|e| format!("Mutex lock failed: {}", e))?;
+        // Kill the previous sidecar process if it exists to prevent zombie processes
+        if let Some(prev_child) = guard.take() {
+            let _ = prev_child.kill();
+            log::info!("Killed previous sidecar process before starting new one");
+        }
         *guard = Some(child);
     }
 
