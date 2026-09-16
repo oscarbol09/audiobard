@@ -189,11 +189,15 @@ class PiperProvider(TTSProvider):
                     tmp_json_path.write_bytes(res.content)
 
                     logger.info("Downloading Piper model from %s", onnx_url)
-                    res = await client.get(onnx_url, follow_redirects=True)
-                    res.raise_for_status()
-                    if not res.content:
-                        raise ValueError(f"Received empty response from {onnx_url}")
-                    tmp_onnx_path.write_bytes(res.content)
+                    async with client.stream("GET", onnx_url, follow_redirects=True) as stream_res:
+                        stream_res.raise_for_status()
+                        total_bytes = 0
+                        with tmp_onnx_path.open("wb") as f:
+                            async for chunk in stream_res.aiter_bytes():
+                                f.write(chunk)
+                                total_bytes += len(chunk)
+                        if total_bytes == 0:
+                            raise ValueError(f"Received empty response from {onnx_url}")
 
                 tmp_json_path.replace(json_path)
                 tmp_onnx_path.replace(onnx_path)
