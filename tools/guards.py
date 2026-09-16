@@ -87,7 +87,7 @@ ALLOWED_DATA_BOOK_FILES = {".gitkeep"}
 ALLOWED_DATA_VOICE_EXTENSIONS = {".json", ""}
 
 # Audio output must never be tracked, wherever it lands.
-AUDIO_EXTENSIONS = {".mp3", ".m4b", ".wav", ".flac", ".ogg"}
+AUDIO_EXTENSIONS = {".mp3", ".m4b", ".wav", ".flac", ".ogg", ".aac", ".opus"}
 
 
 def check_secrets() -> None:

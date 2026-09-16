@@ -213,6 +213,18 @@ class AudioOutputGuardTests(GuardRepoFixture):
         self.assertEqual(result.returncode, 1)
         self.assertIn("audio output must not be tracked", result.stdout)
 
+    def test_tracked_aac_fails(self) -> None:
+        self.add_tracked_file("out/book.aac", "")
+        result = run_guards(self.root)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("audio output must not be tracked", result.stdout)
+
+    def test_tracked_opus_fails(self) -> None:
+        self.add_tracked_file("out/book.opus", "")
+        result = run_guards(self.root)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("audio output must not be tracked", result.stdout)
+
 
 class DataVoicesGuardTests(GuardRepoFixture):
     def test_voice_model_binary_fails(self) -> None:

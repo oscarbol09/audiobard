@@ -42,6 +42,8 @@ data/voice_mapping.local.json
 *.wav
 *.flac
 *.ogg
+*.aac
+*.opus
 
 # ---------------------------------------------------------------------------
 # Model files (Piper voices, TTS checkpoints) � large binaries, not source.
