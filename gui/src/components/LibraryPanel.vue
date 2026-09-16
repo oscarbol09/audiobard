@@ -92,37 +92,63 @@ async function onDownload(book: LibraryBook) {
   }
 }
 
-async function onRegenerate(book: LibraryBook) {
-  if (!confirm(`Regenerate "${book.title}"? This will overwrite the existing audio.`)) return
-  try {
-    const outputFolder = settingsStore.settings.outputFolder || undefined
-    await invoke('regenerate_book', {
-      bookId: book.id,
-      book_id: book.id,
-      settings: { output_folder: outputFolder },
-    })
-    alert('Regeneration started! Check the generation progress.')
-  } catch (e) {
-    console.error('Regenerate failed:', e)
-    alert(`Regenerate failed: ${e instanceof Error ? e.message : String(e)}`)
-  }
+const activeConfirm = ref<{ type: 'regenerate' | 'delete'; book: LibraryBook } | null>(null)
+const toast = ref<{ message: string; isError: boolean } | null>(null)
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function showToast(message: string, isError = false) {
+  toast.value = { message, isError }
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    toast.value = null
+  }, 4000)
 }
 
-async function onDelete(book: LibraryBook) {
-  if (!confirm(t('deleteConfirm'))) return
-  try {
-    const outputFolder = settingsStore.settings.outputFolder || undefined
-    await invoke('delete_book', {
-      bookId: book.id,
-      book_id: book.id,
-      outputFolder,
-      output_folder: outputFolder,
-    })
-    books.value = books.value.filter((b) => b.id !== book.id)
-    await loadLibrary()
-  } catch (e) {
-    console.error('Delete failed:', e)
-    alert(`Error: ${e instanceof Error ? e.message : String(e)}`)
+function promptRegenerate(book: LibraryBook) {
+  activeConfirm.value = { type: 'regenerate', book }
+}
+
+function promptDelete(book: LibraryBook) {
+  activeConfirm.value = { type: 'delete', book }
+}
+
+function cancelConfirm() {
+  activeConfirm.value = null
+}
+
+async function executeConfirmedAction() {
+  if (!activeConfirm.value) return
+  const { type, book } = activeConfirm.value
+  activeConfirm.value = null
+
+  if (type === 'regenerate') {
+    try {
+      const outputFolder = settingsStore.settings.outputFolder || undefined
+      await invoke('regenerate_book', {
+        bookId: book.id,
+        book_id: book.id,
+        settings: { output_folder: outputFolder },
+      })
+      showToast(t('regenerationStarted'))
+    } catch (e) {
+      console.error('Regenerate failed:', e)
+      showToast(`${t('regenerateFailed')} ${e instanceof Error ? e.message : String(e)}`, true)
+    }
+  } else if (type === 'delete') {
+    try {
+      const outputFolder = settingsStore.settings.outputFolder || undefined
+      await invoke('delete_book', {
+        bookId: book.id,
+        book_id: book.id,
+        outputFolder,
+        output_folder: outputFolder,
+      })
+      books.value = books.value.filter((b) => b.id !== book.id)
+      await loadLibrary()
+    } catch (e) {
+      console.error('Delete failed:', e)
+      showToast(`Error: ${e instanceof Error ? e.message : String(e)}`, true)
+    }
   }
 }
 
@@ -241,13 +267,13 @@ onMounted(() => {
             {{ t('openAudioBtn') }}
           </button>
           <button
-            @click="onRegenerate(book)"
+            @click="promptRegenerate(book)"
             class="px-3 py-1.5 text-sm font-medium text-gray-900 bg-brand-500 hover:bg-brand-400 rounded-lg transition-colors"
           >
             {{ t('regenerateBtn') }}
           </button>
           <button
-            @click="onDelete(book)"
+            @click="promptDelete(book)"
             class="px-3 py-1.5 text-sm font-medium text-red-400 bg-gray-800 border border-gray-700 rounded-lg hover:border-red-500 hover:bg-red-500/10 transition-colors"
             title="Eliminar audiolibro"
           >
@@ -256,5 +282,50 @@ onMounted(() => {
         </div>
       </li>
     </ul>
+
+    <!-- Toast Notification Banner -->
+    <Transition name="fade">
+      <div
+        v-if="toast"
+        class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm font-medium border"
+        :class="toast.isError ? 'bg-red-950 text-red-200 border-red-800' : 'bg-green-950 text-green-200 border-green-800'"
+      >
+        <span>{{ toast.message }}</span>
+        <button @click="toast = null" class="text-xs opacity-70 hover:opacity-100">✕</button>
+      </div>
+    </Transition>
+
+    <!-- Custom Confirmation Modal -->
+    <Transition name="fade">
+      <div
+        v-if="activeConfirm"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        @click.self="cancelConfirm"
+      >
+        <div class="w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl p-6 space-y-4 shadow-2xl">
+          <h3 class="text-lg font-semibold text-gray-100">
+            {{ activeConfirm.type === 'delete' ? t('deleteBtn') : t('regenerateBtn') }}
+          </h3>
+          <p class="text-sm text-gray-300">
+            {{ activeConfirm.type === 'delete' ? t('deleteConfirm') : t('regenerateConfirm', { title: activeConfirm.book.title }) }}
+          </p>
+          <div class="flex justify-end gap-3 pt-2">
+            <button
+              @click="cancelConfirm"
+              class="px-4 py-2 text-sm text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              {{ t('closeBtn') }}
+            </button>
+            <button
+              @click="executeConfirmedAction"
+              class="px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
+              :class="activeConfirm.type === 'delete' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-brand-500 hover:bg-brand-400 text-gray-900'"
+            >
+              {{ activeConfirm.type === 'delete' ? t('deleteBtn') : t('regenerateBtn') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </section>
 </template>

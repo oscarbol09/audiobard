@@ -76,15 +76,21 @@ async function selectOutputFolder() {
   }
 }
 
+const cacheStatus = ref<{ message: string; isError: boolean } | null>(null)
+let cacheTimer: ReturnType<typeof setTimeout> | null = null
+
 async function clearCache() {
-  if (!confirm('This will delete all cached audio and LLM responses. Continue?')) return
   try {
     await invoke('clear_cache')
-    alert(t('cacheCleared'))
+    cacheStatus.value = { message: t('cacheCleared'), isError: false }
   } catch (e) {
     console.error('Failed to clear cache:', e)
-    alert('Failed to clear cache')
+    cacheStatus.value = { message: t('clearCacheFailed'), isError: true }
   }
+  if (cacheTimer) clearTimeout(cacheTimer)
+  cacheTimer = setTimeout(() => {
+    cacheStatus.value = null
+  }, 3500)
 }
 </script>
 
@@ -612,13 +618,20 @@ async function clearCache() {
               {{ t('cacheSection') }}
             </h3>
 
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 flex-wrap">
               <button
                 @click="clearCache"
                 class="px-4 py-2 text-sm font-medium text-red-400 bg-red-950/30 border border-red-800/40 rounded-lg hover:bg-red-900/40 transition-colors"
               >
                 {{ t('clearCacheBtn') }}
               </button>
+              <span
+                v-if="cacheStatus"
+                class="text-xs px-2.5 py-1 rounded-md font-medium transition-all"
+                :class="cacheStatus.isError ? 'bg-red-900/40 text-red-300 border border-red-700/50' : 'bg-green-900/40 text-green-300 border border-green-700/50'"
+              >
+                {{ cacheStatus.message }}
+              </span>
             </div>
 
             <div class="pt-2">
