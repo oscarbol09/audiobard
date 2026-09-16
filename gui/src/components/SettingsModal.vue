@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../stores/settings'
 import { useI18nStore } from '../stores/i18n'
@@ -14,9 +14,68 @@ import {
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
+const modalRef = ref<HTMLElement | null>(null)
+
 const settingsStore = useSettingsStore()
 const i18n = useI18nStore()
 const { t } = i18n
+
+function closeModal() {
+  emit('update:modelValue', false)
+}
+
+function handleKeyDown(e: KeyboardEvent) {
+  if (!props.modelValue) return
+
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    closeModal()
+    return
+  }
+
+  if (e.key === 'Tab' && modalRef.value) {
+    const focusableEls = modalRef.value.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+    if (focusableEls.length === 0) return
+
+    const firstEl = focusableEls[0]
+    const lastEl = focusableEls[focusableEls.length - 1]
+
+    if (e.shiftKey) {
+      if (document.activeElement === firstEl) {
+        e.preventDefault()
+        lastEl.focus()
+      }
+    } else {
+      if (document.activeElement === lastEl) {
+        e.preventDefault()
+        firstEl.focus()
+      }
+    }
+  }
+}
+
+watch(
+  () => props.modelValue,
+  async (isOpen) => {
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown)
+      await nextTick()
+      const firstFocusable = modalRef.value?.querySelector<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+      firstFocusable?.focus()
+    } else {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown)
+})
 
 const modelFilter = ref<'all' | 'free' | 'premium'>('all')
 
@@ -43,10 +102,6 @@ const filteredOllamaModels = computed(() => {
   if (modelFilter.value === 'premium') return OLLAMA_MODELS.filter((m) => !m.freeTier)
   return OLLAMA_MODELS
 })
-
-function closeModal() {
-  emit('update:modelValue', false)
-}
 
 function handleOverlayClick(e: MouseEvent) {
   if (e.target === e.currentTarget) {
@@ -105,6 +160,7 @@ async function clearCache() {
       aria-labelledby="settings-title"
     >
       <div
+        ref="modalRef"
         class="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-gray-900 border border-gray-700 shadow-xl"
       >
         <!-- Header -->
