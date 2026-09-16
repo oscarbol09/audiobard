@@ -28,9 +28,11 @@ from audiobard.audio.processor import (
 from audiobard.config import AudioBardConfig
 from audiobard.llm import GeminiClient, LLMClient, OllamaClient, OpenRouterClient
 from audiobard.models import (
+    Character,
     CharactersResult,
     Emotion,
     Paragraph,
+    Voice,
     VoiceAssignment,
 )
 from audiobard.parser import EpubParser, TextParser
@@ -206,71 +208,14 @@ class AudioBookPipeline:
         # Set LLM concurrency semaphore
         self._llm_semaphore = asyncio.Semaphore(config.llm_semaphore)
 
-    async def run(
+    async def _extract_characters(
         self,
-        book_path: Path,
-        output_path: Path,
-        resume: bool = True,
-        dry_run: bool = False,
-        progress_callback: ProgressCallback | None = None,
-    ) -> None:
-        """Run the complete pipeline from book file to finished audio file.
-
-        Args:
-            book_path: Path to the source book (.txt or .epub).
-            output_path: Destination path for the generated audiobook.
-            resume: If True, reuse any checkpoints already on disk for
-                *book_path*. If False, clear them and start fresh.
-            dry_run: If True, run parsing, attribution and checkpointing
-                without synthesising audio or assembling the output file.
-            progress_callback: Optional consumer for stage transitions and
-                percent updates. The pipeline never blocks on it; a
-                raising callback is logged and ignored so a broken
-                subscriber cannot abort generation.
-        """
-        if not book_path.exists():  # noqa: ASYNC240
-            raise FileNotFoundError(f"Book file not found: {book_path}")
-
-        if book_path.suffix.lower() == ".pdf":
-            raise ValueError(
-                f"AudioBard accepts .epub and .txt books. Raw PDF '{book_path.name}' lacks "
-                "dialogue and layout structure for neural narration. Please convert it to EPUB "
-                "using PDF2Bard: https://github.com/oscarbol09/pdf2bard"
-            )
-
-        # Choose correct parser
-        parser: BookParser = (
-            EpubParser() if book_path.suffix.lower() == ".epub" else TextParser()
-        )
-
-        _emit(
-            progress_callback,
-            PipelineProgress(stage="parsing", percent=0, message=f"Parsing {book_path.name}"),
-        )
-        logger.info("Parsing book: %s", book_path)
-        paragraphs = parser.parse(book_path)
-        stats = parser.stats()
-        if not paragraphs:
-            raise ValueError(f"Book '{book_path.name}' contains no readable paragraphs.")
-
-        title = getattr(parser, "title", None) or book_path.stem
-        _emit(
-            progress_callback,
-            PipelineProgress(
-                stage="parsing",
-                percent=_PROGRESS_PARSING_END,
-                message=f"Parsed {len(paragraphs)} paragraphs",
-            ),
-        )
-
-        book_id = await asyncio.to_thread(
-            self.persistence.get_or_create_book, book_path, title, stats
-        )
-
-        if not resume:
-            await asyncio.to_thread(self.persistence.clear_checkpoints, book_id)
-
-        # 1. Characters Extraction
+        book_id: int,
+        paragraphs: list[Paragraph],
+        resume: bool,
+        progress_callback: ProgressCallback | None,
+    ) -> list[Character]:
+        """Extract or load characters for *book_id*."""
         _emit(
             progress_callback,
             PipelineProgress(
@@ -287,7 +232,6 @@ class AudioBookPipeline:
             characters = await asyncio.to_thread(self.persistence.get_characters, book_id)
             logger.info("Loaded %d characters from checkpoint", len(characters))
         else:
-            # Construct a text sample from the first few paragraphs (~5000 words max)
             sample_paragraphs = []
             word_count = 0
             for p in paragraphs:
@@ -315,8 +259,16 @@ class AudioBookPipeline:
                 message=f"Found {len(characters)} characters",
             ),
         )
+        return characters
 
-        # 2. Voice Assignment
+    async def _assign_voices(
+        self,
+        book_id: int,
+        characters: list[Character],
+        resume: bool,
+        progress_callback: ProgressCallback | None,
+    ) -> tuple[list[VoiceAssignment], dict[str, Voice], list[Voice]]:
+        """Assign TTS voices to extracted characters."""
         _emit(
             progress_callback,
             PipelineProgress(
@@ -326,9 +278,6 @@ class AudioBookPipeline:
             ),
         )
         logger.info("Mapping voices...")
-        # One provider call serves both the empty-pool check and the
-        # lookup map; with network-backed providers a second call is a
-        # second round trip for the same unchanging pool.
         voices = await self.tts_provider.list_voices(self.config.tts_locale)
         if not voices:
             raise RuntimeError(
@@ -387,8 +336,21 @@ class AudioBookPipeline:
                 message=f"Mapped {len(voice_assignments)} speakers",
             ),
         )
+        return voice_assignments, voice_map, voices
 
-        # 3. Attribution & Synthesis
+    async def _synthesize_chunks(
+        self,
+        book_id: int,
+        paragraphs: list[Paragraph],
+        characters: list[Character],
+        voice_assignments: list[VoiceAssignment],
+        voice_map: dict[str, Voice],
+        voices: list[Voice],
+        resume: bool,
+        dry_run: bool,
+        progress_callback: ProgressCallback | None,
+    ) -> None:
+        """Perform attribution and audio synthesis chunk by chunk."""
         chunks = chunk_paragraphs(paragraphs, chunk_size=self.config.chunk_words)
         logger.info("Split book into %d chunks for synthesis", len(chunks))
         _emit(
@@ -428,14 +390,12 @@ class AudioBookPipeline:
                     )
                     continue
 
-                # Run dialog attribution on chunk text
                 chunk_text = "\n\n".join([p.text for p in chunk])
                 async with self._llm_semaphore:
                     attr_result = await self.llm_client.attribute_dialog(
                         chunk_text, CharactersResult(characters=characters)
                     )
 
-                # Match attributed dialog lines back to paragraphs sequentially
                 dialog_lines = attr_result.lines
                 dialog_paragraph_count = sum(1 for p in chunk if p.is_dialog)
                 if len(dialog_lines) != dialog_paragraph_count:
@@ -458,16 +418,18 @@ class AudioBookPipeline:
                     else:
                         assigned_paragraphs.append((p, "Narrator", Emotion.NEUTRAL))
 
-                # Synthesize paragraphs
                 if not dry_run:
                     for p, speaker, emotion in assigned_paragraphs:
                         clip_file = self.cache_dir / f"clip_{book_id}_{p.index}.mp3"
                         meta_file = self.cache_dir / f"clip_{book_id}_{p.index}.json"
 
-                        if clip_file.exists() and meta_file.exists():
+                        def _files_exist(f1: Path = clip_file, f2: Path = meta_file) -> bool:
+                            return f1.exists() and f2.exists()
+
+                        exists = await asyncio.to_thread(_files_exist)
+                        if exists:
                             continue
 
-                        # Find voice assignment
                         va = next(
                             (x for x in voice_assignments if x.canonical_id == speaker),
                             None,
@@ -480,9 +442,9 @@ class AudioBookPipeline:
                                 ),
                             )
 
-                        voice = voice_map.get(va.voice_id, voices[0])
+                        default_voice = voices[0]
+                        voice = voice_map.get(va.voice_id) or default_voice
 
-                        # Call TTS provider
                         mp3_bytes = await self.tts_provider.synthesize(
                             text=p.text,
                             voice=voice,
@@ -491,23 +453,21 @@ class AudioBookPipeline:
                             pitch=va.pitch,
                         )
 
-                        # Calculate duration using pydub
                         segment = await asyncio.to_thread(
                             AudioSegment.from_file, io.BytesIO(mp3_bytes), format="mp3"
                         )
                         duration_ms = len(segment)
 
-                        # Save audio and metadata
-                        clip_file.write_bytes(mp3_bytes)
-                        meta_file.write_text(
-                            json.dumps(
-                                {
-                                    "speaker": speaker,
-                                    "emotion": emotion.value,
-                                    "duration_ms": duration_ms,
-                                }
-                            ),
-                            encoding="utf-8",
+                        await asyncio.to_thread(clip_file.write_bytes, mp3_bytes)
+                        meta_json = json.dumps(
+                            {
+                                "speaker": speaker,
+                                "emotion": emotion.value,
+                                "duration_ms": duration_ms,
+                            }
+                        )
+                        await asyncio.to_thread(
+                            meta_file.write_text, meta_json, encoding="utf-8"
                         )
 
                     await asyncio.to_thread(
@@ -535,19 +495,14 @@ class AudioBookPipeline:
             ),
         )
 
-        # 4. Assembly
-        if dry_run:
-            logger.info("Dry-run complete. Skipping audio assembly.")
-            _emit(
-                progress_callback,
-                PipelineProgress(
-                    stage="complete",
-                    percent=_PROGRESS_ASSEMBLY_END,
-                    message="Dry-run complete",
-                ),
-            )
-            return
-
+    async def _assemble_audiobook(
+        self,
+        book_id: int,
+        paragraphs: list[Paragraph],
+        output_path: Path,
+        progress_callback: ProgressCallback | None,
+    ) -> None:
+        """Concatenate rendered clips, apply normalization, and export final audiobook."""
         _emit(
             progress_callback,
             PipelineProgress(
@@ -557,67 +512,70 @@ class AudioBookPipeline:
             ),
         )
         logger.info("Assembling final audio file...")
-        clips: list[AudioClip] = []
-        chapters: list[ChapterMarker] = []
-        current_time_ms = 0
-        current_chapter_idx = -1
-        chapter_start_ms = 0
 
-        for p in paragraphs:
-            clip_file = self.cache_dir / f"clip_{book_id}_{p.index}.mp3"
-            meta_file = self.cache_dir / f"clip_{book_id}_{p.index}.json"
+        def _load_clips_and_chapters() -> tuple[list[AudioClip], list[ChapterMarker]]:
+            clips: list[AudioClip] = []
+            chapters: list[ChapterMarker] = []
+            current_time_ms = 0
+            current_chapter_idx = -1
+            chapter_start_ms = 0
 
-            if not clip_file.exists() or not meta_file.exists():
-                raise FileNotFoundError(
-                    f"Missing audio clip or metadata for paragraph index {p.index}"
-                )
+            for p in paragraphs:
+                clip_file = self.cache_dir / f"clip_{book_id}_{p.index}.mp3"
+                meta_file = self.cache_dir / f"clip_{book_id}_{p.index}.json"
 
-            meta = json.loads(meta_file.read_text(encoding="utf-8-sig"))
-            duration = int(meta["duration_ms"])
-            emotion = Emotion(meta["emotion"])
-
-            clips.append(
-                AudioClip(
-                    mp3_bytes=clip_file.read_bytes(),
-                    speaker=meta["speaker"],
-                    emotion=emotion,
-                    duration_ms=duration,
-                )
-            )
-
-            # Handle M4B chapter calculation
-            pause_ms = EMOTION_PROSODY.get(emotion, {"pause_after_ms": 250})[
-                "pause_after_ms"
-            ]
-
-            if p.chapter != current_chapter_idx:
-                if current_chapter_idx != -1:
-                    chapters.append(
-                        ChapterMarker(
-                            title=f"Chapter {current_chapter_idx + 1}",
-                            start_ms=chapter_start_ms,
-                            end_ms=current_time_ms,
-                        )
+                if not clip_file.exists() or not meta_file.exists():
+                    raise FileNotFoundError(
+                        f"Missing audio clip or metadata for paragraph index {p.index}"
                     )
-                current_chapter_idx = p.chapter
-                chapter_start_ms = current_time_ms
 
-            current_time_ms += duration + int(pause_ms)
+                meta = json.loads(meta_file.read_text(encoding="utf-8-sig"))
+                duration = int(meta["duration_ms"])
+                emotion = Emotion(meta["emotion"])
 
-        if current_chapter_idx != -1:
-            chapters.append(
-                ChapterMarker(
-                    title=f"Chapter {current_chapter_idx + 1}",
-                    start_ms=chapter_start_ms,
-                    end_ms=current_time_ms,
+                clips.append(
+                    AudioClip(
+                        mp3_bytes=clip_file.read_bytes(),
+                        speaker=meta["speaker"],
+                        emotion=emotion,
+                        duration_ms=duration,
+                    )
                 )
-            )
 
-        # Merge all clips
+                pause_ms = EMOTION_PROSODY.get(emotion, {"pause_after_ms": 250})[
+                    "pause_after_ms"
+                ]
+
+                if p.chapter != current_chapter_idx:
+                    if current_chapter_idx != -1:
+                        chapters.append(
+                            ChapterMarker(
+                                title=f"Chapter {current_chapter_idx + 1}",
+                                start_ms=chapter_start_ms,
+                                end_ms=current_time_ms,
+                            )
+                        )
+                    current_chapter_idx = p.chapter
+                    chapter_start_ms = current_time_ms
+
+                current_time_ms += duration + int(pause_ms)
+
+            if current_chapter_idx != -1:
+                chapters.append(
+                    ChapterMarker(
+                        title=f"Chapter {current_chapter_idx + 1}",
+                        start_ms=chapter_start_ms,
+                        end_ms=current_time_ms,
+                    )
+                )
+
+            return clips, chapters
+
+        clips, chapters = await asyncio.to_thread(_load_clips_and_chapters)
+
         logger.info("Concatenating clips and applying normalization...")
         final_mp3_bytes = await self.audio_processor.concatenate(clips)
 
-        # Export final output
         logger.info("Exporting finished audio to: %s", output_path)
         try:
             if output_path.suffix.lower() == ".m4b":
@@ -645,3 +603,106 @@ class AudioBookPipeline:
             ),
         )
         logger.info("Audiobook generated successfully!")
+
+    async def run(
+        self,
+        book_path: Path,
+        output_path: Path,
+        resume: bool = True,
+        dry_run: bool = False,
+        progress_callback: ProgressCallback | None = None,
+    ) -> None:
+        """Run the complete pipeline from book file to finished audio file.
+
+        Args:
+            book_path: Path to the source book (.txt or .epub).
+            output_path: Destination path for the generated audiobook.
+            resume: If True, reuse any checkpoints already on disk for
+                *book_path*. If False, clear them and start fresh.
+            dry_run: If True, run parsing, attribution and checkpointing
+                without synthesising audio or assembling the output file.
+            progress_callback: Optional consumer for stage transitions and
+                percent updates. The pipeline never blocks on it; a
+                raising callback is logged and ignored so a broken
+                subscriber cannot abort generation.
+        """
+        if not book_path.exists():  # noqa: ASYNC240
+            raise FileNotFoundError(f"Book file not found: {book_path}")
+
+        if book_path.suffix.lower() == ".pdf":
+            raise ValueError(
+                f"AudioBard accepts .epub and .txt books. Raw PDF '{book_path.name}' lacks "
+                "dialogue and layout structure for neural narration. Please convert it to EPUB "
+                "using PDF2Bard: https://github.com/oscarbol09/pdf2bard"
+            )
+
+        parser: BookParser = (
+            EpubParser() if book_path.suffix.lower() == ".epub" else TextParser()
+        )
+
+        _emit(
+            progress_callback,
+            PipelineProgress(stage="parsing", percent=0, message=f"Parsing {book_path.name}"),
+        )
+        logger.info("Parsing book: %s", book_path)
+        paragraphs = await asyncio.to_thread(parser.parse, book_path)
+        stats = parser.stats()
+        if not paragraphs:
+            raise ValueError(f"Book '{book_path.name}' contains no readable paragraphs.")
+
+        title = getattr(parser, "title", None) or book_path.stem
+        _emit(
+            progress_callback,
+            PipelineProgress(
+                stage="parsing",
+                percent=_PROGRESS_PARSING_END,
+                message=f"Parsed {len(paragraphs)} paragraphs",
+            ),
+        )
+
+        book_id = await asyncio.to_thread(
+            self.persistence.get_or_create_book, book_path, title, stats
+        )
+
+        if not resume:
+            await asyncio.to_thread(self.persistence.clear_checkpoints, book_id)
+
+        # 1. Characters Extraction
+        characters = await self._extract_characters(
+            book_id, paragraphs, resume, progress_callback
+        )
+
+        # 2. Voice Assignment
+        voice_assignments, voice_map, voices = await self._assign_voices(
+            book_id, characters, resume, progress_callback
+        )
+
+        # 3. Attribution & Synthesis
+        await self._synthesize_chunks(
+            book_id,
+            paragraphs,
+            characters,
+            voice_assignments,
+            voice_map,
+            voices,
+            resume,
+            dry_run,
+            progress_callback,
+        )
+
+        # 4. Assembly
+        if dry_run:
+            logger.info("Dry-run complete. Skipping audio assembly.")
+            _emit(
+                progress_callback,
+                PipelineProgress(
+                    stage="complete",
+                    percent=_PROGRESS_ASSEMBLY_END,
+                    message="Dry-run complete",
+                ),
+            )
+            return
+
+        await self._assemble_audiobook(
+            book_id, paragraphs, output_path, progress_callback
+        )
