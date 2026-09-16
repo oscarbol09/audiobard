@@ -160,11 +160,19 @@ class AudioBardConfig(BaseSettings):
 
     def assert_commercial_safe(self) -> None:
         """Raise RuntimeError if commercial_use=True with a cloud provider."""
-        cloud_providers = {"gemini", "openrouter", "nim"}
-        if self.commercial_use and self.llm_provider in cloud_providers:
+        cloud_llm_providers = {"gemini", "openrouter", "nim"}
+        if self.commercial_use and self.llm_provider in cloud_llm_providers:
             raise RuntimeError(
                 f"AUDIOBARD_COMMERCIAL_USE=true is set, but the selected LLM "
                 f"provider ({self.llm_provider!r}) does not allow commercial use "
                 "on its free tier. Switch to llm_provider=ollama or disable "
+                "commercial_use."
+            )
+        cloud_tts_providers = {"edge"}
+        if self.commercial_use and self.tts_provider in cloud_tts_providers:
+            raise RuntimeError(
+                f"AUDIOBARD_COMMERCIAL_USE=true is set, but the selected TTS "
+                f"provider ({self.tts_provider!r}) may not allow commercial use "
+                "on its free tier. Switch to tts_provider=piper or disable "
                 "commercial_use."
             )
