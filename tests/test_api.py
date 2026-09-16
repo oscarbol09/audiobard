@@ -1020,3 +1020,52 @@ def test_repeated_upload_registering_pipeline_cleans_superseded_files(
         assert del_resp.status_code == 200
         assert not out2.exists()
         assert list(books_dir.glob("book_*.txt")) == []
+
+
+def test_get_output_dir_default_and_custom(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """_get_output_dir returns default ~/AudioBard/output and handles valid custom dirs."""
+    from audiobard.api import _get_output_dir
+
+    fake_home = tmp_path / "home"
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+
+    # Default when None or empty
+    out_default = _get_output_dir(None)
+    assert out_default == fake_home / "AudioBard" / "output"
+    assert out_default.is_dir()
+
+    out_empty = _get_output_dir("   ")
+    assert out_empty == fake_home / "AudioBard" / "output"
+
+    # Valid custom directory
+    custom = tmp_path / "my_custom_folder"
+    out_custom = _get_output_dir(str(custom))
+    assert out_custom.resolve() == custom.resolve()
+    assert out_custom.is_dir()
+
+
+def test_get_output_dir_rejects_unsafe_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_get_output_dir rejects roots, system paths, and null bytes by falling back to default."""
+    from audiobard.api import _get_output_dir
+
+    fake_home = tmp_path / "home"
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+    expected_default = (fake_home / "AudioBard" / "output").resolve()
+
+    # Reject null byte in path
+    out_null = _get_output_dir("custom\0path")
+    assert out_null.resolve() == expected_default
+
+    # Reject filesystem roots (e.g. C:\ on Windows or / on Unix)
+    root_path = Path(fake_home.anchor)
+    out_root = _get_output_dir(str(root_path))
+    assert out_root.resolve() == expected_default
+
+    # Reject system directories (e.g. C:\Windows or /etc)
+    import sys
+    system_dir = "C:\\Windows" if sys.platform == "win32" else "/etc"
+    out_sys = _get_output_dir(system_dir)
+    assert out_sys.resolve() == expected_default
+

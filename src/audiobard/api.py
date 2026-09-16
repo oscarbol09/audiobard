@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
+import os
 import shutil
+import sys
 import tempfile
 import threading
 import time
@@ -184,14 +186,53 @@ def _get_books_dir() -> Path:
     return books_dir
 
 
+def _is_safe_custom_directory(path: Path) -> bool:
+    """Validate that a custom output directory is not a sensitive OS system path."""
+    try:
+        resolved = path.resolve()
+    except (OSError, ValueError):
+        return False
+
+    # Disallow filesystem root directories (e.g. C:\ or /)
+    if resolved == resolved.parent:
+        return False
+
+    resolved_str = str(resolved).lower()
+
+    if sys.platform == "win32":
+        windir = os.environ.get("SYSTEMROOT", "C:\\Windows").lower()
+        program_files = os.environ.get("PROGRAMFILES", "C:\\Program Files").lower()
+        program_files_x86 = os.environ.get(
+            "PROGRAMFILES(X86)", "C:\\Program Files (x86)"
+        ).lower()
+        for blocked in (windir, program_files, program_files_x86):
+            if blocked and (resolved_str == blocked or resolved_str.startswith(blocked + "\\")):
+                return False
+    else:
+        blocked_posix = ("/bin", "/sbin", "/usr", "/etc", "/var", "/sys", "/proc", "/dev", "/root")
+        for blocked in blocked_posix:
+            if str(resolved) == blocked or str(resolved).startswith(blocked + "/"):
+                return False
+
+    return True
+
+
 def _get_output_dir(custom_path: str | Path | None = None) -> Path:
-    """Return the output directory, prioritizing a configured custom path."""
+    """Return the output directory, prioritizing a validated custom path.
+
+    Falls back to the default ~/AudioBard/output if custom_path is empty,
+    invalid, unsafe, or points to a protected system directory.
+    """
     if custom_path:
         custom_str = str(custom_path).strip()
-        if custom_str:
-            out = Path(custom_str).expanduser().resolve()
-            out.mkdir(parents=True, exist_ok=True)
-            return out
+        if custom_str and "\0" not in custom_str:
+            try:
+                out = Path(custom_str).expanduser().resolve()
+                if _is_safe_custom_directory(out):
+                    out.mkdir(parents=True, exist_ok=True)
+                    return out
+            except (OSError, ValueError):
+                pass
     output_dir = Path.home() / "AudioBard" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
