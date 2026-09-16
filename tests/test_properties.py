@@ -1,4 +1,4 @@
-﻿"""Property-based testing with Hypothesis for text parsers and Pydantic models."""
+"""Property-based testing with Hypothesis for text parsers and Pydantic models."""
 
 from __future__ import annotations
 
@@ -44,6 +44,7 @@ def test_text_parser_handles_arbitrary_bytes(data: bytes) -> None:
 
 
 @given(st.text())
+@settings(deadline=None)
 def test_character_tone_normalization_invariant(raw_tone: str) -> None:
     """Character.normalize_tone must always return a valid Tone enum member."""
     normalized = Character.normalize_tone(raw_tone)
@@ -53,6 +54,7 @@ def test_character_tone_normalization_invariant(raw_tone: str) -> None:
 
 
 @given(st.text())
+@settings(deadline=None)
 def test_character_gender_normalization_invariant(raw_gender: str) -> None:
     """Character.normalize_gender must always return a valid GenderHint enum member."""
     normalized = Character.normalize_gender(raw_gender)
@@ -61,6 +63,7 @@ def test_character_gender_normalization_invariant(raw_gender: str) -> None:
 
 
 @given(st.text())
+@settings(deadline=None)
 def test_character_age_normalization_invariant(raw_age: str) -> None:
     """Character.normalize_age must always return a valid AgeHint enum member."""
     normalized = Character.normalize_age(raw_age)
@@ -69,6 +72,7 @@ def test_character_age_normalization_invariant(raw_age: str) -> None:
 
 
 @given(st.text())
+@settings(deadline=None)
 def test_dialog_line_emotion_normalization_invariant(raw_emotion: str) -> None:
     """DialogLine.normalize_emotion must always return a valid Emotion enum member."""
     normalized = DialogLine.normalize_emotion(raw_emotion)

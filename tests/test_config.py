@@ -168,3 +168,20 @@ def test_yaml_config_source_corrupted_file(tmp_path: Path) -> None:
     with patch("pathlib.Path.expanduser", mock_expanduser):
         assert source() == {}
 
+
+def test_target_dbfs_config() -> None:
+    """Test target_dbfs default and custom value validation."""
+    from pydantic import ValidationError
+
+    config_default = AudioBardConfig()
+    assert config_default.target_dbfs == -16.0
+
+    config_custom = AudioBardConfig(target_dbfs=-20.0)
+    assert config_custom.target_dbfs == -20.0
+
+    with pytest.raises(ValidationError):
+        AudioBardConfig(target_dbfs=-50.0)  # ge=-40.0
+
+    with pytest.raises(ValidationError):
+        AudioBardConfig(target_dbfs=0.0)  # le=-1.0
+

@@ -6,6 +6,7 @@ import asyncio
 import io
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from pydub import AudioSegment
@@ -95,6 +96,50 @@ def _emit_chunk_progress(
     )
 
 
+def _create_nim_client(
+    config: AudioBardConfig,
+    persistence: PersistenceManager | None = None,
+) -> LLMClient:
+    from audiobard.llm.nim_client import NimClient
+
+    return NimClient(
+        model=config.llm_model or config.nim_model,
+        api_key=config.nim_api_key or None,
+        temperature=config.llm_temperature,
+        max_retries=config.llm_max_retries,
+        persistence=persistence,
+    )
+
+
+LLM_CLIENT_FACTORIES: dict[
+    str,
+    Callable[[AudioBardConfig, PersistenceManager | None], LLMClient],
+] = {
+    "ollama": lambda cfg, pm: OllamaClient(
+        model=cfg.llm_model,
+        base_url=cfg.llm_base_url,
+        temperature=cfg.llm_temperature,
+        max_retries=cfg.llm_max_retries,
+        persistence=pm,
+    ),
+    "gemini": lambda cfg, pm: GeminiClient(
+        model=cfg.llm_model,
+        api_key=cfg.gemini_api_key or None,
+        temperature=cfg.llm_temperature,
+        max_retries=cfg.llm_max_retries,
+        persistence=pm,
+    ),
+    "openrouter": lambda cfg, pm: OpenRouterClient(
+        model=cfg.llm_model,
+        api_key=cfg.openrouter_api_key or None,
+        temperature=cfg.llm_temperature,
+        max_retries=cfg.llm_max_retries,
+        persistence=pm,
+    ),
+    "nim": _create_nim_client,
+}
+
+
 def create_llm_client(
     config: AudioBardConfig,
     persistence: PersistenceManager | None = None,
@@ -105,52 +150,24 @@ def create_llm_client(
         config: Pipeline configuration.
         persistence: Optional persistence manager for LLM request caching.
     """
-    if config.llm_provider == "ollama":
-        return OllamaClient(
-            model=config.llm_model,
-            base_url=config.llm_base_url,
-            temperature=config.llm_temperature,
-            max_retries=config.llm_max_retries,
-            persistence=persistence,
-        )
-    elif config.llm_provider == "gemini":
-        return GeminiClient(
-            model=config.llm_model,
-            api_key=config.gemini_api_key or None,
-            temperature=config.llm_temperature,
-            max_retries=config.llm_max_retries,
-            persistence=persistence,
-        )
-    elif config.llm_provider == "openrouter":
-        return OpenRouterClient(
-            model=config.llm_model,
-            api_key=config.openrouter_api_key or None,
-            temperature=config.llm_temperature,
-            max_retries=config.llm_max_retries,
-            persistence=persistence,
-        )
-    elif config.llm_provider == "nim":
-        from audiobard.llm.nim_client import NimClient
-
-        return NimClient(
-            model=config.llm_model or config.nim_model,
-            api_key=config.nim_api_key or None,
-            temperature=config.llm_temperature,
-            max_retries=config.llm_max_retries,
-            persistence=persistence,
-        )
-    else:
+    factory = LLM_CLIENT_FACTORIES.get(config.llm_provider)
+    if factory is None:
         raise ValueError(f"Unknown LLM provider: {config.llm_provider}")
+    return factory(config, persistence)
+
+
+TTS_PROVIDER_FACTORIES: dict[str, Callable[[AudioBardConfig], TTSProvider]] = {
+    "piper": lambda cfg: PiperProvider(cfg),
+    "edge": lambda cfg: EdgeProvider(cfg),
+}
 
 
 def create_tts_provider(config: AudioBardConfig) -> TTSProvider:
     """Factory to create the configured TTS provider."""
-    if config.tts_provider == "piper":
-        return PiperProvider(config)
-    elif config.tts_provider == "edge":
-        return EdgeProvider(config)
-    else:
+    factory = TTS_PROVIDER_FACTORIES.get(config.tts_provider)
+    if factory is None:
         raise ValueError(f"Unknown TTS provider: {config.tts_provider}")
+    return factory(config)
 
 
 def chunk_paragraphs(
@@ -182,7 +199,7 @@ class AudioBookPipeline:
         self.persistence = PersistenceManager(config.db_path)
         self.llm_client = create_llm_client(config, persistence=self.persistence)
         self.tts_provider = create_tts_provider(config)
-        self.audio_processor = AudioProcessor()
+        self.audio_processor = AudioProcessor(target_dbfs=config.target_dbfs)
         self.cache_dir = config.cache_dir / "pipeline"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -246,10 +263,12 @@ class AudioBookPipeline:
             ),
         )
 
-        book_id = self.persistence.get_or_create_book(book_path, title, stats)
+        book_id = await asyncio.to_thread(
+            self.persistence.get_or_create_book, book_path, title, stats
+        )
 
         if not resume:
-            self.persistence.clear_checkpoints(book_id)
+            await asyncio.to_thread(self.persistence.clear_checkpoints, book_id)
 
         # 1. Characters Extraction
         _emit(
@@ -261,9 +280,11 @@ class AudioBookPipeline:
             ),
         )
         logger.info("Running character extraction...")
-        checkpoint = self.persistence.get_checkpoint(book_id, "characters")
+        checkpoint = await asyncio.to_thread(
+            self.persistence.get_checkpoint, book_id, "characters"
+        )
         if resume and checkpoint and checkpoint["status"] == "completed":
-            characters = self.persistence.get_characters(book_id)
+            characters = await asyncio.to_thread(self.persistence.get_characters, book_id)
             logger.info("Loaded %d characters from checkpoint", len(characters))
         else:
             # Construct a text sample from the first few paragraphs (~5000 words max)
@@ -281,8 +302,10 @@ class AudioBookPipeline:
                 char_result = await self.llm_client.extract_characters(sample_text)
 
             characters = char_result.characters
-            self.persistence.save_characters(book_id, characters)
-            self.persistence.save_checkpoint(book_id, "characters", "completed", {})
+            await asyncio.to_thread(self.persistence.save_characters, book_id, characters)
+            await asyncio.to_thread(
+                self.persistence.save_checkpoint, book_id, "characters", "completed", {}
+            )
             logger.info("Extracted %d characters", len(characters))
         _emit(
             progress_callback,
@@ -312,7 +335,9 @@ class AudioBookPipeline:
                 f"No voices found for locale: {self.config.tts_locale}"
             )
         voice_map = {v.id: v for v in voices}
-        checkpoint = self.persistence.get_checkpoint(book_id, "voice_assignment")
+        checkpoint = await asyncio.to_thread(
+            self.persistence.get_checkpoint, book_id, "voice_assignment"
+        )
         stale_provider = (
             checkpoint is not None
             and isinstance(checkpoint.get("payload"), dict)
@@ -322,7 +347,9 @@ class AudioBookPipeline:
             )
         )
         if resume and checkpoint and checkpoint["status"] == "completed" and not stale_provider:
-            voice_assignments = self.persistence.get_voice_mapping(book_id)
+            voice_assignments = await asyncio.to_thread(
+                self.persistence.get_voice_mapping, book_id
+            )
             logger.info("Loaded voice mappings from checkpoint")
         else:
             if stale_provider and checkpoint is not None:
@@ -338,8 +365,11 @@ class AudioBookPipeline:
             else:
                 mapper = VoiceMapper(voices=voices)
             voice_assignments = list(mapper.assign_all(characters).values())
-            self.persistence.save_voice_mapping(book_id, voice_assignments)
-            self.persistence.save_checkpoint(
+            await asyncio.to_thread(
+                self.persistence.save_voice_mapping, book_id, voice_assignments
+            )
+            await asyncio.to_thread(
+                self.persistence.save_checkpoint,
                 book_id,
                 "voice_assignment",
                 "completed",
@@ -384,7 +414,9 @@ class AudioBookPipeline:
 
             for idx, chunk in enumerate(chunks):
                 checkpoint_name = f"chunk_{idx}"
-                checkpoint = self.persistence.get_checkpoint(book_id, checkpoint_name)
+                checkpoint = await asyncio.to_thread(
+                    self.persistence.get_checkpoint, book_id, checkpoint_name
+                )
 
                 if resume and checkpoint and checkpoint["status"] == "completed":
                     progress.update(task, advance=1)
@@ -478,7 +510,13 @@ class AudioBookPipeline:
                             encoding="utf-8",
                         )
 
-                    self.persistence.save_checkpoint(book_id, checkpoint_name, "completed", {})
+                    await asyncio.to_thread(
+                        self.persistence.save_checkpoint,
+                        book_id,
+                        checkpoint_name,
+                        "completed",
+                        {},
+                    )
 
                 progress.update(task, advance=1)
                 _emit_chunk_progress(

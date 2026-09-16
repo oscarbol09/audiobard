@@ -129,8 +129,8 @@ class PersistenceManager:
         path_str = str(path.resolve())
         with self._get_conn() as conn:
             row = conn.execute(
-                "SELECT id FROM books WHERE path = ? OR (title = ? AND total_paragraphs = ?)",
-                (path_str, title, stats.total_paragraphs),
+                "SELECT id FROM books WHERE path = ?",
+                (path_str,),
             ).fetchone()
             if row:
                 conn.execute(
@@ -352,21 +352,37 @@ class PersistenceManager:
                 ORDER BY last_run_at DESC NULLS LAST, b.id DESC
                 """
             ).fetchall()
-            seen_titles: set[str] = set()
-            result: list[dict[str, Any]] = []
-            for row in rows:
-                if row["title"] in seen_titles:
-                    continue
-                seen_titles.add(row["title"])
-                result.append(
-                    {
-                        "id": row["id"],
-                        "path": row["path"],
-                        "title": row["title"],
-                        "total_paragraphs": row["total_paragraphs"],
-                        "total_words": row["total_words"],
-                        "dialog_ratio": row["dialog_ratio"],
-                        "created_at": row["last_run_at"],
-                    }
-                )
-            return result
+            return [
+                {
+                    "id": row["id"],
+                    "path": row["path"],
+                    "title": row["title"],
+                    "total_paragraphs": row["total_paragraphs"],
+                    "total_words": row["total_words"],
+                    "dialog_ratio": row["dialog_ratio"],
+                    "created_at": row["last_run_at"],
+                }
+                for row in rows
+            ]
+
+    def get_stats(self) -> dict[str, Any]:
+        """Return aggregate statistics for books, LLM cache entries, and hit rate."""
+        with self._get_conn() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS total, SUM(hits) AS total_hits FROM llm_cache"
+            ).fetchone()
+            total_entries = int(row["total"]) if row and row["total"] else 0
+            total_hits = int(row["total_hits"]) if row and row["total_hits"] else 0
+            hit_rate = (
+                f"{100 * total_hits / (total_hits + total_entries):.1f}%"
+                if (total_hits + total_entries) > 0
+                else "n/a"
+            )
+            books_row = conn.execute("SELECT COUNT(*) FROM books").fetchone()
+            books = int(books_row[0]) if books_row else 0
+            return {
+                "books": books,
+                "llm_cache_entries": total_entries,
+                "llm_cache_hits": total_hits,
+                "llm_cache_hit_rate": hit_rate,
+            }

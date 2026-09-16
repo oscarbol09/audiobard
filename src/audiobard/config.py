@@ -140,6 +140,12 @@ class AudioBardConfig(BaseSettings):
         le=8000,
         description="Words per LLM attribution chunk",
     )
+    target_dbfs: float = Field(
+        default=-16.0,
+        ge=-40.0,
+        le=-1.0,
+        description="Target loudness in dBFS for final audiobook normalization",
+    )
 
     # ------------------------------------------------------------------ Ethics
     commercial_use: bool = Field(

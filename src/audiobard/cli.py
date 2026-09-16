@@ -275,58 +275,39 @@ def stats() -> None:
         console.print(f"[red]Error loading configuration:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
-    import sqlite3
-
     db_path = config.db_path
     if not db_path.exists():
         console.print("[yellow]No database found yet — run a generation first.[/yellow]")
         return
 
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
-        # LLM cache stats
-        row = conn.execute(
-            "SELECT COUNT(*) AS total, SUM(hits) AS total_hits FROM llm_cache"
-        ).fetchone()
-        total_entries = int(row["total"]) if row["total"] else 0
-        total_hits = int(row["total_hits"]) if row["total_hits"] else 0
-        hit_rate = (
-            f"{100 * total_hits / (total_hits + total_entries):.1f}%"
-            if (total_hits + total_entries) > 0
-            else "n/a"
-        )
+    from audiobard.persistence import PersistenceManager
 
-        # Books processed
-        books = int(
-            conn.execute("SELECT COUNT(*) FROM books").fetchone()[0]
-        )
+    persistence = PersistenceManager(db_path)
+    db_stats = persistence.get_stats()
 
-        # TTS cache disk usage
-        tts_cache = config.cache_dir / "tts"
-        tts_size_mb = (
-            sum(f.stat().st_size for f in tts_cache.rglob("*.mp3")) / 1_048_576
-            if tts_cache.exists()
-            else 0.0
-        )
+    # TTS cache disk usage
+    tts_cache = config.cache_dir / "tts"
+    tts_size_mb = (
+        sum(f.stat().st_size for f in tts_cache.rglob("*.mp3")) / 1_048_576
+        if tts_cache.exists()
+        else 0.0
+    )
 
-        # Pipeline cache disk usage
-        pipeline_cache = config.cache_dir / "pipeline"
-        clips_count = (
-            len(list(pipeline_cache.rglob("*.mp3")))
-            if pipeline_cache.exists()
-            else 0
-        )
-    finally:
-        conn.close()
+    # Pipeline cache disk usage
+    pipeline_cache = config.cache_dir / "pipeline"
+    clips_count = (
+        len(list(pipeline_cache.rglob("*.mp3")))
+        if pipeline_cache.exists()
+        else 0
+    )
 
     table = Table(title="AudioBard Statistics")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
-    table.add_row("Books processed", str(books))
-    table.add_row("LLM cache entries", str(total_entries))
-    table.add_row("LLM cache hits", str(total_hits))
-    table.add_row("LLM cache hit rate", hit_rate)
+    table.add_row("Books processed", str(db_stats["books"]))
+    table.add_row("LLM cache entries", str(db_stats["llm_cache_entries"]))
+    table.add_row("LLM cache hits", str(db_stats["llm_cache_hits"]))
+    table.add_row("LLM cache hit rate", str(db_stats["llm_cache_hit_rate"]))
     table.add_row("TTS cache size", f"{tts_size_mb:.1f} MB")
     table.add_row("Pipeline clips cached", str(clips_count))
     console.print(table)

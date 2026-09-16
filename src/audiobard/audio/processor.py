@@ -134,8 +134,11 @@ def generate_ffmetadata(chapters: list[ChapterMarker]) -> str:
 class AudioProcessor:
     """Handles audio concatenation, normalization, and export to formats."""
 
+    def __init__(self, target_dbfs: float = -16.0) -> None:
+        self.target_dbfs = target_dbfs
+
     async def concatenate(self, clips: list[AudioClip]) -> bytes:
-        """Concatenate clips, insert emotion-based silence gaps, and normalize to -16 dBFS."""
+        """Concatenate clips, insert emotion-based silence gaps, and normalize to target dBFS."""
         return await asyncio.to_thread(self._concatenate_sync, clips)
 
     def _concatenate_sync(self, clips: list[AudioClip]) -> bytes:
@@ -171,9 +174,9 @@ class AudioProcessor:
         raw_data = b"".join(s.raw_data for s in synced)
         combined = synced[0]._spawn(raw_data)
 
-        # Normalize volume to -16 dBFS (approx -16 LUFS for speech)
+        # Normalize volume to target dBFS (default -16 dBFS approx -16 LUFS for speech)
         if combined.dBFS != float("-inf"):
-            gain_change = -16.0 - combined.dBFS
+            gain_change = self.target_dbfs - combined.dBFS
             combined = combined.apply_gain(gain_change)
 
         out = io.BytesIO()

@@ -467,3 +467,27 @@ async def test_audio_processor_concatenate_zero_pause(monkeypatch: pytest.Monkey
 
     segment = AudioSegment.from_file(io.BytesIO(out_bytes), format="mp3")
     assert abs(len(segment) - 600) < 100
+
+
+@pytest.mark.asyncio
+async def test_audio_processor_custom_target_dbfs() -> None:
+    """Test that AudioProcessor normalizes audio to user-configured target dBFS."""
+    dummy_mp3 = _create_custom_mp3(duration_ms=500, frame_rate=24000, channels=1)
+    clips = [
+        AudioClip(
+            mp3_bytes=dummy_mp3,
+            speaker="Narrator",
+            emotion=Emotion.NEUTRAL,
+            duration_ms=500,
+        )
+    ]
+
+    processor_default = AudioProcessor(target_dbfs=-16.0)
+    out_default = await processor_default.concatenate(clips)
+    seg_default = AudioSegment.from_file(io.BytesIO(out_default), format="mp3")
+    assert abs(seg_default.dBFS - (-16.0)) < 1.0
+
+    processor_custom = AudioProcessor(target_dbfs=-20.0)
+    out_custom = await processor_custom.concatenate(clips)
+    seg_custom = AudioSegment.from_file(io.BytesIO(out_custom), format="mp3")
+    assert abs(seg_custom.dBFS - (-20.0)) < 1.0

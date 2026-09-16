@@ -138,3 +138,47 @@ def test_transaction_rollback_on_exception(pm: PersistenceManager) -> None:
         row = conn.execute("SELECT * FROM books WHERE path = 'err_path'").fetchone()
         assert row is None
 
+
+def test_get_or_create_book_no_collision_on_same_title_and_paragraphs(
+    pm: PersistenceManager, tmp_path: Path, sample_stats: ParserStats
+) -> None:
+    """Test distinct book paths with identical title and stats create distinct records."""
+    path_en = tmp_path / "en" / "monte_cristo.epub"
+    path_es = tmp_path / "es" / "monte_cristo.epub"
+    path_en.parent.mkdir()
+    path_es.parent.mkdir()
+
+    id_en = pm.get_or_create_book(path_en, "The Count of Monte Cristo", sample_stats)
+    id_es = pm.get_or_create_book(path_es, "The Count of Monte Cristo", sample_stats)
+
+    assert id_en != id_es
+    books = pm.get_all_books()
+    assert len(books) == 2
+
+
+def test_get_stats(pm: PersistenceManager, tmp_path: Path, sample_stats: ParserStats) -> None:
+    """Test PersistenceManager.get_stats aggregates counts and hits properly."""
+    # Empty db stats
+    stats_empty = pm.get_stats()
+    assert stats_empty["books"] == 0
+    assert stats_empty["llm_cache_entries"] == 0
+    assert stats_empty["llm_cache_hits"] == 0
+    assert stats_empty["llm_cache_hit_rate"] == "n/a"
+
+    # Add books and cache entries
+    pm.get_or_create_book(tmp_path / "b1.txt", "Book 1", sample_stats)
+    pm.get_or_create_book(tmp_path / "b2.txt", "Book 2", sample_stats)
+    pm.save_llm_cache("hash1", "{}", "ollama")
+    pm.save_llm_cache("hash2", "{}", "ollama")
+
+    # Simulate 3 hits on hash1
+    with pm._get_conn() as conn:
+        conn.execute("UPDATE llm_cache SET hits = 3 WHERE prompt_hash = 'hash1'")
+        conn.commit()
+
+    stats_filled = pm.get_stats()
+    assert stats_filled["books"] == 2
+    assert stats_filled["llm_cache_entries"] == 2
+    assert stats_filled["llm_cache_hits"] == 3
+    assert stats_filled["llm_cache_hit_rate"] == "60.0%"
+
