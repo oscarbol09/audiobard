@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useGenerationStore } from './stores/generation'
 import { useSettingsStore } from './stores/settings'
@@ -83,14 +83,23 @@ async function checkHealth() {
   }
 }
 
+let healthTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
-  setInterval(async () => {
+  healthTimer = setInterval(async () => {
     if (!healthOk.value) {
       await checkHealth()
     }
   }, 2000)
 
   checkHealth()
+})
+
+onUnmounted(() => {
+  if (healthTimer !== null) {
+    clearInterval(healthTimer)
+    healthTimer = null
+  }
 })
 
 function handleFileError(message: string) {
