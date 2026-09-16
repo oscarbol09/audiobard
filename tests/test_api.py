@@ -255,8 +255,7 @@ def test_generate_audiobook_missing_ffmpeg_file_not_found(client: TestClient) ->
 
 def test_generate_audiobook_missing_field(client: TestClient) -> None:
     response = client.post("/generate", json={"file_name": "book.txt"})
-    assert response.status_code == 500
-    assert "Generation failed" in response.json()["detail"]
+    assert response.status_code == 422
 
 
 def test_progress_store_cancel_and_is_cancelled() -> None:

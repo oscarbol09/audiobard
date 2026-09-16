@@ -11,10 +11,11 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 
 from audiobard.audio.processor import FFMPEG_MISSING_MESSAGE
 from audiobard.config import AudioBardConfig
@@ -25,6 +26,40 @@ app = FastAPI(title="AudioBard API", version="0.1.0")
 
 LLMChoice = Literal["ollama", "gemini", "openrouter", "nim"]
 TTSChoice = Literal["piper", "edge"]
+
+
+class CancelRequest(BaseModel):
+    session_id: str | None = Field(default=None, max_length=100)
+
+
+class RegenerateRequest(BaseModel):
+    session_id: str | None = Field(default=None, max_length=100)
+    llm_provider: LLMChoice = "ollama"
+    llm_model: str = Field(default="qwen2.5:7b", min_length=1, max_length=200)
+    tts_provider: TTSChoice = "piper"
+    locale: str = Field(default="en_US", min_length=2, max_length=20)
+    output_folder: str | None = Field(default=None, max_length=1000)
+    llm_base_url: str | None = Field(default="http://localhost:11434", max_length=1000)
+    openrouter_api_key: str | None = Field(default="", max_length=500)
+    gemini_api_key: str | None = Field(default="", max_length=500)
+    nim_api_key: str | None = Field(default="", max_length=500)
+
+
+class GenerateRequest(BaseModel):
+    file_base64: str = Field(
+        ..., max_length=150_000_000, description="Base64-encoded book file contents"
+    )
+    file_name: str = Field(..., min_length=1, max_length=500)
+    llm_provider: LLMChoice = "ollama"
+    llm_model: str = Field(default="qwen2.5:7b", min_length=1, max_length=200)
+    tts_provider: TTSChoice = "piper"
+    locale: str = Field(default="en_US", min_length=2, max_length=20)
+    session_id: str | None = Field(default=None, max_length=100)
+    output_folder: str | None = Field(default=None, max_length=1000)
+    llm_base_url: str | None = Field(default="http://localhost:11434", max_length=1000)
+    openrouter_api_key: str | None = Field(default="", max_length=500)
+    gemini_api_key: str | None = Field(default="", max_length=500)
+    nim_api_key: str | None = Field(default="", max_length=500)
 
 
 class ProgressStore:
@@ -282,7 +317,7 @@ async def get_progress(session_id: str | None = None) -> dict[str, Any]:
 
 
 @app.post("/cancel")
-async def cancel_generation(request: dict[str, Any]) -> dict[str, str]:
+async def cancel_generation(request: CancelRequest) -> dict[str, str]:
     """Mark a generation session as cancelled.
 
     Body fields:
@@ -296,9 +331,10 @@ async def cancel_generation(request: dict[str, Any]) -> dict[str, str]:
     is treated the same way so a stale Cancel click does not
     produce a 4xx for the user.
     """
-    session_id = str(request.get("session_id") or "")
-    if session_id:
-        progress_store.cancel(session_id)
+    if isinstance(request, dict):
+        request = CancelRequest.model_validate(request)
+    if request.session_id:
+        progress_store.cancel(request.session_id)
     return {"status": "cancelled"}
 
 
@@ -388,8 +424,10 @@ async def delete_book(book_id: int, output_folder: str | None = None) -> dict[st
 
 
 @app.post("/book/{book_id}/regenerate")
-async def regenerate_book(book_id: int, request: dict[str, Any]) -> dict[str, str]:
+async def regenerate_book(book_id: int, request: RegenerateRequest) -> dict[str, str]:
     """Regenerate audiobook reusing the stored source file and settings."""
+    if isinstance(request, dict):
+        request = RegenerateRequest.model_validate(request)
     book = _get_book_by_id(book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -401,22 +439,22 @@ async def regenerate_book(book_id: int, request: dict[str, Any]) -> dict[str, st
             detail=f"Source file no longer exists on disk: {source_path}",
         )
 
-    session_id = str(request.get("session_id") or uuid.uuid4().hex)
-    llm_provider = cast(LLMChoice, str(request.get("llm_provider", "ollama")))
-    llm_model = str(request.get("llm_model", "qwen2.5:7b"))
-    tts_provider = cast(TTSChoice, str(request.get("tts_provider", "piper")))
-    locale = str(request.get("locale", "en_US"))
+    session_id = str(request.session_id or uuid.uuid4().hex)
+    llm_provider = request.llm_provider
+    llm_model = request.llm_model
+    tts_provider = request.tts_provider
+    locale = request.locale
 
-    output_dir = _get_output_dir(request.get("output_folder"))
+    output_dir = _get_output_dir(request.output_folder)
     output_path = output_dir / f"{source_path.stem}.mp3"
 
     config = AudioBardConfig(
         llm_provider=llm_provider,
         llm_model=llm_model,
-        llm_base_url=str(request.get("llm_base_url") or "http://localhost:11434"),
-        openrouter_api_key=str(request.get("openrouter_api_key") or ""),
-        gemini_api_key=str(request.get("gemini_api_key") or ""),
-        nim_api_key=str(request.get("nim_api_key") or ""),
+        llm_base_url=str(request.llm_base_url or "http://localhost:11434"),
+        openrouter_api_key=str(request.openrouter_api_key or ""),
+        gemini_api_key=str(request.gemini_api_key or ""),
+        nim_api_key=str(request.nim_api_key or ""),
         tts_provider=tts_provider,
         tts_locale=locale,
     )
@@ -445,7 +483,7 @@ async def clear_cache() -> dict[str, str]:
 
 
 @app.post("/generate")
-async def generate_audiobook(request: dict[str, Any]) -> dict[str, str]:
+async def generate_audiobook(request: GenerateRequest) -> dict[str, str]:
     """Generate audiobook from an uploaded base64-encoded file.
 
     Body fields:
@@ -456,15 +494,17 @@ async def generate_audiobook(request: dict[str, Any]) -> dict[str, str]:
         file_base64, file_name, llm_provider, llm_model, tts_provider,
             locale: Book payload and pipeline configuration.
     """
-    session_id = str(request.get("session_id") or uuid.uuid4().hex)
+    if isinstance(request, dict):
+        request = GenerateRequest.model_validate(request)
+    session_id = str(request.session_id or uuid.uuid4().hex)
 
     try:
-        file_base64 = str(request["file_base64"])
-        file_name = str(request["file_name"])
-        llm_provider = cast(LLMChoice, str(request["llm_provider"]))
-        llm_model = str(request["llm_model"])
-        tts_provider = cast(TTSChoice, str(request["tts_provider"]))
-        locale = str(request["locale"])
+        file_base64 = request.file_base64
+        file_name = request.file_name
+        llm_provider = request.llm_provider
+        llm_model = request.llm_model
+        tts_provider = request.tts_provider
+        locale = request.locale
 
         raw_b64 = file_base64.split(",")[1] if "," in file_base64 else file_base64
         file_bytes = base64.b64decode(raw_b64)
@@ -499,10 +539,10 @@ async def generate_audiobook(request: dict[str, Any]) -> dict[str, str]:
                 config = AudioBardConfig(
                     llm_provider=llm_provider,
                     llm_model=llm_model,
-                    llm_base_url=str(request.get("llm_base_url") or "http://localhost:11434"),
-                    openrouter_api_key=str(request.get("openrouter_api_key") or ""),
-                    gemini_api_key=str(request.get("gemini_api_key") or ""),
-                    nim_api_key=str(request.get("nim_api_key") or ""),
+                    llm_base_url=str(request.llm_base_url or "http://localhost:11434"),
+                    openrouter_api_key=str(request.openrouter_api_key or ""),
+                    gemini_api_key=str(request.gemini_api_key or ""),
+                    nim_api_key=str(request.nim_api_key or ""),
                     tts_provider=tts_provider,
                     tts_locale=locale,
                 )
@@ -545,7 +585,7 @@ async def generate_audiobook(request: dict[str, Any]) -> dict[str, str]:
                         detail="Audiobook generation failed - output file not found",
                     )
 
-                permanent_dir = _get_output_dir(request.get("output_folder"))
+                permanent_dir = _get_output_dir(request.output_folder)
                 permanent_path = permanent_dir / output_path.name
                 # shutil.copy2 in this thread pool keeps the sidecar responsive.
                 await asyncio.to_thread(shutil.copy2, output_path, permanent_path)
@@ -554,7 +594,7 @@ async def generate_audiobook(request: dict[str, Any]) -> dict[str, str]:
                     _update_book_title,
                     input_path,
                     display_title,
-                    request.get("output_folder"),
+                    request.output_folder,
                 )
                 return {"session_id": session_id, "output_path": str(permanent_path)}
         finally:
