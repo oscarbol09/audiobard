@@ -172,16 +172,6 @@ function triggerFileInput() {
           {{ t('selectFile') }}
         </button>
       </div>
-
-      <!-- Hidden file input -->
-      <input
-        ref="fileInput"
-        type="file"
-        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        :accept="acceptedTypesDisplay"
-        @change="onFileSelect"
-        aria-label="Select book file"
-      />
     </div>
 
     <!-- PDF2Bard companion tip -->
