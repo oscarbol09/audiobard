@@ -27,10 +27,9 @@ def test_paragraph_accepts_whitespace_text() -> None:
 
 @pytest.mark.parametrize(
     "bad_id",
-    ["she", "Character_1", "character_a", "NarratorX", "", "Character_AA"],
+    ["she", "character_a", "NarratorX", "", "Character_AA"],
     ids=[
         "pronoun_rejected",
-        "numeric_suffix_rejected",
         "lowercase_suffix_rejected",
         "prefix_extension_rejected",
         "empty_string_rejected",
@@ -82,6 +81,32 @@ def test_character_tone_normalizes_unknown_to_neutral(
 def test_dialog_line_speaker_regex() -> None:
     with pytest.raises(ValidationError, match="speaker"):
         DialogLine(text="hello", speaker="the young woman")
+
+
+@pytest.mark.parametrize(
+    ("raw_speaker", "expected"),
+    [
+        ("Character_1", "Character_B"),
+        ("Character_10", "Character_K"),
+        ("Character_25", "Character_Z"),
+        ("Character_99", "Character_Z"),
+        ("character_0", "Character_A"),
+    ],
+    ids=[
+        "single_digit_1_to_B",
+        "double_digit_10_to_K",
+        "digit_25_to_Z",
+        "digit_99_capped_at_Z",
+        "lowercase_digit_0_to_A",
+    ],
+)
+def test_dialog_line_normalizes_multi_digit_speakers(
+    raw_speaker: str, expected: str
+) -> None:
+    line = DialogLine.model_validate(
+        {"text": "hello", "speaker": raw_speaker, "emotion": "neutral"}
+    )
+    assert line.speaker == expected
 
 
 @pytest.mark.parametrize(

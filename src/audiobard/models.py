@@ -175,7 +175,7 @@ class DialogLine(BaseModel):
             v_clean = v.strip()
             if v_clean.lower() == "narrator":
                 return "Narrator"
-            m = re.match(r"^[Cc]haracter_?([A-Za-z0-9])$", v_clean)
+            m = re.match(r"^[Cc]haracter_?([A-Za-z0-9]+)$", v_clean)
             if m:
                 char_suffix = m.group(1).upper()
                 if char_suffix.isdigit():
