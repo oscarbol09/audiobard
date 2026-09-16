@@ -39,7 +39,6 @@ dependencies = [
 llm-ollama = ["ollama>=0.2"]
 llm-gemini = ["google-generativeai>=0.4"]
 tts-piper = []
-tts-edge = ["edge-tts>=6.1"]
 api = ["fastapi>=0.115", "uvicorn>=0.30", "python-multipart>=0.0.9", "aiofiles>=23.2"]
 dev = [
     "pytest>=8",
