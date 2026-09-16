@@ -182,13 +182,13 @@ class PersistenceManager:
         """Insert or replace character list for a book."""
         with self._get_conn() as conn:
             conn.execute("DELETE FROM characters WHERE book_id = ?", (book_id,))
-            for char in characters:
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO characters
-                    (book_id, canonical_id, name, aliases, gender_hint, age_hint, tone)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
+            conn.executemany(
+                """
+                INSERT OR REPLACE INTO characters
+                (book_id, canonical_id, name, aliases, gender_hint, age_hint, tone)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+                [
                     (
                         book_id,
                         char.canonical_id,
@@ -197,8 +197,10 @@ class PersistenceManager:
                         char.gender_hint.value,
                         char.age_hint.value,
                         char.tone.value,
-                    ),
-                )
+                    )
+                    for char in characters
+                ],
+            )
             conn.commit()
 
     def get_characters(self, book_id: int) -> list[Character]:
@@ -233,15 +235,17 @@ class PersistenceManager:
             conn.execute(
                 "DELETE FROM speaker_voice_map WHERE book_id = ?", (book_id,)
             )
-            for va in mapping:
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO speaker_voice_map
-                    (book_id, canonical_id, voice_id, rate, pitch)
-                    VALUES (?, ?, ?, ?, ?)
-                """,
-                    (book_id, va.canonical_id, va.voice_id, va.rate, va.pitch),
-                )
+            conn.executemany(
+                """
+                INSERT OR REPLACE INTO speaker_voice_map
+                (book_id, canonical_id, voice_id, rate, pitch)
+                VALUES (?, ?, ?, ?, ?)
+            """,
+                [
+                    (book_id, va.canonical_id, va.voice_id, va.rate, va.pitch)
+                    for va in mapping
+                ],
+            )
             conn.commit()
 
     def get_voice_mapping(self, book_id: int) -> list[VoiceAssignment]:
