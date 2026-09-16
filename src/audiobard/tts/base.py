@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 from abc import ABC, abstractmethod
@@ -96,7 +97,7 @@ class TTSProvider(ABC):
         disk_file = self.cache_dir / f"{disk_hash}.mp3"
         if disk_file.exists():
             logger.debug("TTS cache hit (disk): %s", disk_file)
-            data = disk_file.read_bytes()
+            data = await asyncio.to_thread(disk_file.read_bytes)
             self._memory_cache.set(mem_key, data)
             return data
 
@@ -115,7 +116,7 @@ class TTSProvider(ABC):
 
         # 4. Write back to caches
         try:
-            disk_file.write_bytes(data)
+            await asyncio.to_thread(disk_file.write_bytes, data)
         except OSError as exc:
             logger.warning("Failed to write TTS disk cache: %s", exc)
 
