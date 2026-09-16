@@ -79,6 +79,16 @@ class LLMClient(ABC):
         self.max_retries = max_retries
         self._persistence = persistence
 
+    async def aclose(self) -> None:
+        """Close any persistent HTTP client or resources held by this client."""
+        return None
+
+    async def __aenter__(self) -> LLMClient:
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        await self.aclose()
+
     # ------------------------------------------------------------------
     # Provider contract
     # ------------------------------------------------------------------

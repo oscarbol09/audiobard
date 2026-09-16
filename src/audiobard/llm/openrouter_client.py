@@ -58,11 +58,21 @@ class OpenRouterClient(LLMClient):
             or os.environ.get("AUDIOBARD_OPENROUTER_API_KEY")
             or ""
         )
+        self._client: httpx.AsyncClient | None = None
         if not self.api_key:
             raise ValueError(
                 "OpenRouter API key not found.  Set OPENROUTER_API_KEY or "
                 "AUDIOBARD_OPENROUTER_API_KEY in your environment."
             )
+
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=120.0)
+        return self._client
+
+    async def aclose(self) -> None:
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
 
     async def _raw_call(self, prompt: str, schema: dict[str, Any]) -> str:
         """POST to OpenRouter with ``response_format=json_object``.
@@ -83,10 +93,10 @@ class OpenRouterClient(LLMClient):
             "temperature": self.temperature,
             "response_format": {"type": "json_object"},
         }
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(_OPENROUTER_URL, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
+        client = self._get_client()
+        response = await client.post(_OPENROUTER_URL, json=payload, headers=headers)
+        response.raise_for_status()
+        data = response.json()
 
         try:
             content = data["choices"][0]["message"]["content"]

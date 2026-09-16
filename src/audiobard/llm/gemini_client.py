@@ -64,11 +64,21 @@ class GeminiClient(LLMClient):
             or os.environ.get("AUDIOBARD_GEMINI_API_KEY")
             or ""
         )
+        self._client: httpx.AsyncClient | None = None
         if not self.api_key:
             raise ValueError(
                 "Gemini API key not found.  Set GEMINI_API_KEY or "
                 "AUDIOBARD_GEMINI_API_KEY in your environment."
             )
+
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=120.0)
+        return self._client
+
+    async def aclose(self) -> None:
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
 
     async def _raw_call(self, prompt: str, schema: dict[str, Any]) -> str:
         """POST to the Gemini generateContent endpoint with JSON response mode."""
@@ -81,10 +91,10 @@ class GeminiClient(LLMClient):
                 "responseSchema": schema,
             },
         }
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
+        client = self._get_client()
+        response = await client.post(url, json=payload)
+        response.raise_for_status()
+        data = response.json()
 
         try:
             val: str = data["candidates"][0]["content"]["parts"][0]["text"]

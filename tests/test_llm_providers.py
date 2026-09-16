@@ -145,3 +145,21 @@ async def test_ollama_client_custom_timeout() -> None:
 def test_gemini_client_extract_json_unfenced() -> None:
     raw = '{"key": "value"}'
     assert GeminiClient._extract_json_from_response(raw) == '{"key": "value"}'
+
+
+@pytest.mark.asyncio
+async def test_llm_clients_reuse_http_client_and_aclose() -> None:
+    openrouter = OpenRouterClient(api_key="key")
+    gemini = GeminiClient(api_key="key")
+
+    c1 = openrouter._get_client()
+    c2 = openrouter._get_client()
+    assert c1 is c2
+    await openrouter.aclose()
+    assert c1.is_closed
+
+    g1 = gemini._get_client()
+    g2 = gemini._get_client()
+    assert g1 is g2
+    await gemini.aclose()
+    assert g1.is_closed

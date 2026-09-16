@@ -60,11 +60,21 @@ class NimClient(LLMClient):
             or os.environ.get("NIM_API_KEY")
             or ""
         )
+        self._client: httpx.AsyncClient | None = None
         if not self.api_key:
             raise ValueError(
                 "NVIDIA NIM API key not found. Set NVIDIA_NIM_API_KEY, "
                 "AUDIOBARD_NIM_API_KEY, or NIM_API_KEY in your environment."
             )
+
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=120.0)
+        return self._client
+
+    async def aclose(self) -> None:
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
 
     async def _raw_call(self, prompt: str, schema: dict[str, Any]) -> str:
         """POST to NVIDIA NIM with ``response_format=json_object`` and fallback."""
@@ -79,23 +89,23 @@ class NimClient(LLMClient):
             "temperature": self.temperature,
             "response_format": {"type": "json_object"},
         }
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(_NIM_URL, json=payload, headers=headers)
-            if response.status_code in (400, 422):
-                # Some NIM models (like deepseek-r1) do not support response_format
-                payload_no_rf: dict[str, Any] = {
-                    "model": self.model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": self.temperature,
-                }
-                response = await client.post(_NIM_URL, json=payload_no_rf, headers=headers)
-            try:
-                response.raise_for_status()
-            except httpx.HTTPStatusError as exc:
-                raise RuntimeError(
-                    f"NVIDIA NIM API error (HTTP {exc.response.status_code}): {exc.response.text}"
-                ) from exc
-            data = response.json()
+        client = self._get_client()
+        response = await client.post(_NIM_URL, json=payload, headers=headers)
+        if response.status_code in (400, 422):
+            # Some NIM models (like deepseek-r1) do not support response_format
+            payload_no_rf: dict[str, Any] = {
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": self.temperature,
+            }
+            response = await client.post(_NIM_URL, json=payload_no_rf, headers=headers)
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(
+                f"NVIDIA NIM API error (HTTP {exc.response.status_code}): {exc.response.text}"
+            ) from exc
+        data = response.json()
         try:
             content = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError) as exc:
