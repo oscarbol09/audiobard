@@ -1,4 +1,4 @@
-"""EPUB parser using ebooklib + BeautifulSoup4.
+"""EPUB parser using ebooklib with regex-based HTML stripping.
 
 - Extracts chapters via spine metadata (preserves reading order).
 - Skips common frontmatter / backmatter (cover, title, toc, index, …).
