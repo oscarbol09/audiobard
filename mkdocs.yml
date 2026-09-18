@@ -1,0 +1,77 @@
+site_name: AudioBard 🎙️
+site_description: 100% Local & Multi-Voice Audiobook Generator using AI Character Casting.
+site_author: oscarbol09
+site_url: https://oscarbol09.github.io/audiobard/
+repo_url: https://github.com/oscarbol09/audiobard
+repo_name: oscarbol09/audiobard
+
+theme:
+  name: material
+  logo: assets/mascot/audiobard_logo.svg
+  favicon: assets/mascot/audiobard_logo.svg
+  language: en
+  palette:
+    # Dark Mode default
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    # Light Mode toggle
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Overview & Architecture: getting-started/overview.md
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+  - Guides:
+      - Supported Providers: guides/providers.md
+      - Adding a Provider: guides/adding-a-provider.md
+      - Prompt Engineering: guides/prompt-engineering.md
+      - PDF2Bard Companion: guides/pdf2bard.md
+  - Evaluation:
+      - Benchmarks & Accuracy: evaluation/benchmarks.md
+  - Community:
+      - Contributing Guide: community/contributing.md
+      - Code of Conduct: community/code-of-conduct.md
+      - Security Policy: community/security.md
+      - Contributors: community/contributors.md
