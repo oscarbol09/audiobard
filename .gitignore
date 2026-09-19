@@ -32,6 +32,7 @@ data/books/*
 !data/books/.gitkeep
 data/personas.local.json
 data/voice_mapping.local.json
+books/
 
 # ---------------------------------------------------------------------------
 # Audio output � generated audiobooks belong in local output dirs or CI

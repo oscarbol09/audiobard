@@ -138,7 +138,7 @@ audiobard/
 │   └── persistence.py            # SQLite: speakers, voices, cache, runs
 ├── gui/                          # Vue 3 + Tailwind CSS frontend
 ├── src-tauri/                    # Tauri v2 native desktop application wrapper
-├── tests/                        # pytest suite (236+ unit & integration tests)
+├── tests/                        # pytest suite (342 unit & integration tests)
 ├── eval/
 │   ├── gold_standard/            # Hand-labeled dialog attribution (immutable)
 │   └── benchmark.py              # Accuracy scorer
