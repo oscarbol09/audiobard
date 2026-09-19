@@ -1,4 +1,4 @@
-# Hacker News Launch Guide: "Show HN" 🚀
+# Hacker News Launch Guide: Show HN
 
 > **Target Platform:** [news.ycombinator.com](https://news.ycombinator.com/)  
 > **Best Timing:** Tuesday or Wednesday between 08:00 AM – 10:00 AM ET.  

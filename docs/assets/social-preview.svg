@@ -68,12 +68,12 @@
 
     <!-- Main Title -->
     <text x="0" y="105" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="64" font-weight="800" fill="url(#abSpText)" letter-spacing="-1.5">
-      AudioBard <tspan fill="#a371f7">🎙️</tspan><tspan fill="#38bdf8">📚</tspan>
+      AudioBard
     </text>
 
     <!-- Subtitle -->
     <text x="0" y="160" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="24" font-weight="500" fill="#8b949e">
-      AI-powered multi-voice audiobook generator.
+      Open-source multi-voice audiobook generator.
     </text>
     <text x="0" y="195" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="400" fill="#c9d1d9">
       Turns public-domain EPUB/TXT into rich cast-narrated audiobooks.
@@ -83,19 +83,19 @@
     <g transform="translate(0, 240)">
       <g transform="translate(0, 0)">
         <rect width="180" height="42" rx="10" fill="#21262d" stroke="#30363d" stroke-width="1.5" />
-        <text x="16" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#7ee787">🖥️ Desktop (Tauri)</text>
+        <text x="16" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#7ee787">Desktop (Tauri)</text>
       </g>
       <g transform="translate(195, 0)">
         <rect width="180" height="42" rx="10" fill="#21262d" stroke="#30363d" stroke-width="1.5" />
-        <text x="16" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#79c0ff">📴 100% Offline</text>
+        <text x="16" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#79c0ff">Offline Mode</text>
       </g>
       <g transform="translate(390, 0)">
         <rect width="170" height="42" rx="10" fill="#21262d" stroke="#30363d" stroke-width="1.5" />
-        <text x="16" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#d2a8ff">🧠 Neural Piper</text>
+        <text x="16" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#d2a8ff">Piper / Edge TTS</text>
       </g>
       <g transform="translate(575, 0)">
-        <rect width="120" height="42" rx="10" fill="#21262d" stroke="#30363d" stroke-width="1.5" />
-        <text x="16" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#ffa657">🔑 BYOK</text>
+        <rect width="140" height="42" rx="10" fill="#21262d" stroke="#30363d" stroke-width="1.5" />
+        <text x="16" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#ffa657">Cloud BYOK</text>
       </g>
     </g>
   </g>

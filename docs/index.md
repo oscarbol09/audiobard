@@ -1,7 +1,7 @@
-# AudioBard 🎙️
+# AudioBard
 
-> **100% Local & Multi-Voice Audiobook Generator using AI Character Casting.**  
-> Transform EPUB and TXT books into rich, cast-narrated audiobooks with distinct voices per character — completely offline or via BYOK cloud models.
+> **Open-source multi-voice audiobook generator from EPUB and TXT books.**  
+> Transform books into cast-narrated audiobooks with distinct, consistent voices assigned to each character — completely offline or via BYOK cloud models.
 
 ---
 
@@ -11,56 +11,42 @@
 
 ---
 
-## ⚡ The Problem: Monotone TTS & Expensive Cloud Platforms
+## Motivation
 
-Every audiobook listener and developer who has tried converting digital books into audiobooks faces standard roadblocks:
+Standard text-to-speech tools read entire books in a single robotic monotone voice without character distinction. Commercial voice platforms frequently require uploading private manuscripts to remote servers and charge recurring subscriptions.
 
-```text
-1. Standard TTS Tools (Calibre, basic screen readers):
-   └── Reads every book in a single robotic monotone voice. No character distinction.
-2. Commercial AI Voice Platforms (ElevenLabs, Speechify):
-   └── Requires uploading private files to the cloud; costs $50–$100+/mo per book.
-3. Manual Voice Acting & DAW Splicing:
-   └── Demands dozens of hours of manual audio editing, cut-and-paste, and timeline alignment.
-```
-
----
-
-## 🚀 The Solution: AudioBard
-
-**AudioBard** bridges the gap between single-voice robotic TTS and expensive cloud voice studios. Using local LLMs (via [Ollama](https://ollama.com)) for speaker extraction and dialogue attribution, and fast neural TTS engines (via [Piper](https://github.com/rhasspy/piper) or Edge TTS), AudioBard automatically casts every character with a fitting voice and produces production-ready audiobooks.
+AudioBard provides a local-first alternative that automatically extracts character rosters, attributes dialogue with emotional context, and synthesizes audio tracks using neural TTS models.
 
 <p align="center">
-  <img src="assets/demo-pipeline.svg" alt="AudioBard AI Pipeline" width="100%">
+  <img src="assets/demo-pipeline.svg" alt="AudioBard Pipeline" width="100%">
 </p>
 
-### 🌟 Key Highlights
+## Key Capabilities
 
-* 🎭 **AI Character Casting & Dialogue Attribution:** Uses LLMs to detect who speaks each line, track aliases across chapters, and determine vocal emotion.
-* 🎙️ **Multi-Voice Neural Synthesis:** Automatically maps distinct neural voices (via Piper TTS or Edge TTS) to every character based on gender, age, and emotional tone.
-* 📴 **100% Local & Offline:** Complete privacy with [Ollama](https://ollama.com) (`qwen2.5:7b`, `llama3.3:70b`) + [Piper TTS](https://github.com/rhasspy/piper) (fast CPU neural voice). Zero data leaves your machine.
-* 🔑 **Cloud BYOK Fallback:** Native support for NVIDIA NIM, OpenRouter, and Google Gemini with your own API keys for low-resource laptops.
-* 🖥️ **Native Desktop GUI & CLI:** Built with Tauri v2 + Vue 3, featuring drag & drop book ingestion, library player, and Spanish 🇪🇸 / English 🇺🇸 i18n.
-
----
-
-## 🆚 Why AudioBard? (Feature Matrix)
-
-| Feature | **AudioBard** 🎙️ | **ElevenLabs** | **Speechify** | **Storyteller** | **Calibre TTS** |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **100% Local / Offline** | ✅ **Yes (Ollama+Piper)** | ❌ Cloud Only | ❌ Cloud Only | 🟡 Self-hosted Server | ✅ Yes |
-| **Multi-Voice Character Casting** | ✅ **Yes (LLM)** | 🟡 Manual Studio | ❌ No | 🟡 Basic | ❌ Single Voice |
-| **Native Desktop App (Tauri v2)** | ✅ **Yes** | ❌ Web Only | 🟡 Web/Mobile | ❌ Web Server | 🟡 Qt Desktop |
-| **Cost / Licensing** | 💚 **Free & MIT** | 💳 $50+/mo | 💳 $139/yr | 💚 Open Source | 💚 GPL |
-| **Cloud BYOK Support** | ✅ **Yes (Gemini/NIM)** | ❌ No | ❌ No | ❌ No | ❌ No |
-| **Dialogue Attribution Benchmarks** | ✅ **Yes (Gold Standard)** | ❌ N/A | ❌ N/A | ❌ No | ❌ No |
+- **Character Extraction & Dialogue Attribution:** Uses LLMs to detect speaking characters, track aliases across chapters, and determine vocal emotion.
+- **Multi-Voice Neural Synthesis:** Automatically maps distinct voices (via Piper TTS or Edge TTS) to each character based on gender, age, and emotional tone.
+- **Offline & Cloud Modes:** Complete local privacy with [Ollama](https://ollama.com) + [Piper TTS](https://github.com/rhasspy/piper) (zero data leaves your machine), or cloud BYOK (NVIDIA NIM, OpenRouter, Google Gemini, Edge TTS) with your own API keys.
+- **Desktop GUI & CLI:** Built with Tauri v2 + Vue 3, featuring drag & drop book ingestion, library player, and Spanish / English localization.
 
 ---
 
-## 🧭 Navigation & Next Steps
+## Comparison with Alternatives
+
+| Feature | AudioBard | Commercial Cloud Platforms | Standard Reader TTS |
+| :--- | :--- | :--- | :--- |
+| **Execution Environment** | Local offline or Cloud BYOK | Cloud-hosted servers | Local device |
+| **Character Casting** | Multi-voice per character | Manual studio configuration | Single narrator voice |
+| **Interfaces** | Desktop GUI (Tauri) + CLI | Web dashboard only | Desktop or browser extension |
+| **Licensing & Cost** | Open source (MIT), zero subscription fees | Subscription ($15–$100+/mo) | Free or bundled |
+| **Attribution Verification** | Hermetic benchmark suite vs gold standard | Not published | Not applicable |
+
+---
+
+## Documentation Navigation
 
 - **[Overview & Architecture](getting-started/overview.md)** — Learn how AudioBard's 6-stage audio pipeline works under the hood.
 - **[Installation Guide](getting-started/installation.md)** — Step-by-step setup for Python, Ollama, Piper, and Tauri.
 - **[Quickstart Tutorial](getting-started/quickstart.md)** — Generate your first audiobook via GUI or CLI in under 5 minutes.
 - **[Supported Providers](guides/providers.md)** — Deep dive into LLM and TTS backends (Ollama, Piper, Gemini, NIM, OpenRouter, Edge TTS).
 - **[PDF2Bard Companion](guides/pdf2bard.md)** — Convert and clean PDF books for AudioBard ingestion.
+

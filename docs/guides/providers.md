@@ -1,13 +1,13 @@
-# Supported Providers 🔌
+# Supported Providers
 
 AudioBard supports a variety of local offline backends and cloud BYOK (Bring Your Own Key) providers.
 
 ---
 
-## 🧠 LLM Providers (Character Extraction & Attribution)
+## LLM Providers (Character Extraction & Attribution)
 
 | Provider | Type | Privacy | Recommended Models | Environment Variable |
-| :--- | :---: | :---: | :--- | :--- |
+| :--- | :--- | :--- | :--- | :--- |
 | **Ollama** | Local / Offline | 100% Private | `qwen2.5:7b`, `llama3.3:70b` | None (Local host) |
 | **Google Gemini** | Cloud BYOK | Cloud | `gemini-2.0-flash`, `gemini-1.5-pro` | `GEMINI_API_KEY` |
 | **NVIDIA NIM** | Cloud BYOK | Cloud | `meta/llama-3.3-70b-instruct` | `NVIDIA_API_KEY` |
@@ -29,16 +29,16 @@ OPENROUTER_API_KEY=your_openrouter_api_key_here
 
 ---
 
-## 🎙️ TTS Providers (Voice Synthesis)
+## TTS Providers (Voice Synthesis)
 
 | Provider | Type | Privacy | Highlights |
-| :--- | :---: | :---: | :--- |
+| :--- | :--- | :--- | :--- |
 | **Piper TTS** | Local / Offline | 100% Private | Ultra-fast CPU neural synthesis, zero latency, lightweight ONNX models. |
 | **Edge TTS** | Cloud (Free) | Cloud | High-fidelity neural voices with diverse regional accents and prosody support. |
 
 ---
 
-## ⚙️ Configuration File (`config.yaml`)
+## Configuration File (`config.yaml`)
 
 You can persist your default provider selections in `config.yaml`:
 

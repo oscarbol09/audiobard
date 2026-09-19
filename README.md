@@ -4,172 +4,151 @@
 
 <p align="center">
   <a href="https://github.com/oscarbol09/audiobard/actions/workflows/ci.yml"><img src="https://github.com/oscarbol09/audiobard/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
-  <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg?logo=python&logoColor=white" alt="Python 3.10+"></a>
-  <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-v2-24C8D8?logo=tauri&logoColor=white" alt="Tauri v2"></a>
-  <a href="https://ollama.com/"><img src="https://img.shields.io/badge/Ollama-Offline-black?logo=ollama&logoColor=white" alt="Ollama"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="https://github.com/oscarbol09/audiobard/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22"><img src="https://img.shields.io/github/issues/oscarbol09/audiobard/good%20first%20issue?color=7057ff&label=good%20first%20issues" alt="Good First Issues"></a>
-  <a href="https://github.com/oscarbol09/audiobard"><img src="https://img.shields.io/github/stars/oscarbol09/audiobard?style=social" alt="GitHub Stars"></a>
+  <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
 </p>
 
 ---
 
-## ⚡ The Problem: The "Monotone TTS & Expensive Cloud" Friction
+AudioBard converts public-domain books (EPUB and TXT) into multi-voice audiobooks with distinct, consistent voices assigned to each character. It can run completely offline on local compute or via cloud API keys (BYOK).
 
-Every audiobook listener and developer who has tried generating audiobooks from EPUBs or public domain texts knows the pain:
+## Motivation
 
-```text
-1. Standard TTS tools (Calibre, basic readers):
-   └── Read the entire book in a single, robotic monotone voice. No character distinction.
-2. Commercial AI Voice Platforms (ElevenLabs, Speechify):
-   └── Require uploading private files to the cloud, charging $50–$100+/mo per book.
-3. Manual Voice Acting / Splicing:
-   └── Takes dozens of hours of manual audio editing and timeline alignment.
-```
+Standard text-to-speech tools read entire books in a single monotone voice without distinguishing character dialogue from narrator descriptions. Commercial audio services often charge recurring monthly subscriptions or require uploading entire manuscripts to proprietary remote servers.
 
----
+AudioBard provides a local-first alternative: it parses book structure, extracts speaking characters, attributes spoken lines with emotional context, and synthesizes audio tracks using neural TTS engines.
 
-## 🚀 The Solution: AudioBard
+## Features
 
-**AudioBard** turns EPUB and TXT books into **multi-voice, cast-narrated audiobooks** with distinct voices per character. It runs **100% locally and offline** with zero cloud dependency, or via **BYOK (Bring Your Own Key)** cloud APIs.
+- **Character Extraction & Dialogue Attribution:** Identifies characters, aliases, and gender/age hints across chapters, then attributes spoken lines to the corresponding speaker.
+- **Multi-Voice Neural Synthesis:** Assigns unique voice models from a tone-aware voice pool to each character.
+- **Offline & Cloud Execution Modes:** Run entirely offline using [Ollama](https://ollama.com) and [Piper TTS](https://github.com/rhasspy/piper), or connect cloud providers (NVIDIA NIM, OpenRouter, Google Gemini, Edge TTS) using your own API keys.
+- **Desktop GUI & CLI:** Includes a native desktop interface built with Tauri v2 and Vue 3 (with English and Spanish localization), as well as a standalone CLI for scripting.
+- **Deterministic Mapping:** Persists character-to-voice mappings in SQLite to guarantee voice consistency across chapters and runs.
 
 <p align="center">
-  <img src="assets/demo-pipeline.svg" alt="AudioBard AI Pipeline" width="900">
+  <img src="assets/demo-pipeline.svg" alt="AudioBard Pipeline Architecture" width="900">
 </p>
 
-### Key Highlights
-- 🎭 **AI Character Casting & Dialogue Attribution:** Uses LLMs to detect who speaks each line, track aliases across chapters, and determine vocal emotion.
-- 🎙️ **Multi-Voice Synthesis:** Automatically maps distinct neural voices (via Piper TTS or Edge TTS) to every character based on gender, age, and emotional tone.
-- 📴 **100% Local & Offline:** Complete privacy with [Ollama](https://ollama.com) (`qwen2.5:7b`, `llama3.3:70b`) + [Piper TTS](https://github.com/rhasspy/piper) (fast CPU neural voice). Zero data leaves your machine.
-- 🔑 **Cloud BYOK Fallback:** Support for NVIDIA NIM, OpenRouter, and Google Gemini with your own API keys for low-resource laptops.
-- 🖥️ **Native Desktop GUI & CLI:** Built with Tauri v2 + Vue 3, featuring drag & drop book ingestion, library player, and Spanish 🇪🇸 / English 🇺🇸 i18n.
+## Comparison with Alternatives
 
----
+| Feature | AudioBard | Commercial Cloud Platforms | Standard Reader TTS |
+| :--- | :--- | :--- | :--- |
+| **Execution Environment** | Local offline or Cloud BYOK | Cloud-hosted servers | Local device |
+| **Character Casting** | Multi-voice per character | Manual studio configuration | Single narrator voice |
+| **Interfaces** | Desktop GUI (Tauri) + CLI | Web dashboard only | Desktop or browser extension |
+| **Licensing & Cost** | Open source (MIT), zero subscription fees | Subscription ($15–$100+/mo) | Free or bundled |
+| **Attribution Verification** | Hermetic benchmark suite vs gold standard | Not published | Not applicable |
 
-## 🆚 Why AudioBard? (Comparison)
+## Quickstart
 
-| Feature | **AudioBard** 🎙️ | **ElevenLabs** | **Speechify** | **Storyteller** | **Calibre TTS** |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **100% Local / Offline** | ✅ **Yes (Ollama+Piper)** | ❌ Cloud Only | ❌ Cloud Only | 🟡 Self-hosted Server | ✅ Yes |
-| **Multi-Voice Character Casting** | ✅ **Yes (LLM)** | 🟡 Manual Studio | ❌ No | 🟡 Basic | ❌ Single Voice |
-| **Native Desktop App (Tauri v2)** | ✅ **Yes** | ❌ Web Only | 🟡 Web/Mobile | ❌ Web Server | 🟡 Qt Desktop |
-| **Cost / Licensing** | 💚 **Free & MIT** | 💳 $50+/mo | 💳 $139/yr | 💚 Open Source | 💚 GPL |
-| **Cloud BYOK Support** | ✅ **Yes (Gemini/NIM)** | ❌ No | ❌ No | ❌ No | ❌ No |
-| **Dialogue Attribution Benchmarks** | ✅ **Yes (Gold Standard)** | ❌ N/A | ❌ N/A | ❌ No | ❌ No |
+### Prerequisites
 
----
+- **Python 3.10+**
+- **FFmpeg** on system `PATH` (for audio assembly and normalization)
+- *(Optional)* **Ollama** and **Piper TTS** for local offline synthesis
+- *(Optional)* **Rust 1.77+** and **Node.js 18+** if building the Desktop GUI from source
 
-## 🛠️ Quickstart
-
-### 🖥️ Desktop GUI Application (Tauri v2 + Vue 3)
+### Desktop GUI Application (Tauri v2 + Vue 3)
 
 ```bash
-# Clone and install Python dependencies
+# Clone the repository
 git clone https://github.com/oscarbol09/audiobard.git
 cd audiobard
+
+# Install Python dependencies with local and cloud provider extras
 pip install -e ".[dev,llm-gemini,llm-ollama,tts-piper]"
 
 # Launch the Desktop GUI
 cargo tauri dev
 ```
 
-The Desktop GUI features:
-- 📄 **Drag & Drop Upload:** Drop any `.txt` or `.epub` file to immediately extract cast and chapters.
-- 🌐 **Multi-Language UI (i18n):** Instant toggle between Spanish (🇪🇸) and English (🇺🇸).
-- ⚙️ **BYOK Settings Modal:** Configure API keys, local models, audio quality, and cache settings.
-- 📚 **Personal Audiobook Library:** Search, play, or regenerate previously converted audiobooks.
-
-### 💻 Command Line Interface (CLI)
+### Command Line Interface (CLI)
 
 ```bash
-# Generate a multi-voice audiobook via CLI
+# Generate a complete audiobook from an EPUB file
 audiobard generate book.epub --output audiobook.mp3
 
-# Dry-run test (character extraction & attribution without audio synthesis)
+# Dry-run mode: parse text and attribute dialogue without synthesizing audio
 audiobard generate book.epub --dry-run
+
+# Run system and dependency diagnostics
+audiobard doctor
+
+# List available voices for a specific locale
+audiobard voices --locale en_US
 ```
 
----
+## Companion Tools
 
-## 📖 Companion Tools
+### [PDF2Bard](https://github.com/oscarbol09/pdf2bard) — PDF to EPUB Converter
 
-### 📖 [PDF2Bard](https://github.com/oscarbol09/pdf2bard) — PDF to EPUB Converter for AudioBard
+AudioBard natively parses **EPUB** and **TXT** files. If your book is in PDF format, use our companion pre-processor:
 
-AudioBard accepts **EPUB** and **TXT** files natively. If your book is currently in **PDF format**, use our dedicated companion converter:
+[**PDF2Bard (`oscarbol09/pdf2bard`)**](https://github.com/oscarbol09/pdf2bard)
 
-👉 [**PDF2Bard (`oscarbol09/pdf2bard`)**](https://github.com/oscarbol09/pdf2bard)
+- **Paragraph Reflow:** Unwraps margin-bound line breaks while preserving legitimate dialogue turns.
+- **De-Hyphenation:** Reconstructs split words across lines without damaging compound terms.
+- **Header & Footer Stripping:** Detects and removes running headers, footers, and page numbers.
+- **Dialogue Normalization:** Standardizes quotation marks (`—`, `«»`, `"`) for accurate attribution.
 
-- 🧩 **Smart Paragraph Reflow:** Unwraps hard visual line breaks while respecting genuine paragraph and dialogue boundaries.
-- ✂️ **Automatic De-Hyphenation:** Reconnects split words across margins without altering legitimate hyphenated words.
-- 🧹 **Header & Footer Stripper:** Detects and strips page numbers, running headers, and disclaimers so the narrator doesn't read them aloud.
-- 💬 **Dialogue Integrity:** Preserves and normalizes em-dashes (`—`), guillemets (`«»`), and quotes for character attribution.
+## Command Reference
 
----
-
-## 📖 Command & App Reference
-
-| Command / Interface | What it does |
-|---|---|
+| Command | Description |
+| :--- | :--- |
 | `cargo tauri dev` | Launch the Desktop GUI in development mode |
-| `cargo tauri build` | Build standalone desktop executable installer (`.exe` / `.msi` / `.dmg` / `.AppImage`) |
-| `audiobard generate <book> -o <out>` | Full CLI pipeline: parse → attribute → synthesize → assemble |
-| `audiobard generate <book> --dry-run` | Parse + LLM attribution only — no synthesis (fast prompt iteration) |
-| `audiobard doctor` | Check environment, dependencies, FFmpeg, Piper, Ollama, API keys, and cache |
-| `audiobard benchmark --llm <provider>` | Attribution accuracy against the gold standard (see [eval/README.md](eval/README.md)) |
-| `audiobard stats` | Cache hit rate, books processed, and disk cache usage |
-| `audiobard voices --locale en_US` | List available TTS voices for a locale |
-| `audiobard validate-config` | Check config, providers, and ethics guardrails |
+| `cargo tauri build` | Compile standalone desktop installers (`.exe`, `.msi`, `.dmg`, `.AppImage`) |
+| `audiobard generate <book> -o <out>` | Run end-to-end pipeline: parse, attribute, synthesize, assemble |
+| `audiobard generate <book> --dry-run` | Run parsing and dialogue attribution without TTS synthesis |
+| `audiobard doctor` | Verify dependencies, FFmpeg, Piper, Ollama, API keys, and cache |
+| `audiobard benchmark --llm <provider>` | Run attribution accuracy scoring against the gold standard dataset |
+| `audiobard stats` | Display cache hit rates, processed books, and storage usage |
+| `audiobard voices --locale <loc>` | List available TTS voice models for a locale (e.g. `en_US`, `es_ES`) |
+| `audiobard validate-config` | Validate configuration files, active providers, and safety guardrails |
 
----
-
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 audiobard/
 ├── src/audiobard/
-│   ├── cli.py                    # CLI entry point (Typer app)
-│   ├── config.py                 # Pydantic settings
-│   ├── doctor.py                 # Environment diagnostics
-│   ├── parser/                   # TXT/EPUB parsers (BookParser ABC)
-│   ├── llm/                      # LLM clients (LLMClient ABC) + versioned prompts
-│   ├── tts/                      # TTS providers (TTSProvider ABC) + voice mapper
-│   ├── audio/                    # Audio assembly (pydub/ffmpeg)
-│   ├── pipeline.py               # Orchestrator
-│   └── persistence.py            # SQLite: speakers, voices, cache, runs
-├── gui/                          # Vue 3 + Tailwind CSS frontend
-├── src-tauri/                    # Tauri v2 native desktop application wrapper
-├── tests/                        # pytest suite (342 unit & integration tests)
+│   ├── cli.py                    # CLI entry point (Typer application)
+│   ├── config.py                 # Pydantic configuration settings
+│   ├── doctor.py                 # System and environment diagnostics
+│   ├── parser/                   # TXT and EPUB parsers (BookParser ABC)
+│   ├── llm/                      # LLM clients (LLMClient ABC) and versioned prompts
+│   ├── tts/                      # TTS providers (TTSProvider ABC) and voice mapper
+│   ├── audio/                    # Audio assembly, volume normalization (FFmpeg/pydub)
+│   ├── pipeline.py               # Core pipeline orchestrator
+│   └── persistence.py            # SQLite state: character rosters, voice mapping, cache
+├── gui/                          # Vue 3 + Tailwind CSS desktop frontend
+├── src-tauri/                    # Tauri v2 desktop application wrapper
+├── tests/                        # Automated test suite (342 unit & integration tests)
 ├── eval/
-│   ├── gold_standard/            # Hand-labeled dialog attribution (immutable)
-│   └── benchmark.py              # Accuracy scorer
+│   ├── gold_standard/            # Hand-labeled dialogue ground truth datasets
+│   └── benchmark.py              # Attribution accuracy benchmark runner
 ├── data/
-│   ├── books/                    # Sample books (gitignored — public domain only)
-│   └── voices/                   # Regional voice metadata pools (en_US, es_MX, es_CO, es_ES)
+│   ├── books/                    # Public-domain sample books (gitignored)
+│   └── voices/                   # Regional voice catalog metadata (en_US, es_MX, es_CO, es_ES)
 ├── tools/
-│   ├── guards.py                 # Security & supply-chain guards run by CI
-│   └── lint_skills.py            # Prompt/skill linting
-├── .github/workflows/            # CI, benchmark, desktop releases
-└── docs/                         # Provider and prompt-engineering guides
+│   ├── guards.py                 # Supply-chain and data hygiene contract guards
+│   └── lint_skills.py            # Prompt and skills linter
+└── docs/                         # Documentation site and provider guides
 ```
 
----
+## Architecture & Pipeline
 
-## ⚙️ How It Works (Step-by-Step)
+The `generate` command coordinates six decoupled stages:
 
-The `generate` command runs the pipeline:
+1. **Ingest & Parse:** Extracts chapters and paragraphs from `.epub` or `.txt`, stripping Project Gutenberg headers and footers.
+2. **Character Extraction:** Analyzes opening chapters to extract canonical character IDs, aliases, and demographic/tone hints.
+3. **Voice Mapping:** Selects suitable voice models from regional pools based on gender, age, and tone similarity, with deterministic hash tie-breaking.
+4. **Dialogue Attribution:** Processes sliding text windows (~1,500 words) to assign each sentence to a character or the Narrator, along with emotional context.
+5. **TTS Synthesis:** Synthesizes individual lines with emotion-informed prosody parameters, utilizing persistent disk and memory caches.
+6. **Mastering & Assembly:** Normalizes loudness, injects configurable pacing gaps, and packages the result into `.mp3` or chapter-tagged `.m4b`.
 
-1. **Parse** — TXT/EPUB → paragraphs with chapter and line metadata; Project Gutenberg headers/footers stripped.
-2. **Extract characters** *(LLM)* — the LLM returns canonical IDs (`Character_A`, …), aliases, tone, and gender/age hints, validated against a Pydantic schema.
-3. **Assign voices** — voices are chosen from a **tone-aware pool**: filtered by gender/age first, scored by tone similarity, with a deterministic hash tie-break so the same book always maps to the same voices.
-4. **Attribute dialog** *(LLM, chunked)* — every line gets a speaker + emotion; chunks of ~1500 words with a 5-paragraph sliding window resolve ambiguous attribution; results validated by Pydantic (drop-and-retry on schema mismatch).
-5. **Synthesize** *(TTS, async)* — per-line speech with emotion→prosody mapping (rate/pitch/pause), local disk cache keyed by `(text, voice, emotion)`.
-6. **Assemble** — clips joined with configurable silence gaps, volume normalized, exported as MP3 or M4B with chapter metadata.
+## Extension Model
 
----
-
-## 🧩 Extension Model: Adding a New Provider
-
-External dependencies are pluggable by design, with zero code changes — just config:
+Providers are decoupled through abstract interfaces:
 
 ```yaml
 # config.yaml
@@ -181,58 +160,32 @@ tts:
   locale: en_US
 ```
 
-- **`LLMClient`** — `ollama_client` (offline, primary), `gemini_client` (opt-in cloud), `openrouter_client` (fallback), `nim_client` (NVIDIA NIM).
-- **`TTSProvider`** — `piper_provider` (offline, primary), `edge_provider` (opt-in cloud).
-- **`BookParser`** — `text_parser`, `epub_parser`.
+- **`LLMClient`:** `ollama_client` (local default), `gemini_client` (cloud), `openrouter_client` (cloud), `nim_client` (NVIDIA NIM).
+- **`TTSProvider`:** `piper_provider` (local neural default), `edge_provider` (cloud).
+- **`BookParser`:** `text_parser`, `epub_parser`.
 
----
+To add a new provider, subclass `LLMClient` or `TTSProvider`, implement the abstract methods, and register the provider in the corresponding module factory. See [docs/guides/adding-a-provider.md](docs/guides/adding-a-provider.md).
 
-## 🤝 Contributing & Community
+## Contributing
 
-Thinking about a PR? Read [CONTRIBUTING.md](CONTRIBUTING.md) first — it states the one rule everything follows from, what gets merged, and why. All contributions are governed by our [Code of Conduct](CODE_OF_CONDUCT.md).
+Please review [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before submitting pull requests.
 
-- **New Contributors:** Check our [`good first issue`](https://github.com/oscarbol09/audiobard/labels/good%20first%20issue) label for onboarding tasks.
-- **Provider Proposals:** Open an RFC for new TTS engines (Kokoro, Coqui) or LLM clients using our [Provider Proposal Template](.github/ISSUE_TEMPLATE/provider_proposal.md).
+Verification gate required for all contributions:
 
----
+```bash
+ruff check src tests tools
+mypy src/audiobard
+pytest --cov=audiobard --cov-fail-under=90 -m "not integration"
+python tools/guards.py
+```
 
-## 🏆 Contributors
+## Ethics & Legal Disclaimer
 
-Thank you to all the wonderful developers who contribute to AudioBard!
+AudioBard is designed for public-domain works (e.g. Project Gutenberg, LibriVox, Standard Ebooks). Users are responsible for verifying the copyright status of any input material.
 
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- ALL-CONTRIBUTORS-LIST:END -->
+- Unauthorized voice cloning, DRM circumvention, and bulk generation for spam are prohibited.
+- This software is distributed under the MIT License — see [LICENSE](LICENSE).
 
----
+## License
 
-## ⭐ Support & Star History
-
-If you love the idea of free, local-first, multi-voice audiobooks, please consider starring the repository! It helps more book lovers discover the project.
-
-<p align="center">
-  <a href="https://github.com/oscarbol09/audiobard">
-    <img src="https://img.shields.io/github/stars/oscarbol09/audiobard?style=for-the-badge&logo=github&color=a371f7" alt="Star on GitHub">
-  </a>
-</p>
-
----
-
-## 💖 Sponsorship
-
-- 💖 **[Sponsor on GitHub Sponsors](https://github.com/sponsors/oscarbol09)**
-- ☕ **[Support on Ko-Fi](https://ko-fi.com/oscarmb09)**
-
----
-
-## ⚖️ Ethics, Copyright & Legal Disclaimer
-
-**AudioBard is designed exclusively for public-domain works** (e.g., Project Gutenberg, LibriVox, Standard Ebooks). The user is solely responsible for verifying the copyright status of any text before processing it.
-
-- Voice cloning without consent, DRM circumvention, and bulk spam generation are strictly prohibited.
-- The tool is provided "as is" under the MIT License — see [LICENSE](LICENSE).
-
----
-
-## 📄 License
-
-MIT — see [LICENSE](LICENSE). The gold standard dataset (`eval/gold_standard/`) is CC0.
+MIT License — see [LICENSE](LICENSE). Gold standard datasets in `eval/gold_standard/` are dedicated to the public domain under CC0.

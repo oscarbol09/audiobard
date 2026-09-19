@@ -1,10 +1,10 @@
-# Quickstart ⚡
+# Quickstart
 
-Get started with AudioBard in less than 5 minutes using either the GUI or the CLI.
+Get started with AudioBard using either the Desktop GUI or the CLI.
 
 ---
 
-## 🖥️ Method A: Desktop GUI
+## Desktop GUI
 
 1. Launch AudioBard:
    ```bash
@@ -17,7 +17,7 @@ Get started with AudioBard in less than 5 minutes using either the GUI or the CL
 
 ---
 
-## 💻 Method B: Command Line Interface (CLI)
+## Command Line Interface (CLI)
 
 ### 1. Basic Generation
 Convert an EPUB or TXT file into a multi-voice audiobook:

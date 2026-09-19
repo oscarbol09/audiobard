@@ -74,14 +74,14 @@
   <g transform="translate(330, 75)">
     <!-- Pill Badge -->
     <g transform="translate(0, 0)">
-      <rect width="240" height="26" rx="13" fill="#8957e5" fill-opacity="0.15" stroke="#a371f7" stroke-width="1.2" />
+      <rect width="250" height="26" rx="13" fill="#8957e5" fill-opacity="0.15" stroke="#a371f7" stroke-width="1.2" />
       <circle cx="14" cy="13" r="5" fill="#38bdf8" />
-      <text x="26" y="17" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#d2a8ff" letter-spacing="0.5">AI-POWERED AUDIOBOOKS</text>
+      <text x="26" y="17" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#d2a8ff" letter-spacing="0.5">OPEN-SOURCE AUDIOBOOK ENGINE</text>
     </g>
 
     <!-- Main Title -->
     <text x="0" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="52" font-weight="800" fill="url(#abTextGrad)" letter-spacing="-1">
-      AudioBard <tspan fill="#a371f7">🎙️</tspan><tspan fill="#38bdf8">📚</tspan>
+      AudioBard
     </text>
 
     <!-- Subtitle -->
@@ -93,19 +93,19 @@
     <g transform="translate(0, 140)">
       <g transform="translate(0, 0)">
         <rect width="160" height="30" rx="8" fill="#21262d" stroke="#30363d" stroke-width="1" />
-        <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#7ee787">🖥️ Desktop App + CLI</text>
+        <text x="16" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#7ee787">Desktop App + CLI</text>
       </g>
       <g transform="translate(170, 0)">
         <rect width="175" height="30" rx="8" fill="#21262d" stroke="#30363d" stroke-width="1" />
-        <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#79c0ff">📴 100% Offline (Ollama)</text>
+        <text x="16" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#79c0ff">Offline Mode (Ollama)</text>
       </g>
       <g transform="translate(355, 0)">
-        <rect width="170" height="30" rx="8" fill="#21262d" stroke="#30363d" stroke-width="1" />
-        <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#d2a8ff">🧠 Neural Piper / Edge</text>
+        <rect width="180" height="30" rx="8" fill="#21262d" stroke="#30363d" stroke-width="1" />
+        <text x="16" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#d2a8ff">Neural TTS (Piper/Edge)</text>
       </g>
-      <g transform="translate(535, 0)">
-        <rect width="135" height="30" rx="8" fill="#21262d" stroke="#30363d" stroke-width="1" />
-        <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#ffa657">🔑 Cloud BYOK</text>
+      <g transform="translate(545, 0)">
+        <rect width="155" height="30" rx="8" fill="#21262d" stroke="#30363d" stroke-width="1" />
+        <text x="16" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#ffa657">Cloud BYOK Support</text>
       </g>
     </g>
   </g>

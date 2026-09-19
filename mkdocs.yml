@@ -1,5 +1,5 @@
-site_name: AudioBard 🎙️
-site_description: 100% Local & Multi-Voice Audiobook Generator using AI Character Casting.
+site_name: AudioBard
+site_description: Open-source multi-voice audiobook generator from EPUB and TXT books.
 site_author: oscarbol09
 site_url: https://oscarbol09.github.io/audiobard/
 repo_url: https://github.com/oscarbol09/audiobard

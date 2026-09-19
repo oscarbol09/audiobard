@@ -1,10 +1,10 @@
-# Installation Guide 📦
+# Installation Guide
 
 AudioBard can be used as a Python CLI tool or as a native Desktop GUI application.
 
 ---
 
-## 📋 Prerequisites
+## Prerequisites
 
 Before installing AudioBard, ensure you have the following tools installed on your operating system:
 
@@ -18,7 +18,7 @@ Before installing AudioBard, ensure you have the following tools installed on yo
 
 ---
 
-## 🐍 CLI & Python Package Setup
+## CLI & Python Package Setup
 
 ### 1. Clone the repository
 ```bash
@@ -46,7 +46,7 @@ pip install -e ".[dev,llm-gemini,llm-ollama,tts-piper]"
 
 ---
 
-## 🩺 Verifying Your Environment
+## Verifying Your Environment
 
 AudioBard includes a built-in diagnostic tool that tests your system dependencies, audio codecs, model accessibility, and cache status:
 
@@ -54,11 +54,9 @@ AudioBard includes a built-in diagnostic tool that tests your system dependencie
 audiobard doctor
 ```
 
-Output should show green checkmarks for Python, FFmpeg, Ollama connectivity, and available Piper models.
-
 ---
 
-## 🖥️ Desktop GUI Setup (Tauri v2 + Vue 3)
+## Desktop GUI Setup (Tauri v2 + Vue 3)
 
 To run or build the desktop app locally:
 

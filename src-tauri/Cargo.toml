@@ -1,7 +1,7 @@
 [package]
 name = "audiobard"
 version = "0.2.0"
-description = "AudioBard - AI-powered audiobook generator with multi-character voice synthesis"
+description = "AudioBard - Multi-voice audiobook generator with character voice assignment"
 authors = ["Oscar Bol"]
 license = "MIT"
 repository = "https://github.com/oscarbol09/audiobard"

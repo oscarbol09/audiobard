@@ -38,23 +38,21 @@
   <!-- Step 1: Input -->
   <g transform="translate(35, 75)">
     <rect width="145" height="135" rx="10" fill="#21262d" stroke="#38bdf8" stroke-width="2" />
-    <text x="72" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#38bdf8" text-anchor="middle">1. Ingest</text>
-    <text x="72" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" text-anchor="middle">📖</text>
-    <text x="72" y="90" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#f0f6fc" text-anchor="middle">EPUB / TXT</text>
-    <text x="72" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#8b949e" text-anchor="middle">Chapters &amp; Structure</text>
+    <text x="72" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#38bdf8" text-anchor="middle">1. Ingest</text>
+    <text x="72" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#f0f6fc" text-anchor="middle">EPUB / TXT</text>
+    <text x="72" y="105" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#8b949e" text-anchor="middle">Structure &amp; Parsing</text>
   </g>
 
   <!-- Arrow 1 -->
-  <path d="M185, 142 L205, 142" stroke="#58a6ff" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow)" />
+  <path d="M185, 142 L205, 142" stroke="#58a6ff" stroke-width="3" stroke-linecap="round" />
   <polygon points="212,142 202,137 202,147" fill="#58a6ff" />
 
   <!-- Step 2: Character Detection (LLM) -->
   <g transform="translate(215, 75)">
     <rect width="145" height="135" rx="10" fill="#21262d" stroke="#a371f7" stroke-width="2" />
-    <text x="72" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#a371f7" text-anchor="middle">2. Character LLM</text>
-    <text x="72" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" text-anchor="middle">🎭</text>
-    <text x="72" y="90" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#f0f6fc" text-anchor="middle">Ollama / Gemini</text>
-    <text x="72" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#8b949e" text-anchor="middle">Cast &amp; Tone Extraction</text>
+    <text x="72" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#a371f7" text-anchor="middle">2. Characters</text>
+    <text x="72" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#f0f6fc" text-anchor="middle">LLM Roster</text>
+    <text x="72" y="105" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#8b949e" text-anchor="middle">Cast &amp; Tone Extraction</text>
   </g>
 
   <!-- Arrow 2 -->
@@ -63,10 +61,9 @@
   <!-- Step 3: Dialog Attribution -->
   <g transform="translate(395, 75)">
     <rect width="145" height="135" rx="10" fill="#21262d" stroke="#f59e0b" stroke-width="2" />
-    <text x="72" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#f59e0b" text-anchor="middle">3. Attribution</text>
-    <text x="72" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" text-anchor="middle">💬</text>
-    <text x="72" y="90" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#f0f6fc" text-anchor="middle">Who Says What?</text>
-    <text x="72" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#8b949e" text-anchor="middle">Emotion &amp; Context</text>
+    <text x="72" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#f59e0b" text-anchor="middle">3. Attribution</text>
+    <text x="72" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#f0f6fc" text-anchor="middle">Dialogue Map</text>
+    <text x="72" y="105" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#8b949e" text-anchor="middle">Emotion &amp; Context</text>
   </g>
 
   <!-- Arrow 3 -->
@@ -75,10 +72,9 @@
   <!-- Step 4: Neural TTS -->
   <g transform="translate(575, 75)">
     <rect width="145" height="135" rx="10" fill="#21262d" stroke="#34d399" stroke-width="2" />
-    <text x="72" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#34d399" text-anchor="middle">4. Neural Voice</text>
-    <text x="72" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" text-anchor="middle">🎙️</text>
-    <text x="72" y="90" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#f0f6fc" text-anchor="middle">Piper / Edge TTS</text>
-    <text x="72" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#8b949e" text-anchor="middle">Distinct Voice per Cast</text>
+    <text x="72" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#34d399" text-anchor="middle">4. Synthesis</text>
+    <text x="72" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#f0f6fc" text-anchor="middle">Neural TTS</text>
+    <text x="72" y="105" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#8b949e" text-anchor="middle">Piper / Edge Engine</text>
   </g>
 
   <!-- Arrow 4 -->
@@ -87,10 +83,9 @@
   <!-- Step 5: Output Audiobook -->
   <g transform="translate(755, 75)">
     <rect width="130" height="135" rx="10" fill="#21262d" stroke="#ec4899" stroke-width="2" />
-    <text x="65" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#ec4899" text-anchor="middle">5. Assembly</text>
-    <text x="65" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" text-anchor="middle">🎧</text>
-    <text x="65" y="90" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#f0f6fc" text-anchor="middle">MP3 / M4B</text>
-    <text x="65" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#8b949e" text-anchor="middle">Chapters &amp; ID3 Tags</text>
+    <text x="65" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#ec4899" text-anchor="middle">5. Assembly</text>
+    <text x="65" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#f0f6fc" text-anchor="middle">MP3 / M4B</text>
+    <text x="65" y="105" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#8b949e" text-anchor="middle">Chapters &amp; ID3 Tags</text>
   </g>
 
   <!-- Bottom Details Bar -->
@@ -98,11 +93,11 @@
     <rect width="850" height="90" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5" />
     
     <g transform="translate(25, 25)">
-      <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#58a6ff">📴 100% Offline Mode:</text>
-      <text x="175" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#c9d1d9">Ollama (qwen2.5 / llama3.3) + Piper TTS (fast, CPU-friendly neural voices). Zero data leaves your machine.</text>
+      <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#58a6ff">Offline Mode:</text>
+      <text x="110" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#c9d1d9">Ollama (Qwen / Llama) + Piper TTS (fast, CPU-friendly neural voices). Zero telemetry.</text>
 
-      <text x="0" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#d2a8ff">🔑 Cloud BYOK Mode:</text>
-      <text x="175" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#c9d1d9">NVIDIA NIM, OpenRouter, Google Gemini + Edge TTS. Free tiers, no local GPU needed.</text>
+      <text x="0" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#d2a8ff">Cloud BYOK Mode:</text>
+      <text x="140" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#c9d1d9">NVIDIA NIM, OpenRouter, Google Gemini + Edge TTS. Free tiers, no local GPU required.</text>
     </g>
   </g>
 </svg>

@@ -1,7 +1,7 @@
-# Product Hunt Launch Kit 🚀
+# Product Hunt Launch Kit
 
 > **Target Platform:** [Product Hunt](https://www.producthunt.com/)  
-> **Category:** Artificial Intelligence, Audio, Open Source, Developer Tools
+> **Category:** Audio, Open Source, Developer Tools
 
 ---
 
@@ -10,9 +10,9 @@
 * **Product Name:**  
   `AudioBard`
 * **Tagline:**  
-  `Open-source AI multi-voice audiobook generator (Desktop & CLI)`
+  `Open-source multi-voice audiobook generator (Desktop GUI & CLI)`
 * **Topics:**  
-  `Open Source`, `Artificial Intelligence`, `Audio`, `Books`, `Tauri`
+  `Open Source`, `Audio`, `Books`, `Tauri`, `Python`
 * **Website / Link:**  
   `https://github.com/oscarbol09/audiobard`
 
@@ -29,20 +29,20 @@ Turn public-domain EPUB and TXT books into rich audiobooks with distinct, tone-a
 ## 3. Maker's First Comment
 
 ```text
-Hey Product Hunt! 👋
+Hi Product Hunt!
 
-I'm Oscar, the creator of AudioBard 🎙️📚.
+I'm Oscar, creator of AudioBard.
 
-Standard audiobook generators read entire books in a single robotic monotone voice. Paid voice platforms charge $50+/mo and require uploading your private files to the cloud.
+Standard audiobook generators read entire books in a single robotic monotone voice. Commercial platforms charge steep subscription fees and require uploading your files to third-party servers.
 
-I built AudioBard to bring full cast-narrated audiobooks to everyone:
-✨ Ingests EPUB and TXT files with chapter detection
-✨ Uses LLMs to detect characters, traits, and dialogue attribution
-✨ Assigns distinct neural voices to each character
-✨ 100% Offline mode with Ollama + Piper TTS (runs locally on CPU/GPU)
-✨ Cloud BYOK mode (NVIDIA NIM, OpenRouter, Google Gemini + Edge TTS)
-✨ Native Tauri v2 Desktop App (drag-and-drop, Spanish/English i18n) + CLI
-✨ MIT Licensed, 100% Free & Open-Source
+I built AudioBard to bring multi-voice cast narration to open-source literature:
+- Ingests EPUB and TXT files with chapter detection
+- Uses language models for character casting and dialogue attribution
+- Assigns distinct neural voices to each character
+- 100% Offline mode with Ollama + Piper TTS (runs locally on CPU/GPU)
+- Cloud BYOK mode (NVIDIA NIM, OpenRouter, Google Gemini + Edge TTS)
+- Native Tauri v2 Desktop App (drag-and-drop, Spanish/English i18n) + CLI
+- MIT Licensed and fully open-source
 
-Check out the repo at https://github.com/oscarbol09/audiobard — would love to hear your thoughts and feature requests!
+Check out the repository at https://github.com/oscarbol09/audiobard — feedback and suggestions are welcome!
 ```

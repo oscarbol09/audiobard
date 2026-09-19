@@ -1,27 +1,27 @@
-# Overview & Architecture 🏗️
+# Overview & Architecture
 
-AudioBard is designed with an anti-fragile, local-first architecture that treats privacy, deterministic output, and audio quality as first-class citizens.
+AudioBard is designed with a modular, local-first architecture that prioritizes privacy, deterministic output, and audio quality.
 
 ---
 
-## 🔄 The 6-Stage Pipeline
+## The 6-Stage Pipeline
 
 When you process a book through AudioBard (either via the Desktop GUI or the CLI `generate` command), it passes through six decoupled stages:
 
 ```mermaid
 flowchart TD
-    A["📖 Book Input (.epub / .txt)"] --> B["🧹 Parser & Chapter Splitter"]
-    B --> C["🎭 Character Extraction (LLM)"]
-    C --> D["🎨 Tone-Aware Voice Casting (Deterministic Hash)"]
-    D --> E["💬 Dialogue Attribution & Emotion Tagging (LLM)"]
-    E --> F["🎙️ Async Neural TTS Synthesis (Piper / Edge)"]
-    F --> G["🎛️ Audio Normalization & Assembly (FFmpeg / pydub)"]
-    G --> H["🎧 Final Audiobook (.mp3 / .m4b)"]
+    A["Book Input (.epub / .txt)"] --> B["Parser & Chapter Splitter"]
+    B --> C["Character Extraction (LLM)"]
+    C --> D["Tone-Aware Voice Casting (Deterministic Hash)"]
+    D --> E["Dialogue Attribution & Emotion Tagging (LLM)"]
+    E --> F["Async Neural TTS Synthesis (Piper / Edge)"]
+    F --> G["Audio Normalization & Assembly (FFmpeg / pydub)"]
+    G --> H["Final Audiobook (.mp3 / .m4b)"]
 ```
 
 ---
 
-## 🧩 Stage-by-Stage Breakdown
+## Stage-by-Stage Breakdown
 
 ### 1. Ingestion & Pre-Processing
 - Accepts `.epub` and `.txt` files.

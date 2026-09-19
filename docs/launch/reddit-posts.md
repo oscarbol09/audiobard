@@ -1,10 +1,10 @@
-# Reddit Launch Strategy & Copy Kit 🤖
+# Reddit Launch Strategy & Copy Kit
 
 > **Target Subreddits:** `r/LocalLLaMA`, `r/selfhosted`, `r/audiobooks`, `r/Python`, `r/tauri`
 
 ---
 
-## 1. r/LocalLLaMA (Local AI & Open Source LLMs)
+## 1. r/LocalLLaMA (Local Models & Open Source)
 
 * **Post Type:** Text Post
 * **Title:**  
@@ -14,9 +14,9 @@
 ```text
 Hey r/LocalLLaMA!
 
-I wanted to share an open-source project I've been building that combines local LLMs with neural TTS to solve the "single-voice monotone audiobook" problem:
+I wanted to share an open-source project I've been building that combines local LLMs with neural TTS to solve the single-voice monotone audiobook problem:
 
-**AudioBard** 🎙️📚: https://github.com/oscarbol09/audiobard
+**AudioBard**: https://github.com/oscarbol09/audiobard
 
 ### How it works with local models:
 1. **EPUB/TXT Ingestion:** Extracts paragraphs and clean dialogue structures.
@@ -24,7 +24,8 @@ I wanted to share an open-source project I've been building that combines local 
 3. **Voice Casting:** Automatically matches character profiles (gender, age, tone) to available Piper neural TTS voices.
 4. **Offline Synthesis:** Uses Piper TTS on CPU to synthesize each line and assemble full MP3/M4B audiobooks with chapter tags.
 
-It features a native **Desktop GUI** built with Tauri v2 + Vue 3 (drag-and-drop book upload, library player, Spanish 🇪🇸 / English 🇺🇸 i18n, BYOK cloud fallback if on a laptop without GPU) and a full **CLI**.
+It features a native **Desktop GUI** built with Tauri v2 + Vue 3 (drag-and-drop book upload, library player, Spanish / English localization, BYOK cloud fallback if on a laptop without GPU) and a full **CLI**.
+
 
 100% free, MIT licensed, zero telemetry.
 

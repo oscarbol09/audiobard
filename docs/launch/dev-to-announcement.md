@@ -1,23 +1,23 @@
-# DEV.to / Hashnode Announcement Article 📝
+# DEV.to / Hashnode Announcement Article
 
 > **Target Platforms:** [DEV.to](https://dev.to) & [Hashnode](https://hashnode.com)  
-> **Tags:** `ai`, `python`, `tauri`, `opensource`, `audio`
+> **Tags:** `python`, `tauri`, `opensource`, `audio`
 
 ---
 
 ```markdown
 ---
-title: "How I Built an Open-Source Multi-Voice Audiobook Generator with Ollama, Piper, and Tauri 🎙️📚"
+title: "How I Built an Open-Source Multi-Voice Audiobook Generator with Ollama, Piper, and Tauri"
 published: true
 description: "Turn EPUB and TXT books into full multi-voice audiobooks with distinct character voices. 100% offline, free, and open-source."
-tags: ai, python, tauri, opensource
+tags: python, tauri, opensource, audio
 cover_image: https://raw.githubusercontent.com/oscarbol09/audiobard/main/assets/banner.svg
 canonical_url: https://github.com/oscarbol09/audiobard
 ---
 
 Reading classics is one of life's greatest pleasures, but finding hours of quiet time to sit with a physical book is tough. While audiobooks are wonderful, standard TTS readers (like Calibre's read-aloud or basic speech synthesizers) suffer from one fatal flaw: **they narrate the entire book in a single, monotonous voice.**
 
-Commercial voice cloning platforms like ElevenLabs can generate multi-voice audio, but they are closed-source, proprietary, and charge prohibitive subscription fees ($50–$100+/mo for a single long book).
+Commercial voice platforms can generate multi-voice audio, but they are closed-source, proprietary, and charge prohibitive subscription fees.
 
 That's why I built **AudioBard** — an open-source, local-first multi-voice audiobook generator.
 
@@ -48,7 +48,7 @@ Synthesizes speech per line and uses `ffmpeg` / `pydub` to stitch the final MP3 
 
 ---
 
-## 📴 100% Offline with Ollama & Piper TTS
+## Offline with Ollama & Piper TTS
 
 One of my core design goals was **zero cloud dependency**:
 - **Local LLM:** Works with [Ollama](https://ollama.com) running `qwen2.5:7b` or `llama3.3:70b`.
@@ -58,20 +58,18 @@ If you are on a lightweight laptop without a dedicated GPU, AudioBard also suppo
 
 ---
 
-## 🖥️ Native Desktop GUI (Tauri v2 + Vue 3)
+## Native Desktop GUI (Tauri v2 + Vue 3)
 
-AudioBard includes a modern desktop application built with Tauri v2 and Vue 3:
-- 📄 Drag & Drop EPUB upload
-- 🌐 Instant English / Spanish language switcher
-- ⚙️ Settings modal for BYOK API keys and voice selection
-- 📚 Built-in audiobook player library
+AudioBard includes a desktop application built with Tauri v2 and Vue 3:
+- Drag & Drop EPUB upload
+- Instant English / Spanish language switcher
+- Settings modal for BYOK API keys and voice selection
+- Built-in audiobook player library
 
 ---
 
 ## Try It Out
 
-- ⭐ **GitHub Repository:** [github.com/oscarbol09/audiobard](https://github.com/oscarbol09/audiobard)
-- 📄 **License:** MIT (100% Free & Open-Source)
-
-If you find this project exciting or want to help add more voice engines, drop a ⭐ on GitHub and let me know your thoughts in the comments!
+- **GitHub Repository:** [github.com/oscarbol09/audiobard](https://github.com/oscarbol09/audiobard)
+- **License:** MIT (Free & Open-Source)
 ```
