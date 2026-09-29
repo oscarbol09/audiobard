@@ -6,11 +6,13 @@ import asyncio
 import io
 import logging
 import os
+import re
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydub import AudioSegment
 
 from audiobard.models import BookMetadata, Emotion
@@ -91,12 +93,24 @@ def find_ffmpeg() -> str | None:
 
 
 class AudioClip(BaseModel):
-    """An individual audio clip synthesized by the TTS engine."""
+    """An individual audio clip synthesized by the TTS engine.
 
-    mp3_bytes: bytes
+    A clip carries either its encoded bytes or, for clips already cached on
+    disk, the path to that file. Concatenation accepts both, so a long book
+    can be assembled without holding every clip in memory at the same time.
+    """
+
+    mp3_bytes: bytes = b""
     speaker: str
     emotion: Emotion
     duration_ms: int
+    path: Path | None = None
+
+    @model_validator(mode="after")
+    def _require_audio_source(self) -> AudioClip:
+        if not self.mp3_bytes and self.path is None:
+            raise ValueError("AudioClip needs mp3_bytes or path")
+        return self
 
 
 class ChapterMarker(BaseModel):
@@ -190,6 +204,132 @@ def _embed_mp3_tags(path: Path, metadata: BookMetadata) -> None:
         logger.warning("Could not embed MP3 tags in %s: %s", path, exc)
 
 
+_STREAM_DEFAULT_RATE = 24000
+_STREAM_DEFAULT_CHANNELS = 1
+_STREAM_MAX_CHANNELS = 2
+
+_ASTATS_OVERALL_RMS = re.compile(r"RMS level dB:\s*(-?inf|[-\d.]+)")
+_VOLUMEDETECT_MEAN = re.compile(r"mean_volume:\s*(-?inf|[-\d.]+) dB")
+
+
+def _escape_concat_path(path: Path) -> str:
+    """Quote a path for an FFmpeg concat demuxer list file."""
+    posix = Path(path).resolve().as_posix()
+    return posix.replace("'", "'\\''")
+
+
+def _clip_stream_format(clip: AudioClip) -> tuple[int, int] | None:
+    """Read a clip's sample rate and channel count from its header, undecoded."""
+    try:
+        from mutagen.mp3 import MP3
+    except ImportError:  # pragma: no cover - mutagen is a dependency
+        return None
+
+    try:
+        if clip.path is not None and clip.path.is_file():
+            info = MP3(str(clip.path)).info
+        else:
+            info = MP3(io.BytesIO(clip.mp3_bytes)).info
+    except Exception:
+        return None
+
+    rate = int(getattr(info, "sample_rate", 0) or 0)
+    channels = int(getattr(info, "channels", 0) or 0)
+    if rate <= 0 or channels <= 0:
+        return None
+    return rate, channels
+
+
+def _stream_target_format(clips: list[AudioClip]) -> tuple[int, int]:
+    """Pick the shared format the way ``AudioSegment._sync`` does: the maxima."""
+    formats = [fmt for clip in clips if (fmt := _clip_stream_format(clip)) is not None]
+    rate = max((fmt[0] for fmt in formats), default=_STREAM_DEFAULT_RATE)
+    channels = max((fmt[1] for fmt in formats), default=_STREAM_DEFAULT_CHANNELS)
+    return rate, min(channels, _STREAM_MAX_CHANNELS)
+
+
+def _parse_loudness(stderr: str) -> float | None:
+    """Overall level of a measurement run in dBFS, or None for digital silence."""
+    overall = stderr.rsplit("Overall", 1)[-1]
+    match = _ASTATS_OVERALL_RMS.search(overall) or _VOLUMEDETECT_MEAN.search(stderr)
+    if match is None:
+        return None
+    token = match.group(1)
+    if "inf" in token:
+        return None
+    return float(token)
+
+
+def _measure_loudness(
+    ffmpeg_bin: str, list_file: Path, rate: int, channels: int
+) -> float | None:
+    """Measure the concatenation's level in one bounded-memory FFmpeg pass."""
+    args = [
+        ffmpeg_bin,
+        "-hide_banner",
+        "-nostdin",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        str(list_file),
+        "-ar",
+        str(rate),
+        "-ac",
+        str(channels),
+        "-af",
+        "astats=measure_overall=RMS_level",
+        "-f",
+        "null",
+        "-",
+    ]
+    completed = subprocess.run(args, capture_output=True, check=False)
+    if completed.returncode != 0:
+        stderr = completed.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"FFmpeg loudness measurement failed: {stderr}")
+    return _parse_loudness(completed.stderr.decode("utf-8", errors="replace"))
+
+
+def _write_silence(
+    ffmpeg_bin: str, path: Path, pause_ms: int, rate: int, channels: int
+) -> None:
+    """Render a *pause_ms* long silent MP3 with FFmpeg."""
+    layout = "stereo" if channels > 1 else "mono"
+    args = [
+        ffmpeg_bin,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-nostdin",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        f"anullsrc=r={rate}:cl={layout}",
+        "-t",
+        f"{pause_ms / 1000:.3f}",
+        "-c:a",
+        "libmp3lame",
+        "-q:a",
+        "9",
+        str(path),
+    ]
+    completed = subprocess.run(args, capture_output=True, check=False)
+    if completed.returncode != 0 or not path.exists():
+        stderr = completed.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"FFmpeg silence generation failed: {stderr}")
+
+
+def _materialize_clip(clip: AudioClip, workdir: Path, index: int) -> Path:
+    """Return the file FFmpeg should read, writing bytes out only when needed."""
+    if clip.path is not None and clip.path.is_file():
+        return clip.path
+    clip_path = workdir / f"clip_{index:06d}.mp3"
+    clip_path.write_bytes(clip.mp3_bytes)
+    return clip_path
+
+
 class AudioProcessor:
     """Handles audio concatenation, normalization, and export to formats."""
 
@@ -197,16 +337,154 @@ class AudioProcessor:
         self.target_dbfs = target_dbfs
 
     async def concatenate(self, clips: list[AudioClip]) -> bytes:
-        """Concatenate clips, insert emotion-based silence gaps, and normalize to target dBFS."""
+        """Concatenate clips, insert emotion-based silence gaps, and normalize to target dBFS.
+
+        The join happens inside FFmpeg, so no uncompressed PCM is ever built in
+        Python and memory no longer grows with the length of the book.
+        """
         return await asyncio.to_thread(self._concatenate_sync, clips)
 
+    async def concatenate_to_file(self, clips: list[AudioClip], path: Path) -> None:
+        """Stream the normalized concatenation straight into *path*.
+
+        Same audio as :meth:`concatenate`, but the finished file is written by
+        FFmpeg, so assembling a book no longer holds the clips, the PCM, and the
+        encoded result in memory at once. The write is staged next to *path* and
+        moved into place, so a locked destination still raises ``PermissionError``
+        and a failed run never leaves a partial file behind.
+        """
+        await asyncio.to_thread(self._concatenate_to_path_sync, clips, path)
+
+    def _concatenate_to_path_sync(self, clips: list[AudioClip], path: Path) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        staging = path.with_name(f"{path.name}.part")
+        try:
+            ffmpeg_bin = find_ffmpeg()
+            streamed = False
+            if ffmpeg_bin:
+                try:
+                    self._stream_concatenate(ffmpeg_bin, clips, staging)
+                    streamed = True
+                except Exception as exc:
+                    logger.warning(
+                        "Streaming concatenation failed (%s); using the in-memory join",
+                        exc,
+                    )
+            if not streamed:
+                staging.write_bytes(self._concatenate_in_memory(clips))
+            staging.replace(path)
+        finally:
+            staging.unlink(missing_ok=True)
+
+    def _stream_concatenate(
+        self, ffmpeg_bin: str, clips: list[AudioClip], destination: Path
+    ) -> None:
+        """Join *clips* into *destination* through the FFmpeg concat demuxer."""
+        if not clips:
+            destination.write_bytes(b"")
+            return
+
+        rate, channels = _stream_target_format(clips)
+        with tempfile.TemporaryDirectory(prefix="audiobard-concat-") as tmpdir:
+            workdir = Path(tmpdir)
+            entries: list[Path] = []
+            silences: dict[int, Path] = {}
+            for index, clip in enumerate(clips):
+                entries.append(_materialize_clip(clip, workdir, index))
+                prosody = EMOTION_PROSODY.get(clip.emotion, {"pause_after_ms": 250})
+                pause_ms = int(prosody.get("pause_after_ms") or 0)
+                if pause_ms <= 0:
+                    continue
+                silence = silences.get(pause_ms)
+                if silence is None:
+                    silence = workdir / f"silence_{pause_ms}.mp3"
+                    _write_silence(ffmpeg_bin, silence, pause_ms, rate, channels)
+                    silences[pause_ms] = silence
+                entries.append(silence)
+
+            list_file = workdir / "clips.txt"
+            list_file.write_text(
+                "".join(f"file '{_escape_concat_path(entry)}'\n" for entry in entries),
+                encoding="utf-8",
+                newline="\n",
+            )
+
+            loudness = _measure_loudness(ffmpeg_bin, list_file, rate, channels)
+            gain_db = None if loudness is None else self.target_dbfs - loudness
+            self._encode_concat(
+                ffmpeg_bin, list_file, rate, channels, gain_db, destination
+            )
+
+    def _encode_concat(
+        self,
+        ffmpeg_bin: str,
+        list_file: Path,
+        rate: int,
+        channels: int,
+        gain_db: float | None,
+        destination: Path,
+    ) -> None:
+        args = [
+            ffmpeg_bin,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-nostdin",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(list_file),
+            "-ar",
+            str(rate),
+            "-ac",
+            str(channels),
+        ]
+        if gain_db is not None:
+            args += ["-af", f"volume={gain_db:.2f}dB"]
+        args += ["-f", "mp3", "-c:a", "libmp3lame", "-q:a", "2", str(destination)]
+        completed = subprocess.run(args, capture_output=True, check=False)
+        if completed.returncode != 0:
+            stderr = completed.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(f"FFmpeg concatenation failed: {stderr}")
+
     def _concatenate_sync(self, clips: list[AudioClip]) -> bytes:
+        """Stream the clips through FFmpeg, falling back to the in-memory join."""
+        if not clips:
+            return b""
+
+        ffmpeg_bin = find_ffmpeg()
+        if ffmpeg_bin:
+            try:
+                with tempfile.TemporaryDirectory(prefix="audiobard-concat-") as tmpdir:
+                    streamed = Path(tmpdir) / "combined.mp3"
+                    self._stream_concatenate(ffmpeg_bin, clips, streamed)
+                    return streamed.read_bytes()
+            except Exception as exc:
+                logger.warning(
+                    "Streaming concatenation failed (%s); using the in-memory join", exc
+                )
+        return self._concatenate_in_memory(clips)
+
+    def _concatenate_in_memory(self, clips: list[AudioClip]) -> bytes:
+        """Legacy join: decode every clip to PCM, then re-encode once.
+
+        Kept as the fallback for hosts without FFmpeg; memory scales with the
+        book, so the streaming path above is preferred whenever FFmpeg exists.
+        """
         if not clips:
             return b""
 
         segments: list[AudioSegment] = []
         for clip in clips:
-            segment = AudioSegment.from_file(io.BytesIO(clip.mp3_bytes), format="mp3")
+            if clip.path is not None and clip.path.is_file():
+                segment = AudioSegment.from_file(str(clip.path), format="mp3")
+            else:
+                segment = AudioSegment.from_file(
+                    io.BytesIO(clip.mp3_bytes), format="mp3"
+                )
             segments.append(segment)
 
             # Add silence gap after the clip based on its emotion
@@ -255,9 +533,13 @@ class AudioProcessor:
             path.write_bytes(audio_bytes)
 
         await asyncio.to_thread(write)
+        await self.apply_mp3_tags(path, metadata)
 
-        if metadata is not None and metadata.has_tags():
-            await asyncio.to_thread(_embed_mp3_tags, path, metadata)
+    async def apply_mp3_tags(self, path: Path, metadata: BookMetadata | None) -> None:
+        """Embed *metadata* into an already written MP3 file, when it has tags."""
+        if metadata is None or not metadata.has_tags():
+            return
+        await asyncio.to_thread(_embed_mp3_tags, path, metadata)
 
     async def export_m4b(
         self,
@@ -265,8 +547,9 @@ class AudioProcessor:
         path: Path,
         chapters: list[ChapterMarker],
         metadata: BookMetadata | None = None,
+        audio_path: Path | None = None,
     ) -> None:
-        """Convert MP3 bytes to AAC/M4B and inject chapters and metadata via FFmpeg."""
+        """Convert MP3 bytes (or the MP3 file at *audio_path*) to AAC/M4B via FFmpeg."""
         ffmpeg_bin = find_ffmpeg()
         if not ffmpeg_bin:
             raise FileNotFoundError(FFMPEG_MISSING_MESSAGE)
@@ -279,10 +562,11 @@ class AudioProcessor:
 
             # 1. Convert MP3 to AAC/M4B (64k bitrate is optimal for voice audiobooks)
             logger.info("Converting MP3 to raw M4B audio...")
+            source_args = ["-i", str(audio_path)] if audio_path else ["-i", "pipe:0"]
+            payload = None if audio_path else audio_bytes
             proc = await asyncio.create_subprocess_exec(
                 ffmpeg_bin,
-                "-i",
-                "pipe:0",
+                *source_args,
                 "-c:a",
                 "aac",
                 "-b:a",
@@ -293,7 +577,7 @@ class AudioProcessor:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            _, stderr = await proc.communicate(audio_bytes)
+            _, stderr = await proc.communicate(payload)
             if proc.returncode != 0:
                 err = stderr.decode("utf-8", errors="replace").strip()
                 raise RuntimeError(f"FFmpeg raw M4B export failed: {err}")

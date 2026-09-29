@@ -173,20 +173,27 @@ async def test_pipeline_run(
         output_mp3 = tmp_path / "output.mp3"
         await pipeline.run(book_file, output_mp3, resume=False, dry_run=False)
 
-        # Verify output MP3 was generated
-        export_args = mock_proc.export_mp3.call_args.args
-        assert export_args[:2] == (b"final-audio", output_mp3)
-        assert isinstance(export_args[2], BookMetadata)
-        assert export_args[2].title is None
+        # Verify the assembly streamed into the output file and tagged it
+        concat_args = mock_proc.concatenate_to_file.call_args.args
+        assert concat_args[1] == output_mp3
+        assert concat_args[0], "expected the assembled clips"
+        tag_args = mock_proc.apply_mp3_tags.call_args.args
+        assert tag_args[0] == output_mp3
+        assert isinstance(tag_args[1], BookMetadata)
+        assert tag_args[1].title is None
 
         # The voice pool cannot change within a run, so the provider is
         # asked for it exactly once (issue #10)
         assert mock_tts.list_voices.await_count == 1
 
-        # Test M4B format output branch
+        # Test M4B format output branch: the staged MP3 is handed to FFmpeg
         output_m4b = tmp_path / "output.m4b"
+        mock_proc.reset_mock()
         await pipeline.run(book_file, output_m4b, resume=True, dry_run=False)
         mock_proc.export_m4b.assert_called_once()
+        assert mock_proc.concatenate_to_file.call_args.args[1].suffix == ".mp3"
+        assert mock_proc.export_m4b.call_args.kwargs["audio_path"].suffix == ".mp3"
+        assert mock_proc.apply_mp3_tags.call_count == 0
 
         # Missing FFmpeg during M4B export surfaces a friendly RuntimeError
         mock_proc.export_m4b.side_effect = FileNotFoundError("ffmpeg missing")

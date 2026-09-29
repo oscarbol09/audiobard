@@ -71,6 +71,8 @@ def _stubbed_pipeline(
 
     audio_processor = MagicMock()
     audio_processor.concatenate = AsyncMock(return_value=b"final-mp3")
+    audio_processor.concatenate_to_file = AsyncMock(return_value=None)
+    audio_processor.apply_mp3_tags = AsyncMock(return_value=None)
     audio_processor.export_mp3 = AsyncMock(return_value=None)
     audio_processor.export_m4b = AsyncMock(return_value=None)
 
@@ -167,7 +169,7 @@ def test_progress_callback_errors_do_not_abort_pipeline(tmp_path: Path) -> None:
 
         _run(run())
 
-    assert audio.export_mp3.await_count == 1
+    assert audio.concatenate_to_file.await_count == 1
 
 
 def test_progress_callback_default_none_is_backward_compatible(tmp_path: Path) -> None:
@@ -183,7 +185,7 @@ def test_progress_callback_default_none_is_backward_compatible(tmp_path: Path) -
 
         _run(run())
 
-    assert audio.export_mp3.await_count == 1
+    assert audio.concatenate_to_file.await_count == 1
 
 
 def test_progress_zero_chunks_does_not_divide_by_zero() -> None:

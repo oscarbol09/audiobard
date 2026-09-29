@@ -14,13 +14,18 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 from pydub import AudioSegment
 
+from audiobard.audio import processor as processor_module
 from audiobard.audio.processor import (
     FFMPEG_MISSING_MESSAGE,
     AudioClip,
     AudioProcessor,
     ChapterMarker,
+    _escape_concat_path,
+    _parse_loudness,
+    _stream_target_format,
     find_ffmpeg,
     generate_ffmetadata,
 )
@@ -393,6 +398,81 @@ async def test_export_m4b_writes_tags_and_attached_cover(tmp_path: Path) -> None
     assert video_streams, "cover art stream is missing"
     assert video_streams[0]["disposition"]["attached_pic"] == 1
 
+
+@pytest.mark.asyncio
+async def test_export_m4b_streams_from_a_staged_file(tmp_path: Path) -> None:
+    """Issue #109: the M4B can be built from an assembled file, not only from stdin."""
+    staged = tmp_path / "audiobook.mp3"
+    staged.write_bytes(_create_dummy_mp3())
+    out_path = tmp_path / "out.m4b"
+    chapters = [ChapterMarker(title="Ch 1", start_ms=0, end_ms=250)]
+
+    with patch("asyncio.create_subprocess_exec") as mock_subproc:
+        mock_proc1 = AsyncMock()
+        mock_proc1.returncode = 0
+        mock_proc1.communicate.return_value = (b"", b"")
+        mock_proc2 = AsyncMock()
+        mock_proc2.returncode = 0
+        mock_proc2.communicate.return_value = (b"", b"")
+        mock_subproc.side_effect = [mock_proc1, mock_proc2]
+
+        await AudioProcessor().export_m4b(
+            b"", out_path, chapters, None, audio_path=staged
+        )
+
+    convert_args = [str(arg) for arg in mock_subproc.call_args_list[0][0]]
+    assert "pipe:0" not in convert_args
+    assert str(staged) in convert_args
+    mock_proc1.communicate.assert_awaited_once_with(None)
+
+
+@pytest.mark.asyncio
+async def test_streaming_assembly_round_trips_to_m4b(tmp_path: Path) -> None:
+    """Issue #109: clips -> staged MP3 -> M4B with chapters, all inside FFmpeg."""
+    ffprobe = shutil.which("ffprobe")
+    if ffprobe is None or find_ffmpeg() is None:
+        pytest.skip("requires ffmpeg and ffprobe")
+
+    clip_path = tmp_path / "clip_000000.mp3"
+    clip_path.write_bytes(_create_custom_mp3(duration_ms=300, frame_rate=24000, channels=1))
+    clips = [
+        AudioClip(
+            path=clip_path,
+            speaker="Narrator",
+            emotion=Emotion.NEUTRAL,
+            duration_ms=300,
+        )
+    ]
+
+    processor = AudioProcessor()
+    staged = tmp_path / "audiobook.mp3"
+    await processor.concatenate_to_file(clips, staged)
+
+    out_path = tmp_path / "book.m4b"
+    await processor.export_m4b(
+        b"",
+        out_path,
+        [ChapterMarker(title="Ch 1", start_ms=0, end_ms=550)],
+        None,
+        audio_path=staged,
+    )
+
+    proc = await asyncio.create_subprocess_exec(
+        ffprobe,
+        "-v",
+        "error",
+        "-show_chapters",
+        "-of",
+        "json",
+        str(out_path),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    assert proc.returncode == 0, stderr.decode("utf-8", errors="replace")
+    payload = json.loads(stdout)
+    assert [ch["tags"]["title"] for ch in payload["chapters"]] == ["Ch 1"]
+
     assert [ch["tags"]["title"] for ch in payload["chapters"]] == ["Ch 1"]
 
 
@@ -648,3 +728,251 @@ async def test_audio_processor_custom_target_dbfs() -> None:
     out_custom = await processor_custom.concatenate(clips)
     seg_custom = AudioSegment.from_file(io.BytesIO(out_custom), format="mp3")
     assert abs(seg_custom.dBFS - (-20.0)) < 1.0
+
+
+def _part_files(directory: Path) -> list[Path]:
+    """List staged ``.part`` files (sync, so async tests stay lint clean)."""
+    return list(directory.glob("*.part"))
+
+
+def _neutral_clip(mp3_bytes: bytes, duration_ms: int = 200) -> AudioClip:
+    return AudioClip(
+        mp3_bytes=mp3_bytes,
+        speaker="Narrator",
+        emotion=Emotion.NEUTRAL,
+        duration_ms=duration_ms,
+    )
+
+
+def test_audio_clip_requires_an_audio_source() -> None:
+    """A clip must carry encoded bytes or the path to a cached clip file."""
+    with pytest.raises(ValidationError, match="mp3_bytes or path"):
+        AudioClip(speaker="Narrator", emotion=Emotion.NEUTRAL, duration_ms=100)
+
+
+def test_audio_clip_accepts_a_path_only() -> None:
+    clip = AudioClip(
+        path=Path("clip_1.mp3"),
+        speaker="Narrator",
+        emotion=Emotion.NEUTRAL,
+        duration_ms=100,
+    )
+    assert clip.mp3_bytes == b""
+    assert clip.path == Path("clip_1.mp3")
+
+
+def test_escape_concat_path_quotes_single_quotes(tmp_path: Path) -> None:
+    escaped = _escape_concat_path(tmp_path / "it's a clip.mp3")
+    assert escaped.endswith("it'\\''s a clip.mp3")
+    assert "\\" in escaped
+
+
+def test_parse_loudness_reads_astats_overall_rms() -> None:
+    stderr = "\n".join(
+        [
+            "[Parsed_astats_0 @ 0x1] Channel: 1",
+            "[Parsed_astats_0 @ 0x1] RMS level dB: -18.70",
+            "",
+            "[Parsed_astats_0 @ 0x1] Overall",
+            "[Parsed_astats_0 @ 0x1] RMS level dB: -18.7",
+        ]
+    )
+    assert _parse_loudness(stderr) == pytest.approx(-18.7)
+
+
+def test_parse_loudness_treats_silence_as_unmeasurable() -> None:
+    assert _parse_loudness("Overall\nRMS level dB: -inf") is None
+    assert _parse_loudness("mean_volume: -inf dB") is None
+
+
+def test_parse_loudness_falls_back_to_volumedetect() -> None:
+    assert _parse_loudness("mean_volume: -21.5 dB") == pytest.approx(-21.5)
+    assert _parse_loudness("no measurement here") is None
+
+
+def test_stream_target_format_mirrors_audio_segment_sync() -> None:
+    """The streaming target keeps AudioSegment._sync semantics: max rate/channels."""
+    mono = _neutral_clip(_create_custom_mp3(duration_ms=100, frame_rate=22050, channels=1))
+    stereo = _neutral_clip(_create_custom_mp3(duration_ms=100, frame_rate=44100, channels=2))
+
+    assert _stream_target_format([mono, stereo]) == (44100, 2)
+    assert _stream_target_format([mono]) == (22050, 1)
+    assert _stream_target_format([_neutral_clip(b"not audio")]) == (24000, 1)
+
+
+@pytest.mark.asyncio
+async def test_concatenate_never_decodes_clips_in_python() -> None:
+    """Issue #109: the join happens in FFmpeg, so Python never builds the PCM."""
+    clip_bytes = _create_custom_mp3(duration_ms=200, frame_rate=24000, channels=1)
+    clips = [_neutral_clip(clip_bytes)]
+
+    processor = AudioProcessor()
+    processor._concatenate_in_memory = MagicMock(  # type: ignore[method-assign]
+        side_effect=AssertionError("fell back to the in-memory join")
+    )
+    with patch.object(
+        AudioSegment, "from_file", side_effect=AssertionError("clip decoded in Python")
+    ):
+        out_bytes = await processor.concatenate(clips)
+
+    assert len(out_bytes) > 0
+    segment = AudioSegment.from_file(io.BytesIO(out_bytes), format="mp3")
+    assert abs(len(segment) - 450) < 100  # clip plus the neutral pause
+
+
+@pytest.mark.asyncio
+async def test_concatenate_uses_the_concat_demuxer() -> None:
+    """Issue #109: clips are joined with ffmpeg -f concat, not by pydub."""
+    clips = [_neutral_clip(_create_custom_mp3(duration_ms=100))]
+    calls: list[list[str]] = []
+    real_run = processor_module.subprocess.run
+
+    def spy(args: list[str], **kwargs: Any) -> Any:
+        calls.append([str(arg) for arg in args])
+        return real_run(args, **kwargs)
+
+    processor = AudioProcessor()
+    processor._concatenate_in_memory = MagicMock(  # type: ignore[method-assign]
+        side_effect=AssertionError("fell back to the in-memory join")
+    )
+    with patch.object(processor_module.subprocess, "run", side_effect=spy):
+        out_bytes = await processor.concatenate(clips)
+
+    assert len(out_bytes) > 0
+    demuxer_calls = [c for c in calls if "concat" in c]
+    assert demuxer_calls, "expected ffmpeg -f concat to be used"
+    assert demuxer_calls[0][1:5] == ["-hide_banner", "-nostdin", "-f", "concat"]
+    assert "-safe" in demuxer_calls[0]
+    assert "libmp3lame" in demuxer_calls[-1]
+
+
+@pytest.mark.asyncio
+async def test_concatenate_handles_clip_paths_with_single_quotes(tmp_path: Path) -> None:
+    """Issue #109: quotes in clip paths are escaped for the demuxer list file."""
+    clip_path = tmp_path / "it's a clip.mp3"
+    clip_path.write_bytes(_create_custom_mp3(duration_ms=200, frame_rate=24000, channels=1))
+    clips = [
+        AudioClip(
+            path=clip_path,
+            speaker="Narrator",
+            emotion=Emotion.NEUTRAL,
+            duration_ms=200,
+        )
+    ]
+
+    processor = AudioProcessor()
+    processor._concatenate_in_memory = MagicMock(  # type: ignore[method-assign]
+        side_effect=AssertionError("fell back to the in-memory join")
+    )
+    out_bytes = await processor.concatenate(clips)
+
+    segment = AudioSegment.from_file(io.BytesIO(out_bytes), format="mp3")
+    assert abs(len(segment) - 450) < 100
+
+
+@pytest.mark.asyncio
+async def test_concatenate_to_file_streams_from_cached_clip_files(tmp_path: Path) -> None:
+    """Issue #109: cached clips are joined from disk, not loaded into memory."""
+    clip_path = tmp_path / "clip_000002.mp3"
+    clip_path.write_bytes(_create_custom_mp3(duration_ms=200, frame_rate=24000, channels=1))
+    clips = [
+        AudioClip(
+            path=clip_path,
+            speaker="Narrator",
+            emotion=Emotion.NEUTRAL,
+            duration_ms=200,
+        )
+    ]
+    out_path = tmp_path / "out" / "book.mp3"
+    processor = AudioProcessor()
+    processor._concatenate_in_memory = MagicMock(  # type: ignore[method-assign]
+        side_effect=AssertionError("fell back to the in-memory join")
+    )
+
+    await processor.concatenate_to_file(clips, out_path)
+
+    assert out_path.exists()
+    segment = AudioSegment.from_file(str(out_path), format="mp3")
+    assert abs(len(segment) - 450) < 100
+    assert not _part_files(out_path.parent)
+
+
+@pytest.mark.asyncio
+async def test_concatenate_to_file_matches_concatenate(tmp_path: Path) -> None:
+    """Both entry points produce the same normalized audio."""
+    clip_bytes = _create_custom_mp3(duration_ms=300, frame_rate=24000, channels=1)
+    clips = [
+        AudioClip(
+            mp3_bytes=clip_bytes,
+            speaker="Character_A",
+            emotion=Emotion.HAPPY,
+            duration_ms=300,
+        ),
+        AudioClip(
+            mp3_bytes=clip_bytes,
+            speaker="Character_B",
+            emotion=Emotion.SAD,
+            duration_ms=300,
+        ),
+    ]
+    processor = AudioProcessor()
+    out_path = tmp_path / "book.mp3"
+
+    streamed = await processor.concatenate(clips)
+    await processor.concatenate_to_file(clips, out_path)
+
+    for payload in (streamed, out_path.read_bytes()):
+        segment = AudioSegment.from_file(io.BytesIO(payload), format="mp3")
+        assert abs(len(segment) - 1200) < 100  # 300 + 200 + 300 + 400
+        assert abs(segment.dBFS - (-16.0)) < 1.0
+
+
+@pytest.mark.asyncio
+async def test_concatenate_to_file_leaves_no_partial_file_on_failure(
+    tmp_path: Path,
+) -> None:
+    """A failed assembly must not leave a half written audiobook behind."""
+    clips = [_neutral_clip(_create_custom_mp3(duration_ms=100))]
+    out_path = tmp_path / "book.mp3"
+    processor = AudioProcessor()
+
+    with (
+        patch.object(processor_module, "_write_silence", side_effect=RuntimeError("boom")),
+        patch.object(
+            processor,
+            "_concatenate_in_memory",
+            side_effect=RuntimeError("boom"),
+        ),
+        pytest.raises(RuntimeError),
+    ):
+        await processor.concatenate_to_file(clips, out_path)
+
+    assert not out_path.exists()
+    assert not _part_files(tmp_path)
+
+
+@pytest.mark.asyncio
+@patch("audiobard.audio.processor.find_ffmpeg", return_value=None)
+async def test_concatenate_falls_back_without_ffmpeg(mock_find: Any) -> None:
+    """Hosts without FFmpeg still get a valid MP3 from the in-memory join."""
+    clips = [_neutral_clip(_create_custom_mp3(duration_ms=200, frame_rate=24000))]
+
+    out_bytes = await AudioProcessor().concatenate(clips)
+
+    segment = AudioSegment.from_file(io.BytesIO(out_bytes), format="mp3")
+    assert abs(len(segment) - 450) < 100
+
+
+@pytest.mark.asyncio
+async def test_concatenate_falls_back_when_streaming_fails() -> None:
+    """A broken FFmpeg run degrades to the in-memory join instead of failing."""
+    clips = [_neutral_clip(_create_custom_mp3(duration_ms=200, frame_rate=24000))]
+    processor = AudioProcessor()
+
+    with patch.object(
+        processor_module, "_measure_loudness", side_effect=RuntimeError("boom")
+    ):
+        out_bytes = await processor.concatenate(clips)
+
+    segment = AudioSegment.from_file(io.BytesIO(out_bytes), format="mp3")
+    assert abs(len(segment) - 450) < 100

@@ -6,6 +6,7 @@ import asyncio
 import io
 import json
 import logging
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
@@ -713,6 +714,24 @@ class AudioBookPipeline:
             ),
         )
 
+    async def _export_m4b(
+        self,
+        clips: list[AudioClip],
+        output_path: Path,
+        chapters: list[ChapterMarker],
+        metadata: BookMetadata | None,
+    ) -> None:
+        """Assemble into a temporary MP3, then let FFmpeg build the M4B from it."""
+        with tempfile.TemporaryDirectory(prefix="audiobard-m4b-") as tmpdir:
+            staged = Path(tmpdir) / "audiobook.mp3"
+            await self.audio_processor.concatenate_to_file(clips, staged)
+            try:
+                await self.audio_processor.export_m4b(
+                    b"", output_path, chapters, metadata, audio_path=staged
+                )
+            except FileNotFoundError as e:
+                raise RuntimeError(FFMPEG_MISSING_MESSAGE) from e
+
     async def _assemble_audiobook(
         self,
         book_id: int,
@@ -754,7 +773,7 @@ class AudioBookPipeline:
 
                 clips.append(
                     AudioClip(
-                        mp3_bytes=clip_file.read_bytes(),
+                        path=clip_file,
                         speaker=meta["speaker"],
                         emotion=emotion,
                         duration_ms=duration,
@@ -793,21 +812,13 @@ class AudioBookPipeline:
         clips, chapters = await asyncio.to_thread(_load_clips_and_chapters)
 
         logger.info("Concatenating clips and applying normalization...")
-        final_mp3_bytes = await self.audio_processor.concatenate(clips)
-
         logger.info("Exporting finished audio to: %s", output_path)
         try:
             if output_path.suffix.lower() == ".m4b":
-                try:
-                    await self.audio_processor.export_m4b(
-                        final_mp3_bytes, output_path, chapters, metadata
-                    )
-                except FileNotFoundError as e:
-                    raise RuntimeError(FFMPEG_MISSING_MESSAGE) from e
+                await self._export_m4b(clips, output_path, chapters, metadata)
             else:
-                await self.audio_processor.export_mp3(
-                    final_mp3_bytes, output_path, metadata
-                )
+                await self.audio_processor.concatenate_to_file(clips, output_path)
+                await self.audio_processor.apply_mp3_tags(output_path, metadata)
         except PermissionError as e:
             raise RuntimeError(
                 f"Cannot overwrite '{output_path.name}'. "
