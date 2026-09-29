@@ -21,12 +21,30 @@ from audiobard.parser.base import BookParser
 # ---------------------------------------------------------------------------
 
 # Project Gutenberg delimiters — everything outside is stripped.
+# Project Gutenberg ships localized boilerplate, so an English-only pattern
+# lets a Spanish / French / German / Italian licence block reach the narrator.
+_PG_START_PHRASES = (
+    r"START OF (?:THE|THIS) PROJECT GUTENBERG"
+    r"|INICIO (?:DE |DEL )(?:ESTE |EL )?PROYECTO GUTENBERG"
+    r"|COMIENZO (?:DE |DEL )(?:ESTE |EL )?PROYECTO GUTENBERG"
+    r"|D[EÉ]BUT (?:DE |DU )(?:CE |LE )?PROJET GUTENBERG"
+    r"|START DIESES PROJEKTES"
+    r"|ANFANG (?:DIESES PROJEKTES|DES PROJEKTS)"
+    r"|INIZIO (?:DEL |DI )(?:QUESTO |IL )?PROGETTO GUTENBERG"
+)
+_PG_END_PHRASES = (
+    r"END OF (?:THE|THIS) PROJECT GUTENBERG"
+    r"|FIN (?:DE |DEL )(?:ESTE |EL )?PROYECTO GUTENBERG"
+    r"|FIN (?:DE |DU )(?:CE |LE )?PROJET GUTENBERG"
+    r"|ENDE (?:DIESES PROJEKTES|DES PROJEKTS)"
+    r"|FINE (?:DEL |DI )(?:QUESTO |IL )?PROGETTO GUTENBERG"
+)
 _PG_START = re.compile(
-    r"^\*{3}\s*START OF (THE|THIS) PROJECT GUTENBERG.*$",
+    r"^\*{3}\s*(?:" + _PG_START_PHRASES + r").*$",
     re.IGNORECASE | re.MULTILINE,
 )
 _PG_END = re.compile(
-    r"^\*{3}\s*END OF (THE|THIS) PROJECT GUTENBERG.*$",
+    r"^\*{3}\s*(?:" + _PG_END_PHRASES + r").*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -44,6 +62,19 @@ _CHAPTER_HEAD = re.compile(
         part\s+(?:[IVXLCDM]+|\d+|[a-z]+)  # "Part "
         |
         PART\s+(?:[IVXLCDM]+|\d+|[A-Z]+)
+        |
+        # Spanish / French / German / Italian equivalents
+        (?:
+            cap[ií]tulo|capitolo|parte|libro|acto
+            |chapitre|partie|livre
+            |kapitel|teil|buch
+        )\s+(?:
+            [IVXLCDM]+\b                   # Roman numeral
+            |\d+                           # Arabic numeral
+            # Word numerals must be capitalized; lowercase forms are prose
+            # ("Libro de la vida", "Teil des Ganzen"), not headings.
+            |(?-i:[A-ZÀ-Þ])[a-zà-ÿ]+
+        )
     )
     [.:\s—–-]*                             # optional punctuation
     .*$                                    # rest of heading (subtitle etc.)

@@ -490,3 +490,91 @@ class TestProjectGutenbergBoilerplate:
         result = parser.parse(text)
         assert len(result) == 1
         assert result[0].text == "Real story content without any markers."
+
+
+class TestMultilingualBookParsing:
+    """Non-English Project Gutenberg boilerplate and localized chapter headings."""
+
+    @pytest.mark.parametrize(
+        ("start_marker", "end_marker"),
+        [
+            (
+                "*** INICIO DEL PROYECTO GUTENBERG EBOOK DON QUIJOTE ***",
+                "*** FIN DEL PROYECTO GUTENBERG EBOOK DON QUIJOTE ***",
+            ),
+            (
+                "*** COMIENZO DE ESTE PROYECTO GUTENBERG ***",
+                "*** FIN DE ESTE PROYECTO GUTENBERG ***",
+            ),
+            (
+                "*** D\u00c9BUT DE CE PROJET GUTENBERG ***",
+                "*** FIN DE CE PROJET GUTENBERG ***",
+            ),
+            (
+                "*** START DIESES PROJEKTES GUTENBERG ***",
+                "*** ENDE DIESES PROJEKTES GUTENBERG ***",
+            ),
+            (
+                "*** ANFANG DIESES PROJEKTES ***",
+                "*** ENDE DES PROJEKTS ***",
+            ),
+            (
+                "*** INIZIO DEL PROGETTO GUTENBERG ***",
+                "*** FINE DEL PROGETTO GUTENBERG ***",
+            ),
+        ],
+    )
+    def test_localized_pg_markers_are_stripped(
+        self, start_marker: str, end_marker: str
+    ) -> None:
+        text = (
+            f"Licence boilerplate before.\n\n{start_marker}\n\n"
+            "Real story content.\n\n"
+            f"{end_marker}\n\nLicence boilerplate after."
+        )
+        result = TextParser().parse(text)
+        assert [p.text for p in result] == ["Real story content."]
+
+    @pytest.mark.parametrize(
+        "heading",
+        [
+            "Cap\u00edtulo I",
+            "Cap\u00edtulo 3",
+            "Cap\u00edtulo Primero",
+            "CAP\u00cdTULO PRIMERO",
+            "Parte II",
+            "Libro I",
+            "Acto 2",
+            "Chapitre 1",
+            "Chapitre II",
+            "Partie I",
+            "Livre II",
+            "Kapitel 3",
+            "Teil II",
+            "Buch 1",
+            "Capitolo 4",
+        ],
+    )
+    def test_localized_chapter_headings_are_boundaries(self, heading: str) -> None:
+        text = _make_text(heading, "First content.", "Chapter II", "Second content.")
+        result = TextParser().parse(text)
+        # Chapter headings mark a boundary and are not narrated themselves
+        assert len(result) == 2
+        assert [p.text for p in result] == ["First content.", "Second content."]
+        assert result[0].chapter == 1
+        assert result[1].chapter == 2
+
+    @pytest.mark.parametrize(
+        "paragraph",
+        [
+            "Parte de la historia que ocurre despues.",
+            "Libro de la vida es bueno.",
+            "Teil des Ganzen war verloren.",
+            "Livre de poche interessant.",
+        ],
+    )
+    def test_lowercase_prose_is_not_mistaken_for_a_heading(
+        self, paragraph: str
+    ) -> None:
+        result = TextParser().parse(paragraph)
+        assert [p.text for p in result] == [paragraph]
