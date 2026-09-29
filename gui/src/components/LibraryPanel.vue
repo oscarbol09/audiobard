@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useI18nStore } from '../stores/i18n'
 import { useGenerationStore } from '../stores/generation'
 import { useSettingsStore } from '../stores/settings'
+import WaveformPlayer from './WaveformPlayer.vue'
 
 interface LibraryBook {
   id: number
@@ -249,14 +250,12 @@ onMounted(() => {
         </div>
 
         <div class="flex flex-wrap items-center gap-2 md:ml-auto">
-          <!-- HTML5 Native Audio Player pointing to FastAPI endpoint -->
-          <audio 
+          <!-- Waveform player (issue #113); falls back to the native controls -->
+          <WaveformPlayer
             v-if="book.has_audio !== false"
-            controls 
-            :src="getBookAudioUrl(book.id)" 
-            preload="none" 
-            class="h-8 max-w-[200px] outline-none"
-          ></audio>
+            :src="getBookAudioUrl(book.id)"
+            :title="book.title"
+          />
 
           <button
             v-if="book.has_audio !== false"
