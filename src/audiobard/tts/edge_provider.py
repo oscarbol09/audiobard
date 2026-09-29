@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 import edge_tts
 
@@ -83,6 +84,7 @@ class EdgeProvider(TTSProvider):
     async def list_voices(self, locale: str) -> list[Voice]:
         """List available voices from Edge TTS for the given *locale*."""
         edge_locale = locale.replace("_", "-")
+        all_voices: list[Any] = []
         try:
             all_voices = await edge_tts.list_voices()
         except _offline_fallback_errors() as exc:

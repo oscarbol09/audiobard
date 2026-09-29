@@ -6,7 +6,7 @@ import asyncio
 import io
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
@@ -326,7 +326,7 @@ async def test_synthesize_uses_a_single_loaded_session(
     with patch.dict(sys.modules, {"kokoro_onnx": MagicMock(Kokoro=MagicMock(return_value=fake))}):
         await provider.synthesize("one", voice, Emotion.NEUTRAL)
         await provider.synthesize("two", voice, Emotion.NEUTRAL)
-        sys.modules["kokoro_onnx"].Kokoro.assert_called_once()  # type: ignore[attr-defined]
+        cast(Any, sys.modules["kokoro_onnx"]).Kokoro.assert_called_once()
 
     assert [call["text"] for call in fake.calls] == ["one", "two"]
 

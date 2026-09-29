@@ -10,6 +10,7 @@ interface Props {
 
 interface Emits {
   (e: 'update:modelValue', file: File | null): void
+  (e: 'files', files: File[]): void
   (e: 'error', message: string): void
 }
 
@@ -46,15 +47,32 @@ function validateFile(file: File): string | null {
   return null
 }
 
-function handleFile(file: File) {
+/**
+ * Validate a drop/selection that may hold several books.
+ *
+ * Valid files are emitted as a batch (issue #66), while the first one also
+ * keeps the single-file v-model working for existing callers.
+ */
+function handleFiles(fileList: FileList | null | undefined) {
   dragError.value = null
-  const error = validateFile(file)
-  if (error) {
-    dragError.value = error
-    emit('error', error)
-    return
+  if (!fileList || fileList.length === 0) return
+
+  const valid: File[] = []
+  const problems: string[] = []
+  for (const file of Array.from(fileList)) {
+    const error = validateFile(file)
+    if (error) problems.push(`${file.name}: ${error}`)
+    else valid.push(file)
   }
-  emit('update:modelValue', file)
+
+  if (problems.length > 0) {
+    dragError.value = problems.join(' · ')
+    emit('error', dragError.value)
+  }
+  if (valid.length === 0) return
+
+  emit('update:modelValue', valid[0])
+  emit('files', valid)
 }
 
 function onDragOver(e: DragEvent) {
@@ -71,17 +89,12 @@ function onDrop(e: DragEvent) {
   e.preventDefault()
   isDragging.value = false
 
-  const files = e.dataTransfer?.files
-  if (files && files.length > 0) {
-    handleFile(files[0])
-  }
+  handleFiles(e.dataTransfer?.files)
 }
 
 function onFileSelect(e: Event) {
   const input = e.target as HTMLInputElement
-  if (input.files && input.files.length > 0) {
-    handleFile(input.files[0])
-  }
+  handleFiles(input.files)
   input.value = ''
 }
 
@@ -113,6 +126,7 @@ function triggerFileInput() {
       <input
         ref="fileInput"
         type="file"
+        multiple
         class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         :accept="acceptedTypesDisplay"
         @change="onFileSelect"

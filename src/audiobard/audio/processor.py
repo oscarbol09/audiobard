@@ -179,9 +179,9 @@ def _embed_mp3_tags(path: Path, metadata: BookMetadata) -> None:
         return
 
     try:
-        audio = MP3(str(path), ID3=ID3)
+        audio = MP3(str(path), ID3=ID3)  # type: ignore[no-untyped-call]
         if audio.tags is None:
-            audio.add_tags()
+            audio.add_tags()  # type: ignore[no-untyped-call]
         tags = audio.tags
         if tags is None:  # pragma: no cover - add_tags() always installs ID3
             return
@@ -227,9 +227,9 @@ def _clip_stream_format(clip: AudioClip) -> tuple[int, int] | None:
 
     try:
         if clip.path is not None and clip.path.is_file():
-            info = MP3(str(clip.path)).info
+            info = MP3(str(clip.path)).info  # type: ignore[no-untyped-call]
         else:
-            info = MP3(io.BytesIO(clip.mp3_bytes)).info
+            info = MP3(io.BytesIO(clip.mp3_bytes)).info  # type: ignore[no-untyped-call]
     except Exception:
         return None
 

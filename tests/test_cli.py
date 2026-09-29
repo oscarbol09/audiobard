@@ -565,7 +565,7 @@ def test_generate_rejects_locale_without_voices(
         result = runner.invoke(app, ["generate", str(book_file), "--locale", "zz_ZZ"])
 
     assert result.exit_code == 1
-    assert "has no voices available for the piper provider" in result.stdout
+    assert "has no voices available for the piper provider" in " ".join(result.stdout.split())
     assert "Available locales: en_US" in result.stdout
     mock_run.assert_not_called()
 
@@ -697,7 +697,7 @@ def test_preset_export_without_mapping(
     result = runner.invoke(app, ["preset", "export", str(book)])
 
     assert result.exit_code == 1
-    assert "has no saved voice mapping to export" in result.stdout
+    assert "has no saved voice mapping to export" in " ".join(result.stdout.split())
 
 
 def test_generate_applies_voice_preset(
@@ -739,6 +739,7 @@ def test_generate_applies_voice_preset(
 
     assert result.exit_code == 0
     assert "Using voice preset" in result.stdout
+    assert mock_run.await_args is not None
     passed = mock_run.await_args.kwargs["voice_preset"]
     assert isinstance(passed, VoicePreset)
     assert passed.assignments[0].voice_id == "en_US-amy-medium"

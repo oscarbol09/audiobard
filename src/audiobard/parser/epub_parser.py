@@ -11,7 +11,7 @@ from __future__ import annotations
 import html
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from audiobard.models import Paragraph
 from audiobard.parser.base import BookParser
@@ -84,7 +84,7 @@ def _cover_item_from_meta(book: object) -> object | None:
         if cover_id:
             item = lookup(cover_id)
             if item is not None:
-                return item
+                return cast(object, item)
     return None
 
 
@@ -96,14 +96,14 @@ def _cover_item_from_items(book: object, ebooklib_module: object) -> object | No
     for item in items:
         get_type = getattr(item, "get_type", None)
         if item_cover is not None and callable(get_type) and get_type() == item_cover:
-            return item
+            return cast(object, item)
     for item in items:
         media_getter = getattr(item, "get_media_type", None)
         media_type = str(media_getter() or "") if callable(media_getter) else ""
         item_id = str(getattr(item, "get_id", lambda: "")())
         item_name = str(getattr(item, "get_name", lambda: "")())
         if media_type.startswith("image/") and "cover" in f"{item_id} {item_name}".lower():
-            return item
+            return cast(object, item)
     return None
 
 
@@ -131,7 +131,7 @@ def _cover_item_from_html(book: object) -> object | None:
                 getattr(candidate, "get_name", lambda: "")() or ""
             ).replace("\\", "/").lower()
             if candidate_name.endswith(target):
-                return candidate
+                return cast(object, candidate)
     return None
 
 

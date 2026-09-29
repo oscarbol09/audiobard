@@ -7,6 +7,7 @@ import base64
 import io
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -268,10 +269,10 @@ async def test_export_mp3_embeds_title_author_and_cover(tmp_path: Path) -> None:
     )
     await AudioProcessor().export_mp3(_create_dummy_mp3(), out_path, metadata)
 
-    tags = ID3(str(out_path))
-    assert tags.get("TIT2").text[0] == "Don Quijote"
-    assert tags.get("TPE1").text[0] == "Miguel de Cervantes"
-    pictures = tags.getall("APIC")
+    tags = ID3(str(out_path))  # type: ignore[no-untyped-call]
+    assert tags.get("TIT2").text[0] == "Don Quijote"  # type: ignore[no-untyped-call]
+    assert tags.get("TPE1").text[0] == "Miguel de Cervantes"  # type: ignore[no-untyped-call]
+    pictures = tags.getall("APIC")  # type: ignore[no-untyped-call]
     assert len(pictures) == 1
     assert pictures[0].data == _DUMMY_COVER_JPEG
     assert pictures[0].mime == "image/jpeg"
@@ -825,7 +826,7 @@ async def test_concatenate_uses_the_concat_demuxer() -> None:
     """Issue #109: clips are joined with ffmpeg -f concat, not by pydub."""
     clips = [_neutral_clip(_create_custom_mp3(duration_ms=100))]
     calls: list[list[str]] = []
-    real_run = processor_module.subprocess.run
+    real_run = subprocess.run
 
     def spy(args: list[str], **kwargs: Any) -> Any:
         calls.append([str(arg) for arg in args])
@@ -835,7 +836,7 @@ async def test_concatenate_uses_the_concat_demuxer() -> None:
     processor._concatenate_in_memory = MagicMock(  # type: ignore[method-assign]
         side_effect=AssertionError("fell back to the in-memory join")
     )
-    with patch.object(processor_module.subprocess, "run", side_effect=spy):
+    with patch("audiobard.audio.processor.subprocess.run", side_effect=spy):
         out_bytes = await processor.concatenate(clips)
 
     assert len(out_bytes) > 0

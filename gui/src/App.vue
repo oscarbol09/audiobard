@@ -13,6 +13,7 @@ import {
 } from './data/models'
 import UploadSection from './components/UploadSection.vue'
 import GenerationProgress from './components/GenerationProgress.vue'
+import BatchQueuePanel from './components/BatchQueuePanel.vue'
 import LibraryPanel from './components/LibraryPanel.vue'
 import SettingsModal from './components/SettingsModal.vue'
 
@@ -108,7 +109,11 @@ function handleFileError(message: string) {
 
 async function onGenerate(): Promise<void> {
   try {
-    await generationStore.startGeneration()
+    if (generationStore.queue.length > 1) {
+      await generationStore.startQueue()
+    } else {
+      await generationStore.startGeneration()
+    }
   } catch (err) {
     console.error('Generation failed:', err)
   }
@@ -177,8 +182,13 @@ async function onGenerate(): Promise<void> {
               v-model="generationStore.bookFile"
               :accepted-types="['txt', 'epub']"
               :maxSizeMB="50"
+              @files="generationStore.enqueueFiles($event)"
               @error="handleFileError"
             />
+
+            <div v-if="generationStore.queue.length > 1" class="mt-4 max-w-2xl mx-auto">
+              <BatchQueuePanel />
+            </div>
           </section>
 
           <!-- Book Details & Generation Options -->

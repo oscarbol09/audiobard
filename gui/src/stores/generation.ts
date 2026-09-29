@@ -1,7 +1,15 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from './settings'
+import {
+  cancelPending,
+  createQueueItems,
+  markItem,
+  nextPendingItem,
+  summarize,
+  type BatchQueueItem,
+} from '../utils/batchQueue'
 
 export type LLMProvider = 'ollama' | 'gemini' | 'openrouter' | 'nim'
 export type TTSProvider = 'piper' | 'edge'
@@ -61,6 +69,11 @@ export const useGenerationStore = defineStore('generation', () => {
   const outputPath = ref<string | null>(null)
   const sessionId = ref<string | null>(null)
 
+  // Batch queue (issue #66): books are generated one after another.
+  const queue = ref<BatchQueueItem[]>([])
+  const queueRunning = ref(false)
+  const queueSummary = computed(() => summarize(queue.value))
+
   let progressInterval: number | null = null
 
   async function cancelGeneration(): Promise<void> {
@@ -81,6 +94,12 @@ export const useGenerationStore = defineStore('generation', () => {
     stage.value = "cancelled"
     message.value = "Cancelled by user"
     error.value = "Generation cancelled by user"
+
+    const running = queue.value.find((item) => item.status === "running")
+    if (running) {
+      queue.value = markItem(queue.value, running.id, "cancelled")
+    }
+    queue.value = cancelPending(queue.value)
   }
 
   function setBookFile(file: File | null): void {
@@ -205,6 +224,57 @@ export const useGenerationStore = defineStore('generation', () => {
     }
   }
 
+  /** Add dropped files to the end of the queue, skipping ones already queued. */
+  function enqueueFiles(files: File[]): void {
+    const additions = createQueueItems(
+      files.map((file) => ({ name: file.name, size: file.size, file })),
+      queue.value,
+    )
+    if (additions.length === 0) return
+    queue.value = [...queue.value, ...additions]
+    if (bookFile.value === null) {
+      setBookFile(additions[0].file)
+    }
+  }
+
+  function clearQueue(): void {
+    if (queueRunning.value) return
+    queue.value = []
+  }
+
+  /**
+   * Generate every queued book in order.
+   *
+   * A failing book is recorded and the queue moves on, so one broken file
+   * never blocks the rest of a series.
+   */
+  async function startQueue(): Promise<void> {
+    if (queueRunning.value) return
+    queueRunning.value = true
+    try {
+      let item = nextPendingItem(queue.value)
+      while (item !== null) {
+        const itemId = item.id
+        queue.value = markItem(queue.value, itemId, "running")
+        setBookFile(item.file)
+        try {
+          await startGeneration()
+          queue.value = markItem(queue.value, itemId, "done")
+        } catch (e) {
+          const cancelled = queue.value.some(
+            (entry) => entry.id === itemId && entry.status === "cancelled",
+          )
+          if (cancelled) break
+          const failure = e instanceof Error ? e.message : String(e)
+          queue.value = markItem(queue.value, itemId, "error", failure)
+        }
+        item = nextPendingItem(queue.value)
+      }
+    } finally {
+      queueRunning.value = false
+    }
+  }
+
   return {
     isGenerating,
     progress,
@@ -215,6 +285,12 @@ export const useGenerationStore = defineStore('generation', () => {
     error,
     outputPath,
     sessionId,
+    queue,
+    queueRunning,
+    queueSummary,
+    enqueueFiles,
+    startQueue,
+    clearQueue,
     setBookFile,
     startGeneration,
     cancelGeneration,

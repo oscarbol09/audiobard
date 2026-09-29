@@ -36,6 +36,7 @@ from audiobard.pipeline import (
     save_voice_preset,
 )
 from audiobard.progress import PipelineProgress
+from audiobard.tts.base import TTSProvider
 
 runner = CliRunner()
 
@@ -282,7 +283,7 @@ def test_merge_preset_without_preset_is_a_no_op(tmp_path: Path) -> None:
     assert pipeline._merge_preset(mapped, empty, {}) == mapped
 
 
-class _FakeTTS:
+class _FakeTTS(TTSProvider):
     """Minimal TTS provider stand-in that records in-flight concurrency."""
 
     def __init__(self, delay: float = 0.01) -> None:
@@ -290,6 +291,19 @@ class _FakeTTS:
         self.in_flight = 0
         self.max_in_flight = 0
         self.calls: list[str] = []
+
+    async def list_voices(self, locale: str) -> list[Voice]:
+        return []
+
+    async def _synthesize_raw(
+        self,
+        text: str,
+        voice: Voice,
+        emotion: Emotion,
+        rate: float,
+        pitch: float,
+    ) -> bytes:
+        return b""
 
     async def synthesize(
         self,
@@ -309,8 +323,24 @@ class _FakeTTS:
             self.in_flight -= 1
 
 
-class _FailingTTS:
+class _FailingTTS(TTSProvider):
     """Provider that always fails, to prove no partial clip is left behind."""
+
+    def __init__(self) -> None:
+        pass
+
+    async def list_voices(self, locale: str) -> list[Voice]:
+        return []
+
+    async def _synthesize_raw(
+        self,
+        text: str,
+        voice: Voice,
+        emotion: Emotion,
+        rate: float,
+        pitch: float,
+    ) -> bytes:
+        return b""
 
     async def synthesize(
         self,

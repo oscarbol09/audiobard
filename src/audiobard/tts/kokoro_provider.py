@@ -15,6 +15,7 @@ import logging
 import os
 import uuid
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -171,7 +172,7 @@ class KokoroProvider(TTSProvider):
         self.kokoro_dir.mkdir(parents=True, exist_ok=True)
         # Serializes the weight downloads and the one-time session load.
         self._download_lock = asyncio.Lock()
-        self._kokoro: object | None = None
+        self._kokoro: Any = None
 
     async def available_locales(self) -> dict[str, int]:
         """Locales in the local voice pack, mapped to their voice count.
@@ -255,7 +256,7 @@ class KokoroProvider(TTSProvider):
         samples, sample_rate = kokoro.create(text, voice=voice_id, speed=speed, lang=lang)
         return samples, int(sample_rate)
 
-    def _session(self, model_path: Path, voices_path: Path) -> object:
+    def _session(self, model_path: Path, voices_path: Path) -> Any:
         if self._kokoro is None:
             try:
                 from kokoro_onnx import Kokoro
