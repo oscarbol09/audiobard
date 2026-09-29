@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,7 @@ from httpx import Response
 
 from audiobard.config import AudioBardConfig
 from audiobard.models import AgeHint, Emotion, GenderHint, Voice
-from audiobard.tts.piper_provider import PiperProvider
+from audiobard.tts.piper_provider import PiperProvider, find_piper
 
 
 @pytest.mark.asyncio
@@ -386,4 +387,99 @@ async def test_piper_ensure_model_concurrent_separate_instances(tmp_path: Path) 
     assert p2_res == piper_dir / "en_US-dummy-medium.onnx"
     assert p1_res.read_bytes() == b"concurrent-onnx-bytes"
     assert not list(piper_dir.glob("*.tmp"))
+
+
+_PIPER_ENV_VARS = ("AUDIOBARD_PIPER", "PIPER_BINARY", "PIPER_PATH")
+
+
+def _clear_piper_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in _PIPER_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+
+
+@pytest.mark.parametrize("env_name", _PIPER_ENV_VARS)
+def test_find_piper_prefers_env_var(
+    env_name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A portable install pointing one of the env vars must win over PATH."""
+    binary = tmp_path / "piper-local"
+    binary.write_bytes(b"#!/bin/sh\n")
+    monkeypatch.setenv(env_name, str(binary))
+    with patch("shutil.which", return_value=None):
+        assert find_piper() == str(binary.resolve())
+
+
+def test_find_piper_ignores_env_var_pointing_at_missing_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stale env var must not mask a working PATH install."""
+    monkeypatch.setenv("AUDIOBARD_PIPER", str(tmp_path / "does-not-exist"))
+    with patch("shutil.which", return_value="/usr/local/bin/piper"):
+        assert find_piper() == "/usr/local/bin/piper"
+
+
+def test_find_piper_uses_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_piper_env(monkeypatch)
+    with patch("shutil.which", return_value="/usr/local/bin/piper"):
+        assert find_piper() == "/usr/local/bin/piper"
+
+
+@pytest.mark.parametrize("subdir", [Path("tools") / "piper", Path("tools") / "bin", Path("tools")])
+def test_find_piper_falls_back_to_bundled_tools_dir(
+    subdir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A piper binary bundled under tools/ (portable install) must be found."""
+    _clear_piper_env(monkeypatch)
+    name = "piper.exe" if sys.platform == "win32" else "piper"
+    binary = tmp_path / subdir / name
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"#!/bin/sh\n")
+    monkeypatch.chdir(tmp_path)
+    with patch("shutil.which", return_value=None):
+        assert find_piper() == str(binary.resolve())
+
+
+def test_find_piper_returns_none_when_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _clear_piper_env(monkeypatch)
+    monkeypatch.chdir(tmp_path)
+    with patch("shutil.which", return_value=None):
+        assert find_piper() is None
+
+
+@pytest.mark.asyncio
+async def test_piper_synthesize_uses_env_var_binary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression (#108): an env-var-resolved binary must be spawned.
+
+    Before the fix _synthesize_raw only called shutil.which("piper"), so a
+    portable install with AUDIOBARD_PIPER set raised FileNotFoundError even
+    though the binary was present.
+    """
+    binary = tmp_path / "piper-local"
+    binary.write_bytes(b"#!/bin/sh\n")
+    monkeypatch.setenv("AUDIOBARD_PIPER", str(binary))
+
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    provider = PiperProvider(config)
+    voice = Voice(id="v1", locale="en_US", gender=GenderHint.MALE, age=AgeHint.ADULT)
+
+    with (
+        patch("shutil.which", return_value=None),
+        patch.object(provider, "_ensure_model", return_value=tmp_path / "v1.onnx"),
+        patch("audiobard.tts.piper_provider._wav_to_mp3", return_value=b"mp3-bytes"),
+        patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_subproc,
+    ):
+        mock_proc = AsyncMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate.return_value = (b"wav-bytes", b"")
+        mock_subproc.return_value = mock_proc
+
+        data = await provider._synthesize_raw("Hello", voice, Emotion.NEUTRAL, 1.0, 1.0)
+
+    assert data == b"mp3-bytes"
+    assert mock_subproc.call_args[0][0] == str(binary.resolve())
+
 

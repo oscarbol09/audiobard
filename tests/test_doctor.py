@@ -19,7 +19,7 @@ def test_collect_diagnostics_reports_dependencies_and_redacts_keys(
     response.raise_for_status.return_value = None
     with (
         patch("audiobard.doctor.find_ffmpeg", return_value="/usr/bin/ffmpeg"),
-        patch("audiobard.doctor.shutil.which", return_value="/usr/bin/piper"),
+        patch("audiobard.doctor.find_piper", return_value="/usr/bin/piper"),
         patch("audiobard.doctor.subprocess.run") as run,
         patch("audiobard.doctor.httpx.get", return_value=response),
     ):
@@ -41,7 +41,7 @@ def test_collect_diagnostics_handles_ollama_failure(
     monkeypatch.setenv("AUDIOBARD_CACHE_DIR", str(tmp_path))
     with (
         patch("audiobard.doctor.find_ffmpeg", return_value=None),
-        patch("audiobard.doctor.shutil.which", return_value=None),
+        patch("audiobard.doctor.find_piper", return_value=None),
         patch("audiobard.doctor.httpx.get", side_effect=httpx.ConnectError("offline")),
     ):
         rows = collect_diagnostics()

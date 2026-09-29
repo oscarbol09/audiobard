@@ -6,7 +6,6 @@ import asyncio
 import io
 import logging
 import re
-import shutil
 import uuid
 from pathlib import Path
 
@@ -18,6 +17,67 @@ from audiobard.models import Emotion, Voice
 from audiobard.tts.base import EMOTION_PROSODY, TTSProvider
 
 logger = logging.getLogger(__name__)
+
+# Binary resolution mirrors audiobard.audio.processor.find_ffmpeg so that a
+# portable install shipping piper next to ffmpeg under tools/ resolves both
+# the same way instead of only locating FFmpeg.
+_PIPER_ENV_VARS = ("AUDIOBARD_PIPER", "PIPER_BINARY", "PIPER_PATH")
+_PIPER_TOOL_SUBDIRS = (
+    Path("tools"),
+    Path("tools") / "bin",
+    Path("tools") / "piper",
+    Path("bin"),
+)
+
+
+def find_piper() -> str | None:
+    """Locate a piper binary for offline synthesis.
+
+    Search order:
+    1. AUDIOBARD_PIPER / PIPER_BINARY / PIPER_PATH env vars
+    2. System PATH via shutil.which
+    3. Local tools/ (and bin/) directories under cwd and the repo root
+
+    Returns the resolved path to the executable, or None when it cannot be
+    found. Unlike audiobard.audio.processor.find_ffmpeg there is no packaged
+    fallback step because Piper ships no bundled pip binary.
+    """
+    import os
+    import shutil
+    import sys
+
+    for env_name in _PIPER_ENV_VARS:
+        raw = os.environ.get(env_name)
+        if not raw:
+            continue
+        candidate = Path(raw).expanduser()
+        if candidate.is_file():
+            return str(candidate.resolve())
+
+    on_path = shutil.which("piper")
+    if on_path:
+        return on_path
+
+    names = ("piper.exe", "piper") if sys.platform == "win32" else ("piper",)
+    roots: list[Path] = [Path.cwd()]
+    # piper_provider.py -> tts -> audiobard -> src -> repo root (editable installs)
+    here = Path(__file__).resolve()
+    for idx in (2, 3, 4):
+        if idx < len(here.parents):
+            roots.append(here.parents[idx])
+
+    seen: set[str] = set()
+    for root in roots:
+        for sub in _PIPER_TOOL_SUBDIRS:
+            for name in names:
+                candidate = (root / sub / name).resolve()
+                key = str(candidate)
+                if key in seen:
+                    continue
+                seen.add(key)
+                if candidate.is_file():
+                    return key
+    return None
 
 
 def _wav_to_mp3(wav_data: bytes) -> bytes:
@@ -69,11 +129,13 @@ class PiperProvider(TTSProvider):
         rate: float,
         pitch: float,
     ) -> bytes:
-        # 1. Locate piper binary
-        piper_bin = shutil.which("piper")
+        # 1. Locate piper binary (env vars, PATH, then local tools/ dirs)
+        piper_bin = find_piper()
         if not piper_bin:
             raise FileNotFoundError(
-                "piper executable not found on PATH. Please make sure Piper is installed."
+                "piper executable not found. Checked AUDIOBARD_PIPER/PIPER_BINARY/"
+                "PIPER_PATH, PATH, and local tools/ directories. "
+                "Please make sure Piper is installed."
             )
 
         # 2. Ensure model files exist (download if missing)

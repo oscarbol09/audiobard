@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -11,6 +10,7 @@ from typing import Any
 import httpx
 
 from audiobard.audio.processor import find_ffmpeg
+from audiobard.tts.piper_provider import find_piper
 
 
 def _key_state(*names: str) -> str:
@@ -40,8 +40,14 @@ def collect_diagnostics() -> list[tuple[str, str, str]]:
             )
         )
 
-    piper = shutil.which("piper")
-    rows.append(("piper", "ok" if piper else "missing", piper or "not found on PATH"))
+    piper = find_piper()
+    rows.append(
+        (
+            "piper",
+            "ok" if piper else "missing",
+            piper or "not found on PATH or tools/",
+        )
+    )
 
     try:
         response = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
