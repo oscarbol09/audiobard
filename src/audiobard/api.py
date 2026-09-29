@@ -507,7 +507,13 @@ async def regenerate_book(book_id: int, request: RegenerateRequest) -> dict[str,
                 raise asyncio.CancelledError()
 
         pipeline = AudioBookPipeline(config)
-        await pipeline.run(source_path, output_path, resume=False, progress_callback=on_progress)
+        await pipeline.run(
+            source_path,
+            output_path,
+            resume=False,
+            progress_callback=on_progress,
+            cancel_check=lambda: progress_store.is_cancelled(session_id),
+        )
 
     asyncio.create_task(_run())
     return {"session_id": session_id, "status": "started"}
@@ -605,7 +611,12 @@ async def generate_audiobook(request: GenerateRequest) -> dict[str, str]:
                         raise asyncio.CancelledError()
 
                 try:
-                    await pipeline.run(input_path, output_path, progress_callback=on_progress)
+                    await pipeline.run(
+                        input_path,
+                        output_path,
+                        progress_callback=on_progress,
+                        cancel_check=lambda: progress_store.is_cancelled(session_id),
+                    )
                 except asyncio.CancelledError:
                     progress_store.update(
                         session_id,

@@ -206,8 +206,85 @@ def chunk_paragraphs(
     return chunks
 
 
+def _check_cancelled(cancel_check: Callable[[], bool] | None) -> None:
+    """Raise ``CancelledError`` when the consumer asked to stop the run."""
+    if cancel_check is not None and cancel_check():
+        raise asyncio.CancelledError
+
+
+def _clip_paths(cache_dir: Path, book_id: int, index: int) -> tuple[Path, Path]:
+    """Return the clip and metadata paths for one paragraph."""
+    return (
+        cache_dir / f"clip_{book_id}_{index}.mp3",
+        cache_dir / f"clip_{book_id}_{index}.json",
+    )
+
+
+def _both_exist(first: Path, second: Path) -> bool:
+    return first.exists() and second.exists()
+
+
+def _write_clip_atomically(
+    clip_path: Path,
+    clip_bytes: bytes,
+    meta_path: Path,
+    meta_json: str,
+) -> None:
+    """Write a clip and its metadata so neither is ever half-written.
+
+    Concurrent workers write different paragraph indexes, but a crash or a
+    cancelled run must not leave a torn mp3/json pair behind: both files land
+    through a temp file plus an atomic replace.
+    """
+    clip_tmp = Path(f"{clip_path}.tmp")
+    meta_tmp = Path(f"{meta_path}.tmp")
+    clip_tmp.write_bytes(clip_bytes)
+    meta_tmp.write_text(meta_json, encoding="utf-8")
+    clip_tmp.replace(clip_path)
+    meta_tmp.replace(meta_path)
+
+
+def _chunk_band(idx: int, total_chunks: int) -> tuple[int, int]:
+    """Return the percent range owned by chunk *idx* within the synthesis stage."""
+    span = _PROGRESS_SYNTHESIS_END - _PROGRESS_VOICE_END
+    total = max(1, total_chunks)
+    start = _PROGRESS_VOICE_END + int(round((idx / total) * span))
+    end = _PROGRESS_VOICE_END + int(round(((idx + 1) / total) * span))
+    return start, end
+
+
+def _make_paragraph_progress(
+    callback: ProgressCallback | None,
+    idx: int,
+    total_chunks: int,
+    band: tuple[int, int],
+) -> Callable[[int, int], None] | None:
+    """Build a per-paragraph progress reporter confined to *band*.
+
+    Each chunk owns a slice of the synthesis percent range, so paragraph
+    updates stay monotonic even though paragraphs finish out of order.
+    """
+    if callback is None:
+        return None
+    start, end = band
+
+    def report(done: int, total: int) -> None:
+        span = max(end - start, 1)
+        fraction = done / total if total else 1.0
+        percent = min(end, start + int(round(fraction * span)))
+        _emit(
+            callback,
+            PipelineProgress(
+                stage="synthesis",
+                percent=percent,
+                message=f"Chunk {idx + 1}/{total_chunks} — paragraph {done}/{total}",
+            ),
+        )
+
+    return report
+
+
 class AudioBookPipeline:
-    """Coordinates parsing, character extraction, voice mapping, synthesis, and assembly."""
 
     def __init__(self, config: AudioBardConfig) -> None:
         self.config = config
@@ -220,6 +297,118 @@ class AudioBookPipeline:
 
         # Set LLM concurrency semaphore
         self._llm_semaphore = asyncio.Semaphore(config.llm_semaphore)
+
+    async def _synthesize_paragraph(
+        self,
+        book_id: int,
+        paragraph: Paragraph,
+        speaker: str,
+        emotion: Emotion,
+        voice_assignments: list[VoiceAssignment],
+        voice_map: dict[str, Voice],
+        voices: list[Voice],
+    ) -> None:
+        """Synthesize one paragraph and store its clip plus metadata atomically."""
+        clip_file, meta_file = _clip_paths(self.cache_dir, book_id, paragraph.index)
+
+        assignment = next(
+            (x for x in voice_assignments if x.canonical_id == speaker),
+            None,
+        )
+        if not assignment:
+            assignment = next(
+                (x for x in voice_assignments if x.canonical_id == "Narrator"),
+                VoiceAssignment(canonical_id="Narrator", voice_id=voices[0].id),
+            )
+
+        voice = voice_map.get(assignment.voice_id) or voices[0]
+
+        mp3_bytes = await self.tts_provider.synthesize(
+            text=paragraph.text,
+            voice=voice,
+            emotion=emotion,
+            rate=assignment.rate,
+            pitch=assignment.pitch,
+        )
+
+        segment = await asyncio.to_thread(
+            AudioSegment.from_file, io.BytesIO(mp3_bytes), format="mp3"
+        )
+        meta_json = json.dumps(
+            {
+                "speaker": speaker,
+                "emotion": emotion.value,
+                "duration_ms": len(segment),
+            }
+        )
+        await asyncio.to_thread(
+            _write_clip_atomically, clip_file, mp3_bytes, meta_file, meta_json
+        )
+
+    async def _synthesize_paragraphs(
+        self,
+        book_id: int,
+        assigned: list[tuple[Paragraph, str, Emotion]],
+        voice_assignments: list[VoiceAssignment],
+        voice_map: dict[str, Voice],
+        voices: list[Voice],
+        cancel_check: Callable[[], bool] | None = None,
+        on_paragraph_complete: Callable[[int, int], None] | None = None,
+    ) -> None:
+        """Synthesize paragraph clips through a bounded worker pool.
+
+        The pool runs at most ``config.tts_semaphore`` workers, so a chapter
+        with hundreds of paragraphs never spawns hundreds of tasks. Clips are
+        keyed by ``paragraph.index`` and written atomically, so completion
+        order cannot affect the assembled book.
+        """
+        pending: list[tuple[Paragraph, str, Emotion]] = []
+        for paragraph, speaker, emotion in assigned:
+            clip_file, meta_file = _clip_paths(self.cache_dir, book_id, paragraph.index)
+            if await asyncio.to_thread(_both_exist, clip_file, meta_file):
+                continue
+            pending.append((paragraph, speaker, emotion))
+
+        if not pending:
+            return
+
+        worker_count = max(1, min(int(self.config.tts_semaphore), len(pending)))
+        queue: asyncio.Queue[tuple[Paragraph, str, Emotion]] = asyncio.Queue()
+        for item in pending:
+            queue.put_nowait(item)
+
+        completed = 0
+
+        async def consume() -> None:
+            nonlocal completed
+            while True:
+                try:
+                    paragraph, speaker, emotion = queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    return
+                _check_cancelled(cancel_check)
+                await self._synthesize_paragraph(
+                    book_id,
+                    paragraph,
+                    speaker,
+                    emotion,
+                    voice_assignments,
+                    voice_map,
+                    voices,
+                )
+                completed += 1
+                if on_paragraph_complete is not None:
+                    on_paragraph_complete(completed, len(pending))
+
+        workers = [asyncio.create_task(consume()) for _ in range(worker_count)]
+        try:
+            await asyncio.gather(*workers)
+        except BaseException:
+            # Never leave sibling workers, or their subprocesses, running.
+            for worker in workers:
+                worker.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
+            raise
 
     async def _extract_characters(
         self,
@@ -412,6 +601,7 @@ class AudioBookPipeline:
         resume: bool,
         dry_run: bool,
         progress_callback: ProgressCallback | None,
+        cancel_check: Callable[[], bool] | None = None,
     ) -> None:
         """Perform attribution and audio synthesis chunk by chunk."""
         chunks = chunk_paragraphs(paragraphs, chunk_size=self.config.chunk_words)
@@ -438,6 +628,7 @@ class AudioBookPipeline:
             task = progress.add_task("[cyan]Processing chunks...", total=len(chunks))
 
             for idx, chunk in enumerate(chunks):
+                _check_cancelled(cancel_check)
                 checkpoint_name = f"chunk_{idx}"
                 checkpoint = await asyncio.to_thread(
                     self.persistence.get_checkpoint, book_id, checkpoint_name
@@ -482,56 +673,20 @@ class AudioBookPipeline:
                         assigned_paragraphs.append((p, "Narrator", Emotion.NEUTRAL))
 
                 if not dry_run:
-                    for p, speaker, emotion in assigned_paragraphs:
-                        clip_file = self.cache_dir / f"clip_{book_id}_{p.index}.mp3"
-                        meta_file = self.cache_dir / f"clip_{book_id}_{p.index}.json"
-
-                        def _files_exist(f1: Path = clip_file, f2: Path = meta_file) -> bool:
-                            return f1.exists() and f2.exists()
-
-                        exists = await asyncio.to_thread(_files_exist)
-                        if exists:
-                            continue
-
-                        va = next(
-                            (x for x in voice_assignments if x.canonical_id == speaker),
-                            None,
-                        )
-                        if not va:
-                            va = next(
-                                (x for x in voice_assignments if x.canonical_id == "Narrator"),
-                                VoiceAssignment(
-                                    canonical_id="Narrator", voice_id=voices[0].id
-                                ),
-                            )
-
-                        default_voice = voices[0]
-                        voice = voice_map.get(va.voice_id) or default_voice
-
-                        mp3_bytes = await self.tts_provider.synthesize(
-                            text=p.text,
-                            voice=voice,
-                            emotion=emotion,
-                            rate=va.rate,
-                            pitch=va.pitch,
-                        )
-
-                        segment = await asyncio.to_thread(
-                            AudioSegment.from_file, io.BytesIO(mp3_bytes), format="mp3"
-                        )
-                        duration_ms = len(segment)
-
-                        await asyncio.to_thread(clip_file.write_bytes, mp3_bytes)
-                        meta_json = json.dumps(
-                            {
-                                "speaker": speaker,
-                                "emotion": emotion.value,
-                                "duration_ms": duration_ms,
-                            }
-                        )
-                        await asyncio.to_thread(
-                            meta_file.write_text, meta_json, encoding="utf-8"
-                        )
+                    await self._synthesize_paragraphs(
+                        book_id,
+                        assigned_paragraphs,
+                        voice_assignments,
+                        voice_map,
+                        voices,
+                        cancel_check,
+                        _make_paragraph_progress(
+                            progress_callback,
+                            idx,
+                            len(chunks),
+                            _chunk_band(idx, len(chunks)),
+                        ),
+                    )
 
                     await asyncio.to_thread(
                         self.persistence.save_checkpoint,
@@ -678,6 +833,7 @@ class AudioBookPipeline:
         dry_run: bool = False,
         progress_callback: ProgressCallback | None = None,
         voice_preset: VoicePreset | None = None,
+        cancel_check: Callable[[], bool] | None = None,
     ) -> None:
         """Run the complete pipeline from book file to finished audio file.
 
@@ -694,6 +850,10 @@ class AudioBookPipeline:
                 subscriber cannot abort generation.
             voice_preset: Optional imported preset whose assignments take
                 precedence over freshly mapped voices.
+            cancel_check: Optional predicate polled between chunks and
+                before each paragraph synthesis. When it returns True the
+                run stops promptly, in-flight workers are cancelled, and
+                ``asyncio.CancelledError`` is raised.
         """
         if not book_path.exists():  # noqa: ASYNC240
             raise FileNotFoundError(f"Book file not found: {book_path}")
@@ -758,6 +918,7 @@ class AudioBookPipeline:
             resume,
             dry_run,
             progress_callback,
+            cancel_check,
         )
 
         # 4. Assembly

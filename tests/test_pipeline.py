@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -33,6 +35,7 @@ from audiobard.pipeline import (
     load_voice_preset,
     save_voice_preset,
 )
+from audiobard.progress import PipelineProgress
 
 runner = CliRunner()
 
@@ -270,6 +273,210 @@ def test_merge_preset_without_preset_is_a_no_op(tmp_path: Path) -> None:
     assert pipeline._merge_preset(mapped, None, {}) == mapped
     empty = VoicePreset.from_assignments([])
     assert pipeline._merge_preset(mapped, empty, {}) == mapped
+
+
+class _FakeTTS:
+    """Minimal TTS provider stand-in that records in-flight concurrency."""
+
+    def __init__(self, delay: float = 0.01) -> None:
+        self.delay = delay
+        self.in_flight = 0
+        self.max_in_flight = 0
+        self.calls: list[str] = []
+
+    async def synthesize(
+        self,
+        text: str,
+        voice: Voice,
+        emotion: Emotion,
+        rate: float = 1.0,
+        pitch: float = 1.0,
+    ) -> bytes:
+        self.in_flight += 1
+        self.max_in_flight = max(self.max_in_flight, self.in_flight)
+        try:
+            await asyncio.sleep(self.delay)
+            self.calls.append(text)
+            return f"mp3:{text}".encode()
+        finally:
+            self.in_flight -= 1
+
+
+class _FailingTTS:
+    """Provider that always fails, to prove no partial clip is left behind."""
+
+    async def synthesize(
+        self,
+        text: str,
+        voice: Voice,
+        emotion: Emotion,
+        rate: float = 1.0,
+        pitch: float = 1.0,
+    ) -> bytes:
+        raise RuntimeError("engine exploded")
+
+
+def _fake_audio_segment() -> MagicMock:
+    module = MagicMock()
+    segment = MagicMock()
+    segment.__len__ = MagicMock(return_value=500)
+    module.from_file.return_value = segment
+    return module
+
+
+def _pool_pipeline(tmp_path: Path, concurrency: int) -> AudioBookPipeline:
+    config = AudioBardConfig(
+        db_path=tmp_path / "db.sqlite",
+        cache_dir=tmp_path / "cache",
+        tts_semaphore=concurrency,
+    )
+    return AudioBookPipeline(config)
+
+
+def _assigned(count: int) -> list[tuple[Paragraph, str, Emotion]]:
+    return [
+        (Paragraph(text=f"paragraph {index}", chapter=0, index=index), "Narrator", Emotion.NEUTRAL)
+        for index in range(count)
+    ]
+
+
+def _pool_voice() -> Voice:
+    return Voice(
+        id="voice-a",
+        locale="en_US",
+        gender=GenderHint.FEMALE,
+        age=AgeHint.ADULT,
+    )
+
+
+@pytest.mark.asyncio
+async def test_synthesize_paragraphs_bounds_concurrency(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A chapter with many paragraphs must never exceed tts_semaphore workers."""
+    monkeypatch.setattr("audiobard.pipeline.AudioSegment", _fake_audio_segment())
+    pipeline = _pool_pipeline(tmp_path, concurrency=2)
+    fake = _FakeTTS(delay=0.02)
+    pipeline.tts_provider = fake
+
+    await pipeline._synthesize_paragraphs(
+        7, _assigned(8), [], {}, [_pool_voice()]
+    )
+
+    assert len(fake.calls) == 8
+    assert fake.max_in_flight == 2
+    assert fake.max_in_flight <= 2
+
+
+@pytest.mark.asyncio
+async def test_synthesize_paragraphs_writes_every_clip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("audiobard.pipeline.AudioSegment", _fake_audio_segment())
+    pipeline = _pool_pipeline(tmp_path, concurrency=3)
+    fake = _FakeTTS(delay=0.005)
+    pipeline.tts_provider = fake
+
+    await pipeline._synthesize_paragraphs(1, _assigned(6), [], {}, [_pool_voice()])
+
+    for index in range(6):
+        clip = pipeline.cache_dir / f"clip_1_{index}.mp3"
+        meta = pipeline.cache_dir / f"clip_1_{index}.json"
+        assert clip.exists()
+        assert meta.exists()
+        assert json.loads(meta.read_text(encoding="utf-8"))["duration_ms"] == 500
+    assert not list(pipeline.cache_dir.glob("*.tmp"))
+
+
+@pytest.mark.asyncio
+async def test_synthesize_paragraphs_skips_cached_clips(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("audiobard.pipeline.AudioSegment", _fake_audio_segment())
+    pipeline = _pool_pipeline(tmp_path, concurrency=2)
+    assert pipeline.cache_dir.is_dir()
+    (pipeline.cache_dir / "clip_1_0.mp3").write_bytes(b"cached")
+    (pipeline.cache_dir / "clip_1_0.json").write_text("{}", encoding="utf-8")
+    fake = _FakeTTS(delay=0.005)
+    pipeline.tts_provider = fake
+
+    await pipeline._synthesize_paragraphs(1, _assigned(4), [], {}, [_pool_voice()])
+
+    assert len(fake.calls) == 3  # paragraph 0 reused its cached clip
+    assert (pipeline.cache_dir / "clip_1_0.mp3").read_bytes() == b"cached"
+
+
+@pytest.mark.asyncio
+async def test_synthesize_paragraphs_stops_when_cancelled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("audiobard.pipeline.AudioSegment", _fake_audio_segment())
+    pipeline = _pool_pipeline(tmp_path, concurrency=1)
+    fake = _FakeTTS(delay=0.005)
+    pipeline.tts_provider = fake
+
+    checks = {"count": 0}
+
+    def cancel_check() -> bool:
+        checks["count"] += 1
+        return checks["count"] > 2
+
+    with pytest.raises(asyncio.CancelledError):
+        await pipeline._synthesize_paragraphs(
+            1, _assigned(8), [], {}, [_pool_voice()], cancel_check=cancel_check
+        )
+
+    assert len(fake.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_failed_synthesis_leaves_no_partial_clip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("audiobard.pipeline.AudioSegment", _fake_audio_segment())
+    pipeline = _pool_pipeline(tmp_path, concurrency=1)
+    pipeline.tts_provider = _FailingTTS()
+
+    with pytest.raises(RuntimeError, match="engine exploded"):
+        await pipeline._synthesize_paragraphs(1, _assigned(2), [], {}, [_pool_voice()])
+
+    assert list(pipeline.cache_dir.glob("*.mp3")) == []
+    assert list(pipeline.cache_dir.glob("*.tmp")) == []
+
+
+def test_chunk_band_is_contiguous_and_reaches_stage_end() -> None:
+    from audiobard.pipeline import (
+        _PROGRESS_SYNTHESIS_END,
+        _PROGRESS_VOICE_END,
+        _chunk_band,
+    )
+
+    bands = [_chunk_band(index, 4) for index in range(4)]
+    assert bands[0][0] == _PROGRESS_VOICE_END
+    assert bands[-1][1] == _PROGRESS_SYNTHESIS_END
+    assert all(bands[i][1] == bands[i + 1][0] for i in range(3))
+
+
+def test_paragraph_progress_stays_inside_its_band_and_monotonic() -> None:
+    from audiobard.pipeline import _make_paragraph_progress
+
+    events: list[PipelineProgress] = []
+    report = _make_paragraph_progress(events.append, idx=1, total_chunks=4, band=(30, 50))
+    assert report is not None
+    for done in (1, 2, 3):
+        report(done, 3)
+
+    percents = [event.percent for event in events]
+    assert percents == sorted(percents)
+    assert percents[0] >= 30
+    assert percents[-1] <= 50
+    assert all(event.stage == "synthesis" for event in events)
+
+
+def test_paragraph_progress_without_callback_returns_none() -> None:
+    from audiobard.pipeline import _make_paragraph_progress
+
+    assert _make_paragraph_progress(None, 0, 1, (20, 90)) is None
 
 
 def test_factories_valid_and_invalid() -> None:

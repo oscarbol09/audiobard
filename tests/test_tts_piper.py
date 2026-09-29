@@ -7,7 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -485,6 +485,31 @@ async def test_piper_synthesize_uses_env_var_binary(
 
     assert data == b"mp3-bytes"
     assert mock_subproc.call_args[0][0] == str(binary.resolve())
+
+
+@pytest.mark.asyncio
+async def test_piper_kills_subprocess_when_cancelled(tmp_path: Path) -> None:
+    """A cancelled synthesis must not leave an orphan piper process."""
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    provider = PiperProvider(config)
+    voice = Voice(id="v1", locale="en_US", gender=GenderHint.MALE, age=AgeHint.ADULT)
+
+    proc = MagicMock()
+    proc.communicate = AsyncMock(side_effect=asyncio.CancelledError())
+    proc.wait = AsyncMock()
+    proc.kill = MagicMock()
+
+    with (
+        patch("audiobard.tts.piper_provider.find_piper", return_value="/usr/bin/piper"),
+        patch.object(provider, "_ensure_model", return_value=tmp_path / "v1.onnx"),
+        patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_subproc,
+        pytest.raises(asyncio.CancelledError),
+    ):
+        mock_subproc.return_value = proc
+        await provider._synthesize_raw("Hello", voice, Emotion.NEUTRAL, 1.0, 1.0)
+
+    proc.kill.assert_called_once()
+    proc.wait.assert_awaited_once()
 
 
 def test_local_locale_counts_counts_pool_files(tmp_path: Path) -> None:

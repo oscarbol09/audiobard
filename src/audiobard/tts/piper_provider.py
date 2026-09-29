@@ -193,7 +193,13 @@ class PiperProvider(TTSProvider):
             stderr=asyncio.subprocess.PIPE,
         )
 
-        stdout, stderr = await proc.communicate(text.encode("utf-8"))
+        try:
+            stdout, stderr = await proc.communicate(text.encode("utf-8"))
+        except asyncio.CancelledError:
+            # A cancelled run must not leave an orphan piper process behind.
+            proc.kill()
+            await proc.wait()
+            raise
 
         if proc.returncode != 0:
             err_msg = stderr.decode("utf-8", errors="replace").strip()
