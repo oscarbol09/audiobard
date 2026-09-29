@@ -15,6 +15,7 @@ from rich.table import Table
 from audiobard import __version__
 from audiobard.config import AudioBardConfig
 from audiobard.models import AgeHint, GenderHint, Voice, coerce_emotion
+from audiobard.tts.base import TTSProvider
 from audiobard.pipeline import AudioBookPipeline, create_tts_provider
 
 app = typer.Typer(
@@ -24,6 +25,58 @@ app = typer.Typer(
 )
 
 console = Console()
+logger = logging.getLogger(__name__)
+
+# How many locale names an error hint shows before summarising the rest.
+_LOCALE_HINT_LIMIT = 20
+
+
+def _known_locales(tts_prov: TTSProvider) -> dict[str, int]:
+    """Best-effort offline locale enumeration for a provider; never raises."""
+    try:
+        counts = asyncio.run(tts_prov.available_locales())
+    except Exception as exc:
+        logger.debug("Locale enumeration failed: %s", exc)
+        return {}
+    if not isinstance(counts, dict):
+        return {}
+    safe: dict[str, int] = {}
+    for locale, count in counts.items():
+        try:
+            safe[str(locale)] = int(count)
+        except (TypeError, ValueError):
+            continue
+    return safe
+
+
+def _locale_hint(counts: dict[str, int]) -> str:
+    """Render the available-locales hint used in error messages."""
+    if not counts:
+        return ""
+    names = sorted(counts)
+    preview = ", ".join(names[:_LOCALE_HINT_LIMIT])
+    if len(names) > _LOCALE_HINT_LIMIT:
+        preview += f", ... ({len(names)} total)"
+    return preview
+
+
+def _ensure_locale_available(config: AudioBardConfig, tts_prov: TTSProvider) -> None:
+    """Abort early when *config.tts_locale* has no voices for *tts_prov*.
+
+    Only enforced when the provider can enumerate its locales offline: an empty
+    mapping means "unknown", not "no such locale".
+    """
+    counts = _known_locales(tts_prov)
+    if not counts or config.tts_locale in counts:
+        return
+    console.print(
+        f"[red]Locale {config.tts_locale} has no voices available for the "
+        f"{config.tts_provider} provider.[/red]"
+    )
+    hint = _locale_hint(counts)
+    if hint:
+        console.print(f"Available locales: {hint}")
+    raise typer.Exit(code=1)
 
 # Default audition text: short enough to sound instant, long enough to judge timbre.
 DEFAULT_VOICE_TEST_TEXT = "This is a voice preview."
@@ -215,7 +268,10 @@ def generate(
     # 3. Setup logging level
     logging.getLogger().setLevel(config.log_level)
 
-    # 4. Run pipeline
+    # 4. Fail fast when the provider has no voices for the requested locale
+    _ensure_locale_available(config, create_tts_provider(config))
+
+    # 5. Run pipeline
     pipeline = AudioBookPipeline(config)
     try:
         asyncio.run(pipeline.run(book, output, resume=resume, dry_run=dry_run))
@@ -277,6 +333,9 @@ def voices(
         console.print(
             f"[yellow]No voices found for locale: {config.tts_locale}[/yellow]"
         )
+        hint = _locale_hint(_known_locales(tts_prov))
+        if hint:
+            console.print(f"Available locales: {hint}")
         return
 
     table = Table(
@@ -411,6 +470,49 @@ def voices_test(
 
 
 app.add_typer(voices_app, name="voices")
+
+
+@app.command("locales")
+def locales(
+    provider: str | None = typer.Option(
+        None,
+        "--provider",
+        "-p",
+        help="TTS provider to inspect (piper, edge).",
+    ),
+) -> None:
+    """List locales that have TTS voices available, with voice counts."""
+    config_overrides: dict[str, object] = {}
+    if provider:
+        config_overrides["tts_provider"] = provider
+
+    try:
+        config = AudioBardConfig.model_validate(config_overrides)
+    except Exception as exc:
+        console.print(f"[red]Error loading configuration:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    counts = _known_locales(create_tts_provider(config))
+    if not counts:
+        console.print(
+            "[yellow]No locales with locally available voices found for the "
+            f"{config.tts_provider} provider.[/yellow]"
+        )
+        if config.tts_provider == "piper":
+            console.print(
+                f"Add a voice pool file under {config.voices_dir} "
+                "(for example en_US.json) to enable a locale."
+            )
+        return
+
+    console.print(f"Available locales for provider {config.tts_provider}:")
+    table = Table(title="Locales with locally available voices")
+    table.add_column("Locale", style="cyan")
+    table.add_column("Voices", style="green")
+    for locale in sorted(counts):
+        table.add_row(locale, str(counts[locale]))
+    table.add_row("[bold]Total[/bold]", f"[bold]{sum(counts.values())}[/bold]")
+    console.print(table)
 
 
 @app.command("validate-config")

@@ -88,6 +88,28 @@ def _wav_to_mp3(wav_data: bytes) -> bytes:
     return out.getvalue()
 
 
+def local_locale_counts(voices_dir: Path) -> dict[str, int]:
+    """Count the voices per locale in the voice-pool files under *voices_dir*.
+
+    The shipped pools are the honest source of "model availability": Piper can
+    only synthesize a locale whose pool file exists locally.
+    """
+    import json
+
+    counts: dict[str, int] = {}
+    if not voices_dir.is_dir():
+        return counts
+    for path in sorted(voices_dir.glob("*.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError) as exc:
+            logger.warning("Skipping unreadable voice pool %s: %s", path, exc)
+            continue
+        if isinstance(data, list) and data:
+            counts[path.stem] = len(data)
+    return counts
+
+
 class PiperProvider(TTSProvider):
     """Text-to-speech provider using Piper local CLI subprocess."""
 
@@ -98,6 +120,10 @@ class PiperProvider(TTSProvider):
         # Serializes model downloads so concurrent synthesizers cannot
         # race-write the same .onnx / .onnx.json paths.
         self._download_lock = asyncio.Lock()
+
+    async def available_locales(self) -> dict[str, int]:
+        """Locales with a local voice pool, mapped to their voice count."""
+        return await asyncio.to_thread(local_locale_counts, self.config.voices_dir)
 
     async def list_voices(self, locale: str) -> list[Voice]:
         path = self.config.voices_dir / f"{locale}.json"

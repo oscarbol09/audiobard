@@ -16,7 +16,11 @@ from httpx import Response
 
 from audiobard.config import AudioBardConfig
 from audiobard.models import AgeHint, Emotion, GenderHint, Voice
-from audiobard.tts.piper_provider import PiperProvider, find_piper
+from audiobard.tts.piper_provider import (
+    PiperProvider,
+    find_piper,
+    local_locale_counts,
+)
 
 
 @pytest.mark.asyncio
@@ -481,5 +485,30 @@ async def test_piper_synthesize_uses_env_var_binary(
 
     assert data == b"mp3-bytes"
     assert mock_subproc.call_args[0][0] == str(binary.resolve())
+
+
+def test_local_locale_counts_counts_pool_files(tmp_path: Path) -> None:
+    (tmp_path / "en_US.json").write_text('[{"id": "a"}, {"id": "b"}]', encoding="utf-8")
+    (tmp_path / "es_ES.json").write_text('[{"id": "c"}]', encoding="utf-8")
+    (tmp_path / "empty.json").write_text("[]", encoding="utf-8")
+    (tmp_path / "broken.json").write_text("{not json", encoding="utf-8")
+
+    assert local_locale_counts(tmp_path) == {"en_US": 2, "es_ES": 1}
+
+
+def test_local_locale_counts_missing_directory(tmp_path: Path) -> None:
+    assert local_locale_counts(tmp_path / "nope") == {}
+
+
+@pytest.mark.asyncio
+async def test_piper_available_locales_uses_voices_dir(tmp_path: Path) -> None:
+    voices_dir = tmp_path / "voices"
+    voices_dir.mkdir()
+    (voices_dir / "en_US.json").write_text('[{"id": "a"}]', encoding="utf-8")
+    config = AudioBardConfig(
+        cache_dir=tmp_path, voices_dir=voices_dir, db_path=tmp_path / "test.db"
+    )
+
+    assert await PiperProvider(config).available_locales() == {"en_US": 1}
 
 

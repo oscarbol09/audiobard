@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -490,6 +491,125 @@ def test_voices_test_invalid_provider() -> None:
     result = runner.invoke(app, ["voices", "test", "--voice", "v1", "--provider", "bogus"])
     assert result.exit_code == 1
     assert "Error loading configuration" in result.stdout
+
+
+def _write_voice_pool(directory: Path, locale: str, count: int) -> None:
+    entries = json.dumps([{"id": f"{locale}-{index}"} for index in range(count)])
+    (directory / f"{locale}.json").write_text(entries, encoding="utf-8")
+
+
+def test_locales_command_lists_piper_pools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    voices_dir = tmp_path / "voices"
+    voices_dir.mkdir()
+    _write_voice_pool(voices_dir, "en_US", 2)
+    _write_voice_pool(voices_dir, "es_ES", 1)
+    monkeypatch.setenv("AUDIOBARD_VOICES_DIR", str(voices_dir))
+
+    result = runner.invoke(app, ["locales", "--provider", "piper"])
+
+    assert result.exit_code == 0
+    assert "Available locales for provider piper:" in result.stdout
+    assert "en_US" in result.stdout
+    assert "es_ES" in result.stdout
+
+
+def test_locales_command_edge_uses_bundled_snapshot() -> None:
+    result = runner.invoke(app, ["locales", "--provider", "edge"])
+    assert result.exit_code == 0
+    assert "Available locales for provider edge:" in result.stdout
+    assert "en_US" in result.stdout
+
+
+def test_locales_command_without_any_pools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    monkeypatch.setenv("AUDIOBARD_VOICES_DIR", str(empty))
+
+    result = runner.invoke(app, ["locales", "--provider", "piper"])
+
+    assert result.exit_code == 0
+    assert "No locales with locally available voices found" in result.stdout
+    assert "Add a voice pool file under" in result.stdout
+
+
+def test_locales_command_invalid_provider() -> None:
+    result = runner.invoke(app, ["locales", "--provider", "bogus"])
+    assert result.exit_code == 1
+    assert "Error loading configuration" in result.stdout
+
+
+def test_generate_rejects_locale_without_voices(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unknown --locale must fail fast with the available alternatives."""
+    voices_dir = tmp_path / "voices"
+    voices_dir.mkdir()
+    _write_voice_pool(voices_dir, "en_US", 1)
+    monkeypatch.setenv("AUDIOBARD_VOICES_DIR", str(voices_dir))
+
+    book_file = tmp_path / "book.txt"
+    book_file.write_text("Chapter 1\n\nHello world.", encoding="utf-8")
+
+    with patch("audiobard.cli.AudioBookPipeline.run", new_callable=AsyncMock) as mock_run:
+        result = runner.invoke(app, ["generate", str(book_file), "--locale", "zz_ZZ"])
+
+    assert result.exit_code == 1
+    assert "has no voices available for the piper provider" in result.stdout
+    assert "Available locales: en_US" in result.stdout
+    mock_run.assert_not_called()
+
+
+def test_generate_skips_validation_when_locales_are_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An empty locale mapping means unknown, so the pipeline must still run."""
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    monkeypatch.setenv("AUDIOBARD_VOICES_DIR", str(empty))
+
+    book_file = tmp_path / "book.txt"
+    book_file.write_text("Chapter 1\n\nHello world.", encoding="utf-8")
+
+    with patch("audiobard.cli.AudioBookPipeline.run", new_callable=AsyncMock) as mock_run:
+        result = runner.invoke(app, ["generate", str(book_file), "--locale", "zz_ZZ"])
+
+    assert result.exit_code == 0
+    assert mock_run.called
+
+
+def test_voices_empty_list_suggests_available_locales() -> None:
+    with patch("audiobard.cli.create_tts_provider") as mock_create:
+        mock_tts = AsyncMock()
+        mock_tts.list_voices.return_value = []
+        mock_tts.available_locales.return_value = {"en_US": 2, "es_ES": 1}
+        mock_create.return_value = mock_tts
+
+        result = runner.invoke(
+            app, ["voices", "--provider", "piper", "--locale", "fr_FR"]
+        )
+
+    assert result.exit_code == 0
+    assert "No voices found for locale: fr_FR" in result.stdout
+    assert "Available locales: en_US, es_ES" in result.stdout
+
+
+def test_voices_empty_list_without_locale_data_prints_no_hint() -> None:
+    with patch("audiobard.cli.create_tts_provider") as mock_create:
+        mock_tts = AsyncMock()
+        mock_tts.list_voices.return_value = []
+        mock_tts.available_locales.return_value = {}
+        mock_create.return_value = mock_tts
+
+        result = runner.invoke(
+            app, ["voices", "--provider", "piper", "--locale", "fr_FR"]
+        )
+
+    assert result.exit_code == 0
+    assert "Available locales" not in result.stdout
 
 
 def test_voices_test_requires_voice_option() -> None:

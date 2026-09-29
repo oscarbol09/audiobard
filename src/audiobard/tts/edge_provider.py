@@ -59,8 +59,26 @@ def _load_bundled_voices() -> list[dict[str, str]]:
     ]
 
 
+def bundled_locale_counts() -> dict[str, int]:
+    """Count the bundled offline snapshot voices per locale."""
+    counts: dict[str, int] = {}
+    for entry in _load_bundled_voices():
+        locale = entry["Locale"].replace("-", "_")
+        if locale:
+            counts[locale] = counts.get(locale, 0) + 1
+    return counts
+
+
 class EdgeProvider(TTSProvider):
     """Text-to-speech provider using Microsoft Edge Online TTS."""
+
+    async def available_locales(self) -> dict[str, int]:
+        """Locales in the bundled snapshot, mapped to their voice count.
+
+        Deliberately offline: this feeds CLI validation, which must keep
+        working on a disconnected machine.
+        """
+        return await asyncio.to_thread(bundled_locale_counts)
 
     async def list_voices(self, locale: str) -> list[Voice]:
         """List available voices from Edge TTS for the given *locale*."""

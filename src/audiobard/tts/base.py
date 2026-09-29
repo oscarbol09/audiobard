@@ -138,3 +138,12 @@ class TTSProvider(ABC):
     async def list_voices(self, locale: str) -> list[Voice]:
         """Return list of available voices for *locale*."""
 
+    async def available_locales(self) -> dict[str, int]:
+        """Return ``{locale: voice_count}`` for voices known offline.
+
+        Powers ``audiobard locales`` and ``--locale`` validation, so it must
+        never touch the network. Providers that cannot enumerate locally
+        return an empty mapping, which callers read as "unknown".
+        """
+        return {}
+

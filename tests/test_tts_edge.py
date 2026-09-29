@@ -272,3 +272,20 @@ def test_bundled_snapshot_is_well_formed() -> None:
             age=AgeHint.ADULT,
         )
 
+
+def test_bundled_locale_counts_matches_snapshot() -> None:
+    counts = edge_provider.bundled_locale_counts()
+    entries = edge_provider._load_bundled_voices()
+    assert sum(counts.values()) == len(entries)
+    assert counts["en_US"] >= 1
+    assert counts["es_ES"] >= 1
+    assert all(isinstance(count, int) and count > 0 for count in counts.values())
+
+
+@pytest.mark.asyncio
+async def test_edge_available_locales_is_offline(tmp_path: Path) -> None:
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    with patch("edge_tts.list_voices", side_effect=ConnectionError("offline")):
+        counts = await EdgeProvider(config).available_locales()
+    assert counts["en_US"] >= 1
+
