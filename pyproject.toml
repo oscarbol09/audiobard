@@ -58,7 +58,7 @@ audiobard = "audiobard.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-audiobard = ["py.typed"]
+audiobard = ["py.typed", "data/*.json"]
 
 [tool.ruff]
 target-version = "py310"

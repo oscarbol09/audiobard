@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
+from pathlib import Path
 
 import edge_tts
 
@@ -10,6 +13,50 @@ from audiobard.models import AgeHint, Emotion, GenderHint, Voice
 from audiobard.tts.base import EMOTION_PROSODY, TTSProvider
 
 logger = logging.getLogger(__name__)
+
+# Bundled snapshot of Microsoft voice metadata, used when the live service is
+# unreachable so the voice picker still populates on an offline desktop launch.
+_BUNDLED_VOICES_PATH = (
+    Path(__file__).resolve().parent.parent / "data" / "edge_voices_cache.json"
+)
+
+
+def _offline_fallback_errors() -> tuple[type[BaseException], ...]:
+    """Exception types that mean the network is unavailable, not that we are broken."""
+    errors: list[type[BaseException]] = [
+        TimeoutError,
+        asyncio.TimeoutError,
+        ConnectionError,
+        OSError,
+    ]
+    try:
+        import aiohttp
+    except ImportError:  # pragma: no cover - aiohttp ships with edge-tts
+        pass
+    else:
+        errors.append(aiohttp.ClientError)
+    return tuple(errors)
+
+
+def _load_bundled_voices() -> list[dict[str, str]]:
+    """Load the bundled offline voice snapshot; empty list when unreadable."""
+    try:
+        payload = json.loads(_BUNDLED_VOICES_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        logger.warning("Bundled Edge voice cache is unavailable: %s", exc)
+        return []
+    raw = payload.get("voices") if isinstance(payload, dict) else payload
+    if not isinstance(raw, list):
+        return []
+    return [
+        {
+            "ShortName": str(entry.get("ShortName", "")),
+            "Locale": str(entry.get("Locale", "")),
+            "Gender": str(entry.get("Gender", "")),
+        }
+        for entry in raw
+        if isinstance(entry, dict) and entry.get("ShortName")
+    ]
 
 
 class EdgeProvider(TTSProvider):
@@ -20,6 +67,12 @@ class EdgeProvider(TTSProvider):
         edge_locale = locale.replace("_", "-")
         try:
             all_voices = await edge_tts.list_voices()
+        except _offline_fallback_errors() as exc:
+            logger.warning(
+                "Edge TTS is unreachable (%s); using the bundled offline voice snapshot.",
+                exc,
+            )
+            all_voices = _load_bundled_voices()
         except Exception as exc:
             logger.error("Failed to fetch voices from Edge TTS: %s", exc)
             return []
@@ -74,8 +127,6 @@ class EdgeProvider(TTSProvider):
             rate_str,
             pitch_str,
         )
-
-        import asyncio
 
         import edge_tts.exceptions
 

@@ -10,6 +10,7 @@ import pytest
 
 from audiobard.config import AudioBardConfig
 from audiobard.models import AgeHint, Emotion, GenderHint, Voice
+from audiobard.tts import edge_provider
 from audiobard.tts.edge_provider import EdgeProvider
 
 
@@ -166,4 +167,108 @@ async def test_edge_synthesize_empty_stream(mock_comm_cls: MagicMock, tmp_path: 
     )
     with pytest.raises(RuntimeError, match="Edge TTS returned no audio data"):
         await provider._synthesize_raw("Hello", voice, Emotion.NEUTRAL, rate=1.0, pitch=1.0)
+
+
+@pytest.mark.asyncio
+async def test_edge_offline_falls_back_to_bundled_snapshot(tmp_path: Path) -> None:
+    """Regression (#64): an unreachable service must not empty the voice picker."""
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    with patch("edge_tts.list_voices", side_effect=ConnectionError("offline")):
+        voices = await EdgeProvider(config).list_voices("en_US")
+
+    assert voices
+    assert all(v.locale == "en_US" for v in voices)
+    by_id = {v.id: v for v in voices}
+    assert by_id["en-US-AriaNeural"].gender is GenderHint.FEMALE
+    assert by_id["en-US-GuyNeural"].gender is GenderHint.MALE
+    assert by_id["en-US-AriaNeural"].age is AgeHint.ADULT
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [ConnectionError("offline"), TimeoutError("timed out"), OSError("no route to host")],
+)
+async def test_edge_offline_fallback_error_types(error: Exception, tmp_path: Path) -> None:
+    """Every "network is down" error type must trigger the snapshot fallback."""
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    with patch("edge_tts.list_voices", side_effect=error):
+        voices = await EdgeProvider(config).list_voices("es_ES")
+    assert voices
+    assert all(v.locale == "es_ES" for v in voices)
+
+
+@pytest.mark.asyncio
+async def test_edge_offline_fallback_still_filters_by_locale(tmp_path: Path) -> None:
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    with patch("edge_tts.list_voices", side_effect=ConnectionError("offline")):
+        voices = await EdgeProvider(config).list_voices("de_DE")
+    assert voices
+    assert {v.locale for v in voices} == {"de_DE"}
+    assert all(v.id.startswith("de-DE-") for v in voices)
+
+
+@pytest.mark.asyncio
+async def test_edge_offline_fallback_unknown_locale_is_empty(tmp_path: Path) -> None:
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    with patch("edge_tts.list_voices", side_effect=ConnectionError("offline")):
+        voices = await EdgeProvider(config).list_voices("xx_XX")
+    assert voices == []
+
+
+@pytest.mark.asyncio
+async def test_edge_offline_fallback_missing_snapshot_is_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A missing snapshot must degrade to the previous empty-list behaviour."""
+    monkeypatch.setattr(
+        edge_provider, "_BUNDLED_VOICES_PATH", tmp_path / "missing.json"
+    )
+    config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
+    with patch("edge_tts.list_voices", side_effect=ConnectionError("offline")):
+        voices = await EdgeProvider(config).list_voices("en_US")
+    assert voices == []
+
+
+def test_load_bundled_voices_handles_malformed_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    broken = tmp_path / "edge_voices_cache.json"
+    broken.write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(edge_provider, "_BUNDLED_VOICES_PATH", broken)
+    assert edge_provider._load_bundled_voices() == []
+
+
+def test_load_bundled_voices_handles_unexpected_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shaped = tmp_path / "edge_voices_cache.json"
+    shaped.write_text('{"voices": "not-a-list"}', encoding="utf-8")
+    monkeypatch.setattr(edge_provider, "_BUNDLED_VOICES_PATH", shaped)
+    assert edge_provider._load_bundled_voices() == []
+
+
+def test_bundled_snapshot_is_well_formed() -> None:
+    """The shipped snapshot must stay loadable and internally consistent."""
+    import json
+
+    payload = json.loads(
+        edge_provider._BUNDLED_VOICES_PATH.read_text(encoding="utf-8")
+    )
+    entries = edge_provider._load_bundled_voices()
+    assert entries
+    assert payload["voice_count"] == len(entries)
+    assert sorted({e["Locale"] for e in entries}) == payload["locales"]
+    for entry in entries:
+        assert entry["ShortName"]
+        assert entry["Locale"]
+        assert entry["Gender"] in {"Male", "Female", "Neutral"}
+    # Every snapshot entry must be accepted by the Voice contract.
+    for entry in entries:
+        Voice(
+            id=entry["ShortName"],
+            locale=entry["Locale"].replace("-", "_"),
+            gender=GenderHint.MALE,
+            age=AgeHint.ADULT,
+        )
 
