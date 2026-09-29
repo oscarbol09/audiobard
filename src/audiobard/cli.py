@@ -14,9 +14,15 @@ from rich.table import Table
 
 from audiobard import __version__
 from audiobard.config import AudioBardConfig
-from audiobard.models import AgeHint, GenderHint, Voice, coerce_emotion
+from audiobard.models import AgeHint, GenderHint, Voice, VoicePreset, coerce_emotion
+from audiobard.persistence import PersistenceManager
+from audiobard.pipeline import (
+    AudioBookPipeline,
+    create_tts_provider,
+    load_voice_preset,
+    save_voice_preset,
+)
 from audiobard.tts.base import TTSProvider
-from audiobard.pipeline import AudioBookPipeline, create_tts_provider
 
 app = typer.Typer(
     name="audiobard",
@@ -233,6 +239,11 @@ def generate(
         "--log-level",
         help="Logging level (DEBUG, INFO, WARNING, ERROR).",
     ),
+    voice_preset: Path | None = typer.Option(
+        None,
+        "--voice-preset",
+        help="Apply a saved voice preset (.json) instead of re-mapping voices.",
+    ),
 ) -> None:
     """Generate a multi-character audiobook from a book file."""
     # 1. Load config and override with CLI args
@@ -268,13 +279,30 @@ def generate(
     # 3. Setup logging level
     logging.getLogger().setLevel(config.log_level)
 
-    # 4. Fail fast when the provider has no voices for the requested locale
+    # 4. Load an optional voice preset so a series keeps the same voices
+    preset: VoicePreset | None = None
+    if voice_preset is not None:
+        try:
+            preset = load_voice_preset(voice_preset)
+        except Exception as exc:
+            console.print(f"[red]Could not read voice preset:[/red] {exc}")
+            raise typer.Exit(code=1) from exc
+        console.print(
+            f"Using voice preset [cyan]{voice_preset}[/cyan] "
+            f"({len(preset.assignments)} assignments)"
+        )
+
+    # 5. Fail fast when the provider has no voices for the requested locale
     _ensure_locale_available(config, create_tts_provider(config))
 
-    # 5. Run pipeline
+    # 6. Run pipeline
     pipeline = AudioBookPipeline(config)
     try:
-        asyncio.run(pipeline.run(book, output, resume=resume, dry_run=dry_run))
+        asyncio.run(
+            pipeline.run(
+                book, output, resume=resume, dry_run=dry_run, voice_preset=preset
+            )
+        )
     except Exception as exc:
         console.print(f"[red]Pipeline execution failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -515,6 +543,78 @@ def locales(
     console.print(table)
 
 
+preset_app = typer.Typer(
+    name="preset",
+    help="Export and reuse custom voice presets.",
+)
+
+
+@preset_app.command("export")
+def preset_export(
+    book: Path = typer.Argument(
+        ...,
+        help="Path of a book that already has a stored voice mapping.",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+    ),
+    output: Path = typer.Option(
+        Path("voice-preset.json"),
+        "--output",
+        "-o",
+        help="Where to write the preset JSON.",
+    ),
+    name: str = typer.Option(
+        "",
+        "--name",
+        help="Optional label stored inside the preset.",
+    ),
+) -> None:
+    """Export a book's saved voice mapping as a reusable preset."""
+    try:
+        config = AudioBardConfig()
+    except Exception as exc:
+        console.print(f"[red]Error loading configuration:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    persistence = PersistenceManager(config.db_path)
+    book_id = persistence.find_book_id(book)
+    if book_id is None:
+        console.print(
+            f"[red]No stored record for {book}.[/red] "
+            "Generate an audiobook from it first."
+        )
+        raise typer.Exit(code=1)
+
+    assignments = persistence.get_voice_mapping(book_id)
+    if not assignments:
+        console.print(
+            f"[red]{book} has no saved voice mapping to export.[/red]"
+        )
+        raise typer.Exit(code=1)
+
+    preset = VoicePreset.from_assignments(
+        assignments,
+        name=name,
+        locale=config.tts_locale,
+        provider=config.tts_provider,
+    )
+    try:
+        save_voice_preset(output, preset)
+    except OSError as exc:
+        console.print(f"[red]Could not write the preset:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(
+        f"[green]Exported {len(preset.assignments)} voice assignment(s)[/green] "
+        f"to {output}"
+    )
+
+
+app.add_typer(preset_app, name="preset")
+
+
 @app.command("validate-config")
 def validate_config() -> None:
     """Validate current configuration settings and environment variables."""
@@ -554,8 +654,6 @@ def stats() -> None:
     if not db_path.exists():
         console.print("[yellow]No database found yet — run a generation first.[/yellow]")
         return
-
-    from audiobard.persistence import PersistenceManager
 
     persistence = PersistenceManager(db_path)
     db_stats = persistence.get_stats()

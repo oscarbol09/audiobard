@@ -35,6 +35,7 @@ from audiobard.models import (
     Paragraph,
     Voice,
     VoiceAssignment,
+    VoicePreset,
 )
 from audiobard.parser import EpubParser, TextParser
 from audiobard.parser.base import BookParser
@@ -173,6 +174,17 @@ def create_tts_provider(config: AudioBardConfig) -> TTSProvider:
     return factory(config)
 
 
+def save_voice_preset(path: Path, preset: VoicePreset) -> None:
+    """Write *preset* to *path* as UTF-8 JSON."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(preset.model_dump_json(indent=2) + "\n", encoding="utf-8")
+
+
+def load_voice_preset(path: Path) -> VoicePreset:
+    """Read a preset written by :func:`save_voice_preset`."""
+    return VoicePreset.model_validate_json(path.read_text(encoding="utf-8-sig"))
+
+
 def chunk_paragraphs(
     paragraphs: list[Paragraph], chunk_size: int = 1500
 ) -> list[list[Paragraph]]:
@@ -268,6 +280,7 @@ class AudioBookPipeline:
         characters: list[Character],
         resume: bool,
         progress_callback: ProgressCallback | None,
+        preset: VoicePreset | None = None,
     ) -> tuple[list[VoiceAssignment], dict[str, Voice], list[Voice]]:
         """Assign TTS voices to extracted characters."""
         _emit(
@@ -296,7 +309,15 @@ class AudioBookPipeline:
                 or checkpoint["payload"].get("tts_locale") != self.config.tts_locale
             )
         )
-        if resume and checkpoint and checkpoint["status"] == "completed" and not stale_provider:
+        # An explicit preset always wins over a cached mapping.
+        reuse_checkpoint = (
+            resume
+            and checkpoint is not None
+            and checkpoint["status"] == "completed"
+            and not stale_provider
+            and preset is None
+        )
+        if reuse_checkpoint:
             voice_assignments = await asyncio.to_thread(
                 self.persistence.get_voice_mapping, book_id
             )
@@ -314,7 +335,8 @@ class AudioBookPipeline:
                 mapper = VoiceMapper(voices_path=voices_path)
             else:
                 mapper = VoiceMapper(voices=voices)
-            voice_assignments = list(mapper.assign_all(characters).values())
+            mapped = list(mapper.assign_all(characters).values())
+            voice_assignments = self._merge_preset(mapped, preset, voice_map)
             await asyncio.to_thread(
                 self.persistence.save_voice_mapping, book_id, voice_assignments
             )
@@ -338,6 +360,46 @@ class AudioBookPipeline:
             ),
         )
         return voice_assignments, voice_map, voices
+
+    def _merge_preset(
+        self,
+        mapped: list[VoiceAssignment],
+        preset: VoicePreset | None,
+        voice_map: dict[str, Voice],
+    ) -> list[VoiceAssignment]:
+        """Overlay a saved preset onto freshly mapped assignments.
+
+        A preset wins for every character it covers whose voice is still
+        available for this provider and locale; everything else keeps the
+        freshly mapped assignment, so a stale preset can never break a run.
+        """
+        if preset is None or not preset.assignments:
+            return mapped
+
+        by_speaker = {a.canonical_id: a for a in preset.assignments}
+        merged: list[VoiceAssignment] = []
+        applied = 0
+        unavailable: set[str] = set()
+        for assignment in mapped:
+            from_preset = by_speaker.get(assignment.canonical_id)
+            if from_preset is None:
+                merged.append(assignment)
+                continue
+            if from_preset.voice_id not in voice_map:
+                unavailable.add(from_preset.voice_id)
+                merged.append(assignment)
+                continue
+            merged.append(from_preset)
+            applied += 1
+
+        if unavailable:
+            logger.warning(
+                "Voice preset references voices unavailable for this provider or "
+                "locale (%s); keeping the mapped voices for those speakers.",
+                ", ".join(sorted(unavailable)),
+            )
+        logger.info("Applied %d preset voice assignment(s)", applied)
+        return merged
 
     async def _synthesize_chunks(
         self,
@@ -615,6 +677,7 @@ class AudioBookPipeline:
         resume: bool = True,
         dry_run: bool = False,
         progress_callback: ProgressCallback | None = None,
+        voice_preset: VoicePreset | None = None,
     ) -> None:
         """Run the complete pipeline from book file to finished audio file.
 
@@ -629,6 +692,8 @@ class AudioBookPipeline:
                 percent updates. The pipeline never blocks on it; a
                 raising callback is logged and ignored so a broken
                 subscriber cannot abort generation.
+            voice_preset: Optional imported preset whose assignments take
+                precedence over freshly mapped voices.
         """
         if not book_path.exists():  # noqa: ASYNC240
             raise FileNotFoundError(f"Book file not found: {book_path}")
@@ -677,9 +742,9 @@ class AudioBookPipeline:
             book_id, paragraphs, resume, progress_callback
         )
 
-        # 2. Voice Assignment
+        # 2. Voice Assignment (an imported preset overrides the fresh mapping)
         voice_assignments, voice_map, voices = await self._assign_voices(
-            book_id, characters, resume, progress_callback
+            book_id, characters, resume, progress_callback, voice_preset
         )
 
         # 3. Attribution & Synthesis

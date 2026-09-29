@@ -248,3 +248,34 @@ class BookMetadata(BaseModel):
     def has_tags(self) -> bool:
         """True when at least one embeddable tag is present."""
         return bool(self.title or self.author or self.cover_bytes)
+
+
+class VoicePreset(BaseModel):
+    """A reusable canonical-ID to voice mapping, saved as JSON.
+
+    Presets keep narrator and character voices stable across the volumes of a
+    series instead of re-mapping every book from scratch.
+    """
+
+    version: int = Field(default=1, ge=1)
+    name: str = ""
+    locale: str | None = None
+    provider: str | None = None
+    assignments: list[VoiceAssignment] = Field(default_factory=list)
+
+    @classmethod
+    def from_assignments(
+        cls,
+        assignments: list[VoiceAssignment],
+        *,
+        name: str = "",
+        locale: str | None = None,
+        provider: str | None = None,
+    ) -> VoicePreset:
+        """Build a preset from *assignments*, preserving their order."""
+        return cls(
+            name=name,
+            locale=locale,
+            provider=provider,
+            assignments=list(assignments),
+        )

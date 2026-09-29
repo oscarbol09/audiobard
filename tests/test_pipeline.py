@@ -22,12 +22,16 @@ from audiobard.models import (
     Paragraph,
     Tone,
     Voice,
+    VoiceAssignment,
+    VoicePreset,
 )
 from audiobard.pipeline import (
     AudioBookPipeline,
     chunk_paragraphs,
     create_llm_client,
     create_tts_provider,
+    load_voice_preset,
+    save_voice_preset,
 )
 
 runner = CliRunner()
@@ -190,6 +194,82 @@ async def test_pipeline_run(
         # Test dry-run branch
         output_dry = tmp_path / "output_dry.mp3"
         await pipeline.run(book_file, output_dry, resume=True, dry_run=True)
+
+
+def _voice(voice_id: str) -> Voice:
+    return Voice(
+        id=voice_id,
+        locale="en_US",
+        gender=GenderHint.FEMALE,
+        age=AgeHint.ADULT,
+    )
+
+
+def _preset_pipeline(tmp_path: Path) -> AudioBookPipeline:
+    return AudioBookPipeline(
+        AudioBardConfig(db_path=tmp_path / "db.sqlite", cache_dir=tmp_path / "cache")
+    )
+
+
+def test_save_and_load_voice_preset_round_trip(tmp_path: Path) -> None:
+    preset = VoicePreset.from_assignments(
+        [
+            VoiceAssignment(canonical_id="Narrator", voice_id="voice-a", rate=0.9),
+            VoiceAssignment(canonical_id="Character_A", voice_id="voice-b"),
+        ],
+        name="series",
+        locale="en_US",
+        provider="piper",
+    )
+    path = tmp_path / "nested" / "preset.json"
+    save_voice_preset(path, preset)
+
+    loaded = load_voice_preset(path)
+    assert loaded == preset
+    assert loaded.name == "series"
+    assert loaded.locale == "en_US"
+    assert loaded.provider == "piper"
+
+
+def test_merge_preset_overrides_covered_speakers(tmp_path: Path) -> None:
+    pipeline = _preset_pipeline(tmp_path)
+    mapped = [
+        VoiceAssignment(canonical_id="Narrator", voice_id="voice-a"),
+        VoiceAssignment(canonical_id="Character_A", voice_id="voice-a"),
+    ]
+    voice_map = {"voice-a": _voice("voice-a"), "voice-b": _voice("voice-b")}
+    preset = VoicePreset.from_assignments(
+        [VoiceAssignment(canonical_id="Character_A", voice_id="voice-b")]
+    )
+
+    merged = pipeline._merge_preset(mapped, preset, voice_map)
+
+    assert [a.canonical_id for a in merged] == ["Narrator", "Character_A"]
+    assert merged[0].voice_id == "voice-a"  # not covered by the preset
+    assert merged[1].voice_id == "voice-b"  # covered, so the preset wins
+
+
+def test_merge_preset_keeps_mapped_voice_when_preset_voice_is_unavailable(
+    tmp_path: Path,
+) -> None:
+    pipeline = _preset_pipeline(tmp_path)
+    mapped = [VoiceAssignment(canonical_id="Narrator", voice_id="voice-a")]
+    preset = VoicePreset.from_assignments(
+        [VoiceAssignment(canonical_id="Narrator", voice_id="voice-gone")]
+    )
+
+    merged = pipeline._merge_preset(mapped, preset, {"voice-a": _voice("voice-a")})
+
+    assert merged[0].voice_id == "voice-a"
+
+
+def test_merge_preset_without_preset_is_a_no_op(tmp_path: Path) -> None:
+    pipeline = _preset_pipeline(tmp_path)
+    mapped = [VoiceAssignment(canonical_id="Narrator", voice_id="voice-a")]
+
+    assert pipeline._merge_preset(mapped, None, {}) == mapped
+    empty = VoicePreset.from_assignments([])
+    assert pipeline._merge_preset(mapped, empty, {}) == mapped
 
 
 def test_factories_valid_and_invalid() -> None:

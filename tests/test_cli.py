@@ -12,7 +12,14 @@ from typer.testing import CliRunner
 
 from audiobard import __version__
 from audiobard.cli import DEFAULT_VOICE_TEST_TEXT, app
-from audiobard.models import AgeHint, Emotion, GenderHint, Voice
+from audiobard.models import (
+    AgeHint,
+    Emotion,
+    GenderHint,
+    Voice,
+    VoiceAssignment,
+    VoicePreset,
+)
 from audiobard.persistence import PersistenceManager
 
 runner = CliRunner()
@@ -610,6 +617,155 @@ def test_voices_empty_list_without_locale_data_prints_no_hint() -> None:
 
     assert result.exit_code == 0
     assert "Available locales" not in result.stdout
+
+
+def _seed_book_with_mapping(
+    db_file: Path, book: Path, assignments: list[VoiceAssignment]
+) -> int:
+    from audiobard.parser.base import ParserStats
+
+    persistence = PersistenceManager(db_file)
+    book_id = persistence.get_or_create_book(
+        book,
+        "Book",
+        ParserStats(
+            total_paragraphs=1,
+            total_words=2,
+            dialog_ratio=0.0,
+            chapter_word_counts={0: 2},
+        ),
+    )
+    if assignments:
+        persistence.save_voice_mapping(book_id, assignments)
+    return book_id
+
+
+def test_preset_export_writes_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("AUDIOBARD_DB_PATH", str(tmp_path / "test.db"))
+    book = tmp_path / "book.txt"
+    book.write_text("Chapter 1\n\nHello world.", encoding="utf-8")
+    _seed_book_with_mapping(
+        tmp_path / "test.db",
+        book,
+        [
+            VoiceAssignment(canonical_id="Narrator", voice_id="en_US-amy-medium"),
+            VoiceAssignment(canonical_id="Character_A", voice_id="en_US-ryan-high"),
+        ],
+    )
+    output = tmp_path / "preset.json"
+
+    result = runner.invoke(
+        app,
+        ["preset", "export", str(book), "--output", str(output), "--name", "series"],
+    )
+
+    assert result.exit_code == 0
+    assert "Exported 2 voice assignment(s)" in result.stdout
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["name"] == "series"
+    assert payload["version"] == 1
+    assert sorted(a["canonical_id"] for a in payload["assignments"]) == [
+        "Character_A",
+        "Narrator",
+    ]
+
+
+def test_preset_export_unknown_book(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("AUDIOBARD_DB_PATH", str(tmp_path / "empty.db"))
+    book = tmp_path / "book.txt"
+    book.write_text("Hello world.", encoding="utf-8")
+
+    result = runner.invoke(app, ["preset", "export", str(book)])
+
+    assert result.exit_code == 1
+    assert "No stored record for" in result.stdout
+
+
+def test_preset_export_without_mapping(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db_file = tmp_path / "test.db"
+    monkeypatch.setenv("AUDIOBARD_DB_PATH", str(db_file))
+    book = tmp_path / "book.txt"
+    book.write_text("Hello world.", encoding="utf-8")
+    _seed_book_with_mapping(db_file, book, [])
+
+    result = runner.invoke(app, ["preset", "export", str(book)])
+
+    assert result.exit_code == 1
+    assert "has no saved voice mapping to export" in result.stdout
+
+
+def test_generate_applies_voice_preset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    voices_dir = tmp_path / "voices"
+    voices_dir.mkdir()
+    _write_voice_pool(voices_dir, "en_US", 1)
+    monkeypatch.setenv("AUDIOBARD_VOICES_DIR", str(voices_dir))
+
+    preset_file = tmp_path / "preset.json"
+    preset_file.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "name": "series",
+                "assignments": [
+                    {"canonical_id": "Narrator", "voice_id": "en_US-amy-medium"}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    book = tmp_path / "book.txt"
+    book.write_text("Chapter 1\n\nHello world.", encoding="utf-8")
+
+    with patch("audiobard.cli.AudioBookPipeline.run", new_callable=AsyncMock) as mock_run:
+        result = runner.invoke(
+            app,
+            [
+                "generate",
+                str(book),
+                "--locale",
+                "en_US",
+                "--voice-preset",
+                str(preset_file),
+            ],
+        )
+
+    assert result.exit_code == 0
+    assert "Using voice preset" in result.stdout
+    passed = mock_run.await_args.kwargs["voice_preset"]
+    assert isinstance(passed, VoicePreset)
+    assert passed.assignments[0].voice_id == "en_US-amy-medium"
+
+
+def test_generate_rejects_invalid_voice_preset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    voices_dir = tmp_path / "voices"
+    voices_dir.mkdir()
+    _write_voice_pool(voices_dir, "en_US", 1)
+    monkeypatch.setenv("AUDIOBARD_VOICES_DIR", str(voices_dir))
+
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not a preset", encoding="utf-8")
+    book = tmp_path / "book.txt"
+    book.write_text("Chapter 1\n\nHello world.", encoding="utf-8")
+
+    with patch("audiobard.cli.AudioBookPipeline.run", new_callable=AsyncMock) as mock_run:
+        result = runner.invoke(
+            app,
+            ["generate", str(book), "--voice-preset", str(broken)],
+        )
+
+    assert result.exit_code == 1
+    assert "Could not read voice preset" in result.stdout
+    mock_run.assert_not_called()
 
 
 def test_voices_test_requires_voice_option() -> None:

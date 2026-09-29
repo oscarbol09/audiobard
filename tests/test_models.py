@@ -17,6 +17,8 @@ from audiobard.models import (
     Emotion,
     Paragraph,
     Tone,
+    VoiceAssignment,
+    VoicePreset,
     coerce_emotion,
 )
 
@@ -40,6 +42,22 @@ def test_coerce_emotion_normalizes_synonyms_and_falls_back(
 
 def test_coerce_emotion_passes_enum_through() -> None:
     assert coerce_emotion(Emotion.SARCASTIC) is Emotion.SARCASTIC
+
+
+def test_voice_preset_round_trips_through_json() -> None:
+    preset = VoicePreset.from_assignments(
+        [
+            VoiceAssignment(canonical_id="Narrator", voice_id="voice-a", rate=0.9),
+            VoiceAssignment(canonical_id="Character_A", voice_id="voice-b"),
+        ],
+        name="series",
+        locale="es_ES",
+        provider="piper",
+    )
+    restored = VoicePreset.model_validate_json(preset.model_dump_json())
+    assert restored == preset
+    assert restored.version == 1
+    assert restored.assignments[0].rate == 0.9
 
 
 def test_paragraph_rejects_empty_text() -> None:

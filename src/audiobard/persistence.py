@@ -167,6 +167,15 @@ class PersistenceManager:
             conn.commit()
             return cursor.lastrowid  # type: ignore
 
+    def find_book_id(self, path: Path) -> int | None:
+        """Return the id of the stored book at *path*, or None when unknown."""
+        with self._get_conn() as conn:
+            row = conn.execute(
+                "SELECT id FROM books WHERE path = ?",
+                (str(path.resolve()),),
+            ).fetchone()
+        return int(row["id"]) if row is not None else None
+
     def delete_book(self, book_id: int) -> bool:
         """Delete a book and all cascaded records (characters, mappings, checkpoints)."""
         with self._get_conn() as conn:
