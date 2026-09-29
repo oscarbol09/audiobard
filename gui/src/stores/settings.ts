@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 
 type Theme = 'light' | 'dark' | 'system'
 type LLMProvider = 'ollama' | 'gemini' | 'openrouter' | 'nim'
-type TTSProvider = 'piper' | 'edge'
+type TTSProvider = 'piper' | 'edge' | 'kokoro'
 type Language = 'es' | 'en'
 
 interface AppSettings {

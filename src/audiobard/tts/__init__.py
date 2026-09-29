@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from audiobard.tts.base import EMOTION_PROSODY, TTSProvider
 from audiobard.tts.edge_provider import EdgeProvider
+from audiobard.tts.kokoro_provider import KokoroProvider
 from audiobard.tts.piper_provider import PiperProvider, find_piper
 from audiobard.tts.voice_mapper import VoiceMapper
 
@@ -18,5 +19,6 @@ __all__ = [
     "PiperProvider",
     "find_piper",
     "EdgeProvider",
+    "KokoroProvider",
     "EMOTION_PROSODY",
 ]

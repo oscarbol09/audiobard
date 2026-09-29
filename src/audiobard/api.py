@@ -27,7 +27,7 @@ from audiobard.progress import PipelineProgress
 app = FastAPI(title="AudioBard API", version="0.1.0")
 
 LLMChoice = Literal["ollama", "gemini", "openrouter", "nim"]
-TTSChoice = Literal["piper", "edge"]
+TTSChoice = Literal["piper", "edge", "kokoro"]
 
 
 class CancelRequest(BaseModel):

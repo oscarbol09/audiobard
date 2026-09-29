@@ -207,7 +207,7 @@ def generate(
     tts: str | None = typer.Option(
         None,
         "--tts",
-        help="TTS provider to use (piper, edge).",
+        help="TTS provider to use (piper, edge, kokoro).",
     ),
     locale: str | None = typer.Option(
         None,
@@ -315,7 +315,7 @@ def voices(
         None,
         "--provider",
         "-p",
-        help="TTS provider to list voices for (piper, edge).",
+        help="TTS provider to list voices for (piper, edge, kokoro).",
     ),
     locale: str | None = typer.Option(
         None,
@@ -410,7 +410,7 @@ def voices_test(
         None,
         "--provider",
         "-p",
-        help="TTS provider to audition (piper, edge).",
+        help="TTS provider to audition (piper, edge, kokoro).",
     ),
     locale: str | None = typer.Option(
         None,
@@ -506,7 +506,7 @@ def locales(
         None,
         "--provider",
         "-p",
-        help="TTS provider to inspect (piper, edge).",
+        help="TTS provider to inspect (piper, edge, kokoro).",
     ),
 ) -> None:
     """List locales that have TTS voices available, with voice counts."""

@@ -597,6 +597,7 @@ async function clearCache() {
                 >
                   <option value="piper">Piper (Local, Free)</option>
                   <option value="edge">Edge TTS (Cloud, Free)</option>
+                  <option value="kokoro">Kokoro (Local, Free)</option>
                 </select>
               </div>
 

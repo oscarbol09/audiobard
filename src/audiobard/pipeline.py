@@ -45,6 +45,7 @@ from audiobard.progress import PipelineProgress, ProgressCallback
 from audiobard.tts import VoiceMapper
 from audiobard.tts.base import EMOTION_PROSODY, TTSProvider
 from audiobard.tts.edge_provider import EdgeProvider
+from audiobard.tts.kokoro_provider import KokoroProvider
 from audiobard.tts.piper_provider import PiperProvider
 
 logger = logging.getLogger(__name__)
@@ -164,6 +165,7 @@ def create_llm_client(
 TTS_PROVIDER_FACTORIES: dict[str, Callable[[AudioBardConfig], TTSProvider]] = {
     "piper": lambda cfg: PiperProvider(cfg),
     "edge": lambda cfg: EdgeProvider(cfg),
+    "kokoro": lambda cfg: KokoroProvider(cfg),
 }
 
 

@@ -123,7 +123,7 @@ class AudioBardConfig(BaseSettings):
     nim_model: str = "nvidia/llama-3.1-nemotron-70b-instruct"
 
     # ------------------------------------------------------------------ TTS
-    tts_provider: Literal["piper", "edge"] = "piper"
+    tts_provider: Literal["piper", "edge", "kokoro"] = "piper"
     tts_locale: str = "en_US"
     tts_semaphore: int = Field(default=4, ge=1, le=64, description="Max concurrent TTS calls")
 
@@ -173,6 +173,6 @@ class AudioBardConfig(BaseSettings):
             raise RuntimeError(
                 f"AUDIOBARD_COMMERCIAL_USE=true is set, but the selected TTS "
                 f"provider ({self.tts_provider!r}) may not allow commercial use "
-                "on its free tier. Switch to tts_provider=piper or disable "
+                "on its free tier. Switch to tts_provider=piper or kokoro, or disable "
                 "commercial_use."
             )
