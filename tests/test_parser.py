@@ -7,6 +7,7 @@ any data/ dependencies.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -446,6 +447,156 @@ class TestEpubStyleScriptStripping:
             paragraphs = parser.parse(b"dummy-epub-bytes")
             assert len(paragraphs) == 1
             assert paragraphs[0].text == "Hello world"
+
+
+class _MetaEpubItem(_MockEpubItem):
+    """EPUB item mock that also exposes a media type."""
+
+    def __init__(
+        self,
+        item_id: str,
+        name: str,
+        content: bytes = b"",
+        item_type: int = 9,
+        media_type: str = "",
+    ) -> None:
+        super().__init__(item_id, name, content, item_type)
+        self._media_type = media_type
+
+    def get_media_type(self) -> str:
+        return self._media_type
+
+
+class _MetaEpubBook(_MockEpubBook):
+    """EPUB book mock that also exposes package (DC/OPF meta) metadata."""
+
+    def __init__(
+        self,
+        items: list[_MockEpubItem],
+        dc: dict[str, list[str]] | None = None,
+        meta: list[tuple[str, dict[str, str]]] | None = None,
+        spine: list[tuple[str, str]] | None = None,
+    ) -> None:
+        super().__init__(items, spine)
+        self.dc = dc or {}
+        self.meta = meta or []
+
+    def get_metadata(self, namespace: str | None, name: str) -> list[Any]:
+        if namespace == "DC":
+            return [(value, {}) for value in self.dc.get(name, [])]
+        if namespace is None and name == "meta":
+            return list(self.meta)
+        return []
+
+    def get_items(self) -> list[_MockEpubItem]:
+        return list(self._items)
+
+
+class TestEpubMetadata:
+    """Issue #110: title/author/cover come from the EPUB package metadata."""
+
+    def _parse(self, book: _MetaEpubBook) -> Any:
+        from unittest.mock import patch
+
+        from audiobard.parser.epub_parser import EpubParser
+
+        with patch("ebooklib.epub.read_epub", return_value=book):
+            parser = EpubParser()
+            parser.parse(b"dummy-epub-bytes")
+        return parser
+
+    def test_dublin_core_title_and_author(self) -> None:
+        book = _MetaEpubBook(
+            [_MetaEpubItem("ch1", "ch1.xhtml", b"<p>Chapter body.</p>")],
+            dc={"title": ["Don Quijote"], "creator": ["Miguel de Cervantes"]},
+        )
+        parser = self._parse(book)
+        assert parser.title == "Don Quijote"
+        assert parser.author == "Miguel de Cervantes"
+        metadata = parser.metadata()
+        assert metadata.title == "Don Quijote"
+        assert metadata.author == "Miguel de Cervantes"
+        assert metadata.has_tags()
+
+    def test_cover_resolved_from_meta_tag(self) -> None:
+        book = _MetaEpubBook(
+            [
+                _MetaEpubItem(
+                    "cover-img",
+                    "images/cover.jpg",
+                    b"JPEG-DATA",
+                    item_type=1,
+                    media_type="image/jpeg",
+                ),
+                _MetaEpubItem("ch1", "ch1.xhtml", b"<p>Chapter body.</p>"),
+            ],
+            meta=[("", {"name": "cover", "content": "cover-img"})],
+        )
+        parser = self._parse(book)
+        assert parser.cover_bytes == b"JPEG-DATA"
+        assert parser.cover_mime == "image/jpeg"
+
+    def test_cover_resolved_from_item_type(self) -> None:
+        book = _MetaEpubBook(
+            [
+                _MetaEpubItem(
+                    "img1", "images/portada.png", b"PNG-DATA", item_type=10, media_type="image/png"
+                ),
+                _MetaEpubItem("ch1", "ch1.xhtml", b"<p>Chapter body.</p>"),
+            ],
+        )
+        parser = self._parse(book)
+        assert parser.cover_bytes == b"PNG-DATA"
+        assert parser.cover_mime == "image/png"
+
+    def test_cover_resolved_from_cover_page_image(self) -> None:
+        book = _MetaEpubBook(
+            [
+                _MetaEpubItem(
+                    "coverpage",
+                    "cover.xhtml",
+                    b'<html><body><img src="../images/art.jpg"/></body></html>',
+                ),
+                _MetaEpubItem(
+                    "art",
+                    "images/art.jpg",
+                    b"ART-DATA",
+                    item_type=1,
+                    media_type="image/jpeg",
+                ),
+                _MetaEpubItem("ch1", "ch1.xhtml", b"<p>Chapter body.</p>"),
+            ],
+        )
+        parser = self._parse(book)
+        assert parser.cover_bytes == b"ART-DATA"
+        assert parser.cover_mime == "image/jpeg"
+
+    def test_missing_metadata_yields_empty_book_metadata(self) -> None:
+        book = _MetaEpubBook([_MetaEpubItem("ch1", "ch1.xhtml", b"<p>Chapter body.</p>")])
+        parser = self._parse(book)
+        assert parser.title is None
+        assert parser.author is None
+        assert parser.cover_bytes is None
+        assert parser.metadata().has_tags() is False
+
+    def test_book_without_ebooklib_metadata_api_is_tolerated(self) -> None:
+        """An object without get_metadata must not break parsing."""
+        book = _MockEpubBook([_MockEpubItem("ch1", "ch1.xhtml", b"<p>Chapter body.</p>")])
+        from unittest.mock import patch
+
+        from audiobard.parser.epub_parser import EpubParser
+
+        with patch("ebooklib.epub.read_epub", return_value=book):
+            parser = EpubParser()
+            paragraphs = parser.parse(b"dummy-epub-bytes")
+        assert len(paragraphs) == 1
+        assert parser.title is None
+
+    def test_text_parser_reports_no_metadata(self) -> None:
+        parser = TextParser()
+        parser.parse("Just plain text.")
+        assert parser.title is None
+        assert parser.metadata().has_tags() is False
 
 
 class TestProjectGutenbergBoilerplate:

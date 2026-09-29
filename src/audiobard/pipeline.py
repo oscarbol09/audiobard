@@ -28,6 +28,7 @@ from audiobard.audio.processor import (
 from audiobard.config import AudioBardConfig
 from audiobard.llm import GeminiClient, LLMClient, OllamaClient, OpenRouterClient
 from audiobard.models import (
+    BookMetadata,
     Character,
     CharactersResult,
     Emotion,
@@ -501,6 +502,7 @@ class AudioBookPipeline:
         paragraphs: list[Paragraph],
         output_path: Path,
         progress_callback: ProgressCallback | None,
+        metadata: BookMetadata | None = None,
     ) -> None:
         """Concatenate rendered clips, apply normalization, and export final audiobook."""
         _emit(
@@ -581,12 +583,14 @@ class AudioBookPipeline:
             if output_path.suffix.lower() == ".m4b":
                 try:
                     await self.audio_processor.export_m4b(
-                        final_mp3_bytes, output_path, chapters
+                        final_mp3_bytes, output_path, chapters, metadata
                     )
                 except FileNotFoundError as e:
                     raise RuntimeError(FFMPEG_MISSING_MESSAGE) from e
             else:
-                await self.audio_processor.export_mp3(final_mp3_bytes, output_path)
+                await self.audio_processor.export_mp3(
+                    final_mp3_bytes, output_path, metadata
+                )
         except PermissionError as e:
             raise RuntimeError(
                 f"Cannot overwrite '{output_path.name}'. "
@@ -650,7 +654,8 @@ class AudioBookPipeline:
         if not paragraphs:
             raise ValueError(f"Book '{book_path.name}' contains no readable paragraphs.")
 
-        title = getattr(parser, "title", None) or book_path.stem
+        book_metadata = parser.metadata()
+        title = book_metadata.title or book_path.stem
         _emit(
             progress_callback,
             PipelineProgress(
@@ -704,5 +709,5 @@ class AudioBookPipeline:
             return
 
         await self._assemble_audiobook(
-            book_id, paragraphs, output_path, progress_callback
+            book_id, paragraphs, output_path, progress_callback, book_metadata
         )

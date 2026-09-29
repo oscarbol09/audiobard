@@ -13,7 +13,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from pydub import AudioSegment
 
-from audiobard.models import Emotion
+from audiobard.models import BookMetadata, Emotion
 from audiobard.tts.base import EMOTION_PROSODY
 
 logger = logging.getLogger(__name__)
@@ -131,6 +131,65 @@ def generate_ffmetadata(chapters: list[ChapterMarker]) -> str:
     return "\n".join(lines)
 
 
+_COVER_SUFFIX_BY_MIME = {
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/bmp": ".bmp",
+}
+
+
+def _write_cover_file(directory: Path, metadata: BookMetadata | None) -> Path | None:
+    """Write the cover image into *directory* for FFmpeg to attach, if any."""
+    if metadata is None or not metadata.cover_bytes:
+        return None
+    suffix = _COVER_SUFFIX_BY_MIME.get((metadata.cover_mime or "").lower(), ".jpg")
+    cover_path = directory / f"cover{suffix}"
+    cover_path.write_bytes(metadata.cover_bytes)
+    return cover_path
+
+
+def _embed_mp3_tags(path: Path, metadata: BookMetadata) -> None:
+    """Best-effort ID3v2 embedding of title, author, and cover art.
+
+    Tagging never fails an otherwise successful export: an untaggable or
+    unexpected file only logs a warning.
+    """
+    try:
+        from mutagen.id3 import APIC, ID3, TIT2, TPE1
+        from mutagen.mp3 import MP3
+    except ImportError as exc:  # pragma: no cover - mutagen is a dependency
+        logger.warning("mutagen is unavailable; skipping MP3 tags: %s", exc)
+        return
+
+    try:
+        audio = MP3(str(path), ID3=ID3)
+        if audio.tags is None:
+            audio.add_tags()
+        tags = audio.tags
+        if tags is None:  # pragma: no cover - add_tags() always installs ID3
+            return
+        if metadata.title:
+            tags.add(TIT2(encoding=3, text=metadata.title))
+        if metadata.author:
+            tags.add(TPE1(encoding=3, text=metadata.author))
+        if metadata.cover_bytes:
+            tags.add(
+                APIC(
+                    encoding=3,
+                    mime=metadata.cover_mime or "image/jpeg",
+                    type=3,
+                    desc="Cover",
+                    data=metadata.cover_bytes,
+                )
+            )
+        audio.save()
+    except Exception as exc:
+        logger.warning("Could not embed MP3 tags in %s: %s", path, exc)
+
+
 class AudioProcessor:
     """Handles audio concatenation, normalization, and export to formats."""
 
@@ -183,8 +242,13 @@ class AudioProcessor:
         combined.export(out, format="mp3")
         return out.getvalue()
 
-    async def export_mp3(self, audio_bytes: bytes, path: Path) -> None:
-        """Export raw MP3 bytes to *path*."""
+    async def export_mp3(
+        self,
+        audio_bytes: bytes,
+        path: Path,
+        metadata: BookMetadata | None = None,
+    ) -> None:
+        """Export raw MP3 bytes to *path*, embedding *metadata* tags if given."""
 
         def write() -> None:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -192,13 +256,17 @@ class AudioProcessor:
 
         await asyncio.to_thread(write)
 
+        if metadata is not None and metadata.has_tags():
+            await asyncio.to_thread(_embed_mp3_tags, path, metadata)
+
     async def export_m4b(
         self,
         audio_bytes: bytes,
         path: Path,
         chapters: list[ChapterMarker],
+        metadata: BookMetadata | None = None,
     ) -> None:
-        """Convert MP3 bytes to AAC/M4B and inject chapter markers via FFmpeg."""
+        """Convert MP3 bytes to AAC/M4B and inject chapters and metadata via FFmpeg."""
         ffmpeg_bin = find_ffmpeg()
         if not ffmpeg_bin:
             raise FileNotFoundError(FFMPEG_MISSING_MESSAGE)
@@ -207,6 +275,7 @@ class AudioProcessor:
             tmp_path = Path(tmpdir)
             raw_m4b = tmp_path / "raw.m4b"
             metadata_file = tmp_path / "metadata.txt"
+            cover_file = _write_cover_file(tmp_path, metadata)
 
             # 1. Convert MP3 to AAC/M4B (64k bitrate is optimal for voice audiobooks)
             logger.info("Converting MP3 to raw M4B audio...")
@@ -236,14 +305,37 @@ class AudioProcessor:
             # 3. Inject metadata into final M4B file
             logger.info("Injecting chapter markers into final M4B...")
             path.parent.mkdir(parents=True, exist_ok=True)
+            attach_args: list[str] = []
+            if cover_file is not None:
+                attach_args = [
+                    "-i",
+                    str(cover_file),
+                    "-map",
+                    "0:a",
+                    "-map",
+                    "2:v",
+                    "-disposition:v",
+                    "attached_pic",
+                    "-c:v",
+                    "copy",
+                ]
+
+            tag_args: list[str] = []
+            if metadata is not None and metadata.title:
+                tag_args += ["-metadata", f"title={metadata.title}"]
+            if metadata is not None and metadata.author:
+                tag_args += ["-metadata", f"artist={metadata.author}"]
+
             proc2 = await asyncio.create_subprocess_exec(
                 ffmpeg_bin,
                 "-i",
                 str(raw_m4b),
                 "-i",
                 str(metadata_file),
+                *attach_args,
                 "-map_metadata",
                 "1",
+                *tag_args,
                 "-codec",
                 "copy",
                 "-y",

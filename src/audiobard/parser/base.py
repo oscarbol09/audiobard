@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from audiobard.models import Paragraph
+from audiobard.models import BookMetadata, Paragraph
 
 
 class ParserStats(BaseModel):
@@ -33,6 +33,20 @@ class BookParser(ABC):
 
     def __init__(self) -> None:
         self._paragraphs: list[Paragraph] | None = None
+        # Bibliographic metadata — populated by parsers that can read it (EPUB).
+        self.title: str | None = None
+        self.author: str | None = None
+        self.cover_bytes: bytes | None = None
+        self.cover_mime: str | None = None
+
+    def metadata(self) -> BookMetadata:
+        """Return the bibliographic metadata discovered by :meth:`parse`."""
+        return BookMetadata(
+            title=self.title,
+            author=self.author,
+            cover_bytes=self.cover_bytes,
+            cover_mime=self.cover_mime,
+        )
 
     @abstractmethod
     def parse(self, source: str | bytes | Path) -> list[Paragraph]:

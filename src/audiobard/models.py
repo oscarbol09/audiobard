@@ -231,3 +231,20 @@ class VoiceAssignment(BaseModel):
     voice_id: str
     rate: float = Field(default=1.0, ge=0.5, le=2.0)
     pitch: float = Field(default=1.0, ge=0.5, le=2.0)
+
+
+class BookMetadata(BaseModel):
+    """Bibliographic metadata extracted from a source book.
+
+    Only the fields the exporters consume: the narrator-facing tags and the
+    cover image embedded into the finished audiobook.
+    """
+
+    title: str | None = None
+    author: str | None = None
+    cover_bytes: bytes | None = None
+    cover_mime: str | None = None
+
+    def has_tags(self) -> bool:
+        """True when at least one embeddable tag is present."""
+        return bool(self.title or self.author or self.cover_bytes)

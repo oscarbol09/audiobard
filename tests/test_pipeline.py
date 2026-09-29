@@ -13,6 +13,7 @@ from audiobard.config import AudioBardConfig
 from audiobard.models import (
     AgeHint,
     AttributionResult,
+    BookMetadata,
     Character,
     CharactersResult,
     DialogLine,
@@ -166,7 +167,10 @@ async def test_pipeline_run(
         await pipeline.run(book_file, output_mp3, resume=False, dry_run=False)
 
         # Verify output MP3 was generated
-        mock_proc.export_mp3.assert_called_once_with(b"final-audio", output_mp3)
+        export_args = mock_proc.export_mp3.call_args.args
+        assert export_args[:2] == (b"final-audio", output_mp3)
+        assert isinstance(export_args[2], BookMetadata)
+        assert export_args[2].title is None
 
         # The voice pool cannot change within a run, so the provider is
         # asked for it exactly once (issue #10)

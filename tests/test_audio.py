@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import io
 import json
 import shutil
@@ -23,7 +24,7 @@ from audiobard.audio.processor import (
     find_ffmpeg,
     generate_ffmetadata,
 )
-from audiobard.models import Emotion
+from audiobard.models import BookMetadata, Emotion
 
 
 @pytest.mark.parametrize(
@@ -237,6 +238,162 @@ async def test_audio_processor_export_m4b(
         assert "1" in call2_args
         assert "-codec" in call2_args
         assert "copy" in call2_args
+
+
+# 64x64 JPEG generated with ffmpeg; used to prove cover art is really attached.
+_DUMMY_COVER_JPEG = base64.b64decode(
+    "/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjE1LjEwMAD/2wBDAAgEBAQEBAUFBQUFBQYGBgYGBgYG"
+    "BgYGBgYHBwcICAgHBwcGBgcHCAgICAkJCQgICAgJCQoKCgwMCwsODg4RERT/xABNAAEBAAAAAAAAAAAAAAAA"
+    "AAAABgEBAQEAAAAAAAAAAAAAAAAAAAYHEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AA"
+    "EQgAQABAAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AiwEm38AAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/9k="
+)
+
+
+@pytest.mark.asyncio
+async def test_export_mp3_embeds_title_author_and_cover(tmp_path: Path) -> None:
+    """Issue #110: extracted book metadata must land in the MP3 ID3 tags."""
+    from mutagen.id3 import ID3
+
+    out_path = tmp_path / "tagged.mp3"
+    metadata = BookMetadata(
+        title="Don Quijote",
+        author="Miguel de Cervantes",
+        cover_bytes=_DUMMY_COVER_JPEG,
+        cover_mime="image/jpeg",
+    )
+    await AudioProcessor().export_mp3(_create_dummy_mp3(), out_path, metadata)
+
+    tags = ID3(str(out_path))
+    assert tags.get("TIT2").text[0] == "Don Quijote"
+    assert tags.get("TPE1").text[0] == "Miguel de Cervantes"
+    pictures = tags.getall("APIC")
+    assert len(pictures) == 1
+    assert pictures[0].data == _DUMMY_COVER_JPEG
+    assert pictures[0].mime == "image/jpeg"
+
+
+@pytest.mark.asyncio
+async def test_export_mp3_without_metadata_skips_tagging(tmp_path: Path) -> None:
+    out_path = tmp_path / "plain.mp3"
+    with patch("audiobard.audio.processor._embed_mp3_tags") as embed:
+        await AudioProcessor().export_mp3(_create_dummy_mp3(), out_path)
+    embed.assert_not_called()
+    assert out_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_export_mp3_tagging_failure_is_not_fatal(tmp_path: Path) -> None:
+    """Tagging is best-effort: undecodable bytes must still be written out."""
+    out_path = tmp_path / "broken.mp3"
+    await AudioProcessor().export_mp3(
+        b"not-an-mp3", out_path, BookMetadata(title="Whatever")
+    )
+    assert out_path.read_bytes() == b"not-an-mp3"
+
+
+@pytest.mark.asyncio
+@patch("audiobard.audio.processor.find_ffmpeg", return_value="/usr/bin/ffmpeg")
+@patch("asyncio.create_subprocess_exec")
+async def test_export_m4b_attaches_cover_and_metadata(
+    mock_subproc: AsyncMock, mock_find: Any, tmp_path: Path
+) -> None:
+    mock_proc1 = AsyncMock()
+    mock_proc1.returncode = 0
+    mock_proc1.communicate.return_value = (b"", b"")
+    mock_proc2 = AsyncMock()
+    mock_proc2.returncode = 0
+    mock_proc2.communicate.return_value = (b"", b"")
+    mock_subproc.side_effect = [mock_proc1, mock_proc2]
+
+    metadata = BookMetadata(
+        title="Don Quijote",
+        author="Cervantes",
+        cover_bytes=b"PNG-DATA",
+        cover_mime="image/png",
+    )
+    chapters = [ChapterMarker(title="Ch 1", start_ms=0, end_ms=500)]
+    await AudioProcessor().export_m4b(
+        b"audio-data", tmp_path / "out.m4b", chapters, metadata
+    )
+
+    call2_args = mock_subproc.call_args_list[1][0]
+    assert "attached_pic" in call2_args
+    assert "0:a" in call2_args
+    assert "2:v" in call2_args
+    assert "title=Don Quijote" in call2_args
+    assert "artist=Cervantes" in call2_args
+    assert any(str(arg).endswith("cover.png") for arg in call2_args)
+
+
+@pytest.mark.asyncio
+@patch("audiobard.audio.processor.find_ffmpeg", return_value="/usr/bin/ffmpeg")
+@patch("asyncio.create_subprocess_exec")
+async def test_export_m4b_without_metadata_adds_no_extra_flags(
+    mock_subproc: AsyncMock, mock_find: Any, tmp_path: Path
+) -> None:
+    mock_proc1 = AsyncMock()
+    mock_proc1.returncode = 0
+    mock_proc1.communicate.return_value = (b"", b"")
+    mock_proc2 = AsyncMock()
+    mock_proc2.returncode = 0
+    mock_proc2.communicate.return_value = (b"", b"")
+    mock_subproc.side_effect = [mock_proc1, mock_proc2]
+
+    chapters = [ChapterMarker(title="Ch 1", start_ms=0, end_ms=500)]
+    await AudioProcessor().export_m4b(b"audio-data", tmp_path / "plain.m4b", chapters)
+
+    call2_args = mock_subproc.call_args_list[1][0]
+    assert "attached_pic" not in call2_args
+    assert "-metadata" not in call2_args
+
+
+@pytest.mark.asyncio
+async def test_export_m4b_writes_tags_and_attached_cover(tmp_path: Path) -> None:
+    """End-to-end: FFmpeg really receives the tags and the attached cover."""
+    ffprobe = shutil.which("ffprobe")
+    if ffprobe is None or find_ffmpeg() is None:
+        pytest.skip("requires ffmpeg and ffprobe")
+
+    out_path = tmp_path / "tagged.m4b"
+    metadata = BookMetadata(
+        title="Don Quijote",
+        author="Cervantes",
+        cover_bytes=_DUMMY_COVER_JPEG,
+        cover_mime="image/jpeg",
+    )
+    await AudioProcessor().export_m4b(
+        _create_dummy_mp3(),
+        out_path,
+        [ChapterMarker(title="Ch 1", start_ms=0, end_ms=250)],
+        metadata,
+    )
+
+    proc = await asyncio.create_subprocess_exec(
+        ffprobe,
+        "-v",
+        "error",
+        "-show_format",
+        "-show_streams",
+        "-show_chapters",
+        "-of",
+        "json",
+        str(out_path),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    assert proc.returncode == 0, stderr.decode("utf-8", errors="replace")
+    payload = json.loads(stdout)
+
+    tags = {key.lower(): value for key, value in payload["format"]["tags"].items()}
+    assert tags["title"] == "Don Quijote"
+    assert tags["artist"] == "Cervantes"
+
+    video_streams = [s for s in payload["streams"] if s["codec_type"] == "video"]
+    assert video_streams, "cover art stream is missing"
+    assert video_streams[0]["disposition"]["attached_pic"] == 1
+
+    assert [ch["tags"]["title"] for ch in payload["chapters"]] == ["Ch 1"]
 
 
 @pytest.mark.asyncio
