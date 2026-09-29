@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
 
 from audiobard import __version__
-from audiobard.cli import app
-from audiobard.models import AgeHint, GenderHint, Voice
+from audiobard.cli import DEFAULT_VOICE_TEST_TEXT, app
+from audiobard.models import AgeHint, Emotion, GenderHint, Voice
 from audiobard.persistence import PersistenceManager
 
 runner = CliRunner()
@@ -249,6 +249,277 @@ def test_cli_main_invoked() -> None:
         with pytest.raises(SystemExit) as exc:
             exec(compiled, globs)
         assert exc.value.code == 0
+
+
+def _mock_tts_provider(
+    mock_create: MagicMock, voices: list[Voice], audio: bytes = b"mp3-bytes"
+) -> AsyncMock:
+    """Install a mocked TTS provider on the CLI factory and return it."""
+    mock_tts = AsyncMock()
+    mock_tts.list_voices.return_value = voices
+    mock_tts.synthesize.return_value = audio
+    mock_create.return_value = mock_tts
+    return mock_tts
+
+
+def test_voices_test_writes_default_sample(tmp_path: Path) -> None:
+    sample = tmp_path / "sample.mp3"
+    known = [
+        Voice(
+            id="en_US-amy-medium",
+            locale="en_US",
+            gender=GenderHint.FEMALE,
+            age=AgeHint.ADULT,
+        )
+    ]
+    with patch("audiobard.cli.create_tts_provider") as mock_create:
+        mock_tts = _mock_tts_provider(mock_create, known)
+        result = runner.invoke(
+            app,
+            [
+                "voices",
+                "test",
+                "--voice",
+                "en_US-amy-medium",
+                "--locale",
+                "en_US",
+                "--output",
+                str(sample),
+                "--no-play",
+            ],
+        )
+
+    assert result.exit_code == 0
+    assert sample.read_bytes() == b"mp3-bytes"
+    assert "Sample written to" in result.stdout
+    kwargs = mock_tts.synthesize.await_args.kwargs
+    assert kwargs["text"] == DEFAULT_VOICE_TEST_TEXT
+    assert kwargs["emotion"] is Emotion.NEUTRAL
+    assert kwargs["voice"].id == "en_US-amy-medium"
+
+
+def test_voices_test_plays_sample_and_inherits_group_provider(tmp_path: Path) -> None:
+    sample = tmp_path / "edge.mp3"
+    with (
+        patch("audiobard.cli.create_tts_provider") as mock_create,
+        patch("audiobard.cli._play_audio", return_value=True) as mock_play,
+    ):
+        _mock_tts_provider(mock_create, [])
+        result = runner.invoke(
+            app,
+            [
+                "voices",
+                "--provider",
+                "edge",
+                "test",
+                "--voice",
+                "en-US-EmmaNeural",
+                "--locale",
+                "en_US",
+                "--output",
+                str(sample),
+            ],
+        )
+
+    assert result.exit_code == 0
+    mock_play.assert_called_once_with(sample)
+    config = mock_create.call_args[0][0]
+    assert config.tts_provider == "edge"
+
+
+def test_voices_test_reports_missing_player(tmp_path: Path) -> None:
+    with (
+        patch("audiobard.cli.create_tts_provider") as mock_create,
+        patch("audiobard.cli._play_audio", return_value=False),
+    ):
+        _mock_tts_provider(mock_create, [])
+        result = runner.invoke(
+            app,
+            [
+                "voices",
+                "test",
+                "--voice",
+                "v1",
+                "--locale",
+                "en_US",
+                "--output",
+                str(tmp_path / "sample.mp3"),
+            ],
+        )
+
+    assert result.exit_code == 0
+    assert "No system audio player available" in result.stdout
+
+
+def test_voices_test_accepts_emotion_synonym(tmp_path: Path) -> None:
+    with patch("audiobard.cli.create_tts_provider") as mock_create:
+        mock_tts = _mock_tts_provider(mock_create, [])
+        result = runner.invoke(
+            app,
+            [
+                "voices",
+                "test",
+                "--voice",
+                "v1",
+                "--locale",
+                "en_US",
+                "--text",
+                "Welcome back to the library",
+                "--emotion",
+                "cheerful",
+                "--output",
+                str(tmp_path / "sample.mp3"),
+                "--no-play",
+            ],
+        )
+
+    assert result.exit_code == 0
+    kwargs = mock_tts.synthesize.await_args.kwargs
+    assert kwargs["emotion"] is Emotion.HAPPY
+    assert kwargs["text"] == "Welcome back to the library"
+    assert "happy emotion" in result.stdout
+
+
+def test_voices_test_unknown_voice_uses_placeholder(tmp_path: Path) -> None:
+    with patch("audiobard.cli.create_tts_provider") as mock_create:
+        mock_tts = _mock_tts_provider(mock_create, [])
+        result = runner.invoke(
+            app,
+            [
+                "voices",
+                "test",
+                "--voice",
+                "ghost-voice",
+                "--locale",
+                "es_ES",
+                "--output",
+                str(tmp_path / "sample.mp3"),
+                "--no-play",
+            ],
+        )
+
+    assert result.exit_code == 0
+    target = mock_tts.synthesize.await_args.kwargs["voice"]
+    assert target.id == "ghost-voice"
+    assert target.locale == "es_ES"
+
+
+def test_voices_test_known_voice_keeps_catalog_metadata(tmp_path: Path) -> None:
+    known = [
+        Voice(
+            id="en_US-amy-medium",
+            locale="en_US",
+            gender=GenderHint.FEMALE,
+            age=AgeHint.CHILD,
+            energy=0.9,
+        )
+    ]
+    with patch("audiobard.cli.create_tts_provider") as mock_create:
+        mock_tts = _mock_tts_provider(mock_create, known)
+        result = runner.invoke(
+            app,
+            [
+                "voices",
+                "test",
+                "--voice",
+                "en_US-amy-medium",
+                "--locale",
+                "en_US",
+                "--output",
+                str(tmp_path / "sample.mp3"),
+                "--no-play",
+            ],
+        )
+
+    assert result.exit_code == 0
+    target = mock_tts.synthesize.await_args.kwargs["voice"]
+    assert target.age is AgeHint.CHILD
+    assert target.energy == 0.9
+
+
+def test_voices_test_synthesis_failure(tmp_path: Path) -> None:
+    sample = tmp_path / "sample.mp3"
+    with patch("audiobard.cli.create_tts_provider") as mock_create:
+        mock_tts = AsyncMock()
+        mock_tts.list_voices.return_value = []
+        mock_tts.synthesize.side_effect = RuntimeError("engine down")
+        mock_create.return_value = mock_tts
+        result = runner.invoke(
+            app,
+            [
+                "voices",
+                "test",
+                "--voice",
+                "v1",
+                "--locale",
+                "en_US",
+                "--output",
+                str(sample),
+                "--no-play",
+            ],
+        )
+
+    assert result.exit_code == 1
+    assert "Voice audition failed" in result.stdout
+    assert not sample.exists()
+
+
+def test_voices_test_empty_audio_is_an_error(tmp_path: Path) -> None:
+    with patch("audiobard.cli.create_tts_provider") as mock_create:
+        _mock_tts_provider(mock_create, [], audio=b"")
+        result = runner.invoke(
+            app,
+            [
+                "voices",
+                "test",
+                "--voice",
+                "v1",
+                "--locale",
+                "en_US",
+                "--output",
+                str(tmp_path / "sample.mp3"),
+                "--no-play",
+            ],
+        )
+
+    assert result.exit_code == 1
+    assert "returned no audio" in result.stdout
+
+
+def test_voices_test_invalid_provider() -> None:
+    result = runner.invoke(app, ["voices", "test", "--voice", "v1", "--provider", "bogus"])
+    assert result.exit_code == 1
+    assert "Error loading configuration" in result.stdout
+
+
+def test_voices_test_requires_voice_option() -> None:
+    result = runner.invoke(app, ["voices", "test"])
+    assert result.exit_code == 2
+
+
+def test_voices_test_unwritable_output(tmp_path: Path) -> None:
+    with (
+        patch("audiobard.cli.create_tts_provider") as mock_create,
+        patch("pathlib.Path.write_bytes", side_effect=OSError("disk full")),
+    ):
+        _mock_tts_provider(mock_create, [])
+        result = runner.invoke(
+            app,
+            [
+                "voices",
+                "test",
+                "--voice",
+                "v1",
+                "--locale",
+                "en_US",
+                "--output",
+                str(tmp_path / "sample.mp3"),
+                "--no-play",
+            ],
+        )
+
+    assert result.exit_code == 1
+    assert "Could not write the sample" in result.stdout
 
 
 

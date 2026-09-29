@@ -11,7 +11,35 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from audiobard.models import Character, DialogLine, Emotion, Paragraph, Tone
+from audiobard.models import (
+    Character,
+    DialogLine,
+    Emotion,
+    Paragraph,
+    Tone,
+    coerce_emotion,
+)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("CHEERFUL", Emotion.HAPPY),
+        ("  Angry ", Emotion.ANGRY),
+        ("whispering", Emotion.WHISPER),
+        ("completely_unknown_emotion", Emotion.NEUTRAL),
+        ("", Emotion.NEUTRAL),
+        (None, Emotion.NEUTRAL),
+    ],
+)
+def test_coerce_emotion_normalizes_synonyms_and_falls_back(
+    raw: object, expected: Emotion
+) -> None:
+    assert coerce_emotion(raw) is expected
+
+
+def test_coerce_emotion_passes_enum_through() -> None:
+    assert coerce_emotion(Emotion.SARCASTIC) is Emotion.SARCASTIC
 
 
 def test_paragraph_rejects_empty_text() -> None:

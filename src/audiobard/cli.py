@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import tempfile
 from pathlib import Path
 
 import typer
@@ -13,7 +14,7 @@ from rich.table import Table
 
 from audiobard import __version__
 from audiobard.config import AudioBardConfig
-from audiobard.models import Voice
+from audiobard.models import AgeHint, GenderHint, Voice, coerce_emotion
 from audiobard.pipeline import AudioBookPipeline, create_tts_provider
 
 app = typer.Typer(
@@ -23,6 +24,53 @@ app = typer.Typer(
 )
 
 console = Console()
+
+# Default audition text: short enough to sound instant, long enough to judge timbre.
+DEFAULT_VOICE_TEST_TEXT = "This is a voice preview."
+
+
+def _resolve_voice(voice_id: str, locale: str, known: list[Voice]) -> Voice:
+    """Return the catalog entry for *voice_id*, or a placeholder when unknown.
+
+    The placeholder keeps ``voices test`` usable when the voice pool file for a
+    locale has not been generated yet; only the id and locale matter to the
+    underlying providers.
+    """
+    for candidate in known:
+        if candidate.id == voice_id:
+            return candidate
+    return Voice(
+        id=voice_id,
+        locale=locale,
+        gender=GenderHint.NEUTRAL,
+        age=AgeHint.ADULT,
+    )
+
+
+def _play_audio(path: Path) -> bool:
+    """Play *path* with the platform audio player. Returns False if none launched."""
+    import subprocess
+    import sys
+
+    if sys.platform == "darwin":
+        cmd = ["afplay", str(path)]
+    elif sys.platform == "win32":
+        cmd = ["cmd", "/c", "start", "", str(path)]
+    else:
+        cmd = ["xdg-open", str(path)]
+
+    try:
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        return False
+    return True
+
+
+voices_app = typer.Typer(
+    name="voices",
+    help="List available TTS voices, or audition a single voice.",
+    invoke_without_command=True,
+)
 
 
 def _version_callback(value: bool) -> None:
@@ -176,8 +224,9 @@ def generate(
         raise typer.Exit(code=1) from exc
 
 
-@app.command("voices")
+@voices_app.callback()
 def voices(
+    ctx: typer.Context,
     provider: str | None = typer.Option(
         None,
         "--provider",
@@ -191,7 +240,16 @@ def voices(
         help="Locale to filter voices (e.g. en_US).",
     ),
 ) -> None:
-    """List available TTS voices for a provider and locale."""
+    """List available TTS voices for a provider and locale.
+
+    With no subcommand this lists voices; use ``audiobard voices test`` to
+    audition a single voice without generating a whole book.
+    """
+    # Subcommands inherit these as defaults (``voices --provider edge test ...``).
+    ctx.obj = {"provider": provider, "locale": locale}
+    if ctx.invoked_subcommand is not None:
+        return
+
     config_overrides: dict[str, object] = {}
     if provider:
         config_overrides["tts_provider"] = provider
@@ -238,6 +296,121 @@ def voices(
         )
 
     console.print(table)
+
+
+@voices_app.command("test")
+def voices_test(
+    ctx: typer.Context,
+    voice: str = typer.Option(
+        ...,
+        "--voice",
+        "-v",
+        help="Voice ID to audition (e.g. en_US-amy-medium).",
+    ),
+    text: str = typer.Option(
+        DEFAULT_VOICE_TEST_TEXT,
+        "--text",
+        "-t",
+        help="Text to synthesize (keep it short).",
+    ),
+    emotion: str = typer.Option(
+        "neutral",
+        "--emotion",
+        "-e",
+        help="Emotion label or synonym to apply (e.g. cheerful).",
+    ),
+    provider: str | None = typer.Option(
+        None,
+        "--provider",
+        "-p",
+        help="TTS provider to audition (piper, edge).",
+    ),
+    locale: str | None = typer.Option(
+        None,
+        "--locale",
+        "-l",
+        help="Locale the voice belongs to (e.g. en_US).",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Where to write the sample MP3 (defaults to a temp file).",
+    ),
+    play: bool = typer.Option(
+        True,
+        "--play/--no-play",
+        help="Play the sample with the system audio player.",
+    ),
+) -> None:
+    """Synthesize a short sample with one voice and play it immediately."""
+    inherited = ctx.obj if isinstance(ctx.obj, dict) else {}
+    provider = provider or inherited.get("provider")
+    locale = locale or inherited.get("locale")
+
+    config_overrides: dict[str, object] = {}
+    if provider:
+        config_overrides["tts_provider"] = provider
+    if locale:
+        config_overrides["tts_locale"] = locale
+
+    try:
+        config = AudioBardConfig.model_validate(config_overrides)
+    except Exception as exc:
+        console.print(f"[red]Error loading configuration:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    tts_prov = create_tts_provider(config)
+
+    async def synthesize_sample() -> tuple[bytes, Voice]:
+        known = await tts_prov.list_voices(config.tts_locale)
+        target = _resolve_voice(voice, config.tts_locale, known)
+        audio = await tts_prov.synthesize(
+            text=text,
+            voice=target,
+            emotion=coerce_emotion(emotion),
+        )
+        return audio, target
+
+    target_emotion = coerce_emotion(emotion)
+    try:
+        audio_bytes, target_voice = asyncio.run(synthesize_sample())
+    except Exception as exc:
+        console.print(f"[red]Voice audition failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if not audio_bytes:
+        console.print(
+            "[red]Voice audition failed:[/red] the provider returned no audio."
+        )
+        raise typer.Exit(code=1)
+
+    destination = (
+        output
+        if output is not None
+        else Path(tempfile.gettempdir()) / f"audiobard-voice-{voice}.mp3"
+    )
+    try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(audio_bytes)
+    except OSError as exc:
+        console.print(f"[red]Could not write the sample:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(
+        f"[green]Synthesized[/green] {target_voice.id} "
+        f"({target_voice.locale}) with {target_emotion.value} emotion "
+        f"— {len(audio_bytes)} bytes"
+    )
+    console.print(f"Sample written to: {destination}")
+
+    if play and not _play_audio(destination):
+        console.print(
+            "[yellow]No system audio player available — open the file above.[/yellow]"
+        )
+
+
+app.add_typer(voices_app, name="voices")
 
 
 @app.command("validate-config")

@@ -67,6 +67,23 @@ _EMOTION_SYNONYMS: dict[str, Emotion] = {
 }
 
 
+def coerce_emotion(value: object) -> Emotion:
+    """Coerce a free-form emotion label, including synonyms, to an Emotion.
+
+    Unknown labels fall back to Emotion.NEUTRAL instead of raising, so both
+    LLM output and CLI input stay usable without extra validation branches.
+    """
+    if isinstance(value, Emotion):
+        return value
+    if isinstance(value, str):
+        val = value.strip().lower()
+        try:
+            return Emotion(val)
+        except ValueError:
+            return _EMOTION_SYNONYMS.get(val, Emotion.NEUTRAL)
+    return Emotion.NEUTRAL
+
+
 class Tone(str, Enum):
     """Voice-tone hint the LLM assigns to a character."""
 
@@ -188,15 +205,7 @@ class DialogLine(BaseModel):
     @field_validator("emotion", mode="before")
     @classmethod
     def normalize_emotion(cls, v: Any) -> Emotion:
-        if isinstance(v, Emotion):
-            return v
-        if isinstance(v, str):
-            val = v.strip().lower()
-            try:
-                return Emotion(val)
-            except ValueError:
-                return _EMOTION_SYNONYMS.get(val, Emotion.NEUTRAL)
-        return Emotion.NEUTRAL
+        return coerce_emotion(v)
 
 
 class AttributionResult(BaseModel):
