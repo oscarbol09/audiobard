@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project are documented in this file.
 
@@ -22,7 +22,7 @@ adds an entry under the relevant section, in the same commit as the change.
   - Incomplete audio filtering toggle and local timezone date formatting in library.
 - **Free vs Premium Model Filter & Expanded Live Catalog**:
   - Filter toggle buttons (`Todos` / `⭐ Gratis (Free)` / `💎 Prémium (Pago)`) in main screen and Settings modal.
-  - Comprehensive model catalog across OpenRouter (NVIDIA Nemotron 3 Ultra/Super, MiniMax M3/M2.7, Gemma 4 31B/26B, Z.ai GLM 5.2, Claude 3.5 Sonnet, GPT-4o, DeepSeek R1), NVIDIA NIM, Google Gemini, and Ollama.
+  - Extensive model catalog across OpenRouter (NVIDIA Nemotron 3 Ultra/Super, MiniMax M3/M2.7, Gemma 4 31B/26B, Z.ai GLM 5.2, Claude 3.5 Sonnet, GPT-4o, DeepSeek R1), NVIDIA NIM, Google Gemini, and Ollama.
 - **BYOK (Bring Your Own Key) & Cloud Providers**:
   - Dedicated `NimClient` (`src/audiobard/llm/nim_client.py`) for NVIDIA Inference Microservices (`https://integrate.api.nvidia.com/v1/chat/completions`).
   - Dynamic BYOK configuration fields in GUI Settings Modal for NVIDIA NIM, OpenRouter, Google Gemini, and Ollama.
