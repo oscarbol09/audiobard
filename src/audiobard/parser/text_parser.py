@@ -107,7 +107,7 @@ def _strip_pg_boilerplate(text: str) -> str:
     """Return the text between PG start/end markers, or the full text."""
     start_m = _PG_START.search(text)
     if start_m:
-        text = text[start_m.end():]
+        text = text[start_m.end() :]
     end_m = _PG_END.search(text)
     if end_m:
         text = text[: end_m.start()]

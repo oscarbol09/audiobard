@@ -135,7 +135,7 @@ class SecretGuardTests(GuardRepoFixture):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_dotenv_load_is_allowed(self) -> None:
-        self.add_tracked_file("src/audiobard/config.py", 'load_dotenv()  # reads .env\n')
+        self.add_tracked_file("src/audiobard/config.py", "load_dotenv()  # reads .env\n")
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 

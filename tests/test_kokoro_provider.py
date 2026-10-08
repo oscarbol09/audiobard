@@ -75,9 +75,7 @@ def _config(tmp_path: Path, **overrides: Any) -> AudioBardConfig:
     return AudioBardConfig(**defaults)
 
 
-def _provider_with_pack(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> KokoroProvider:
+def _provider_with_pack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> KokoroProvider:
     """A provider whose assets are already on disk, so nothing is downloaded."""
     monkeypatch.setenv(VOICES_ENV_VAR, str(_write_voice_pack(tmp_path / "voices.bin")))
     monkeypatch.setenv(MODEL_ENV_VAR, str(_write_dummy_model(tmp_path / "model.onnx")))
@@ -251,9 +249,7 @@ async def test_ensure_assets_downloads_missing_files_once(
 
     download = AsyncMock(side_effect=fake_download)
     with patch("audiobard.tts.kokoro_provider._download", new=download):
-        results = await asyncio.gather(
-            provider._ensure_assets(), provider._ensure_assets()
-        )
+        results = await asyncio.gather(provider._ensure_assets(), provider._ensure_assets())
     model_path, voices_path = results[0]
     assert results[0] == results[1]
 
@@ -389,9 +385,7 @@ def test_cli_lists_kokoro_voices_from_the_local_pack(
     monkeypatch.setenv(MODEL_ENV_VAR, str(_write_dummy_model(tmp_path / "model.onnx")))
     monkeypatch.setenv("AUDIOBARD_CACHE_DIR", str(tmp_path / "cache"))
 
-    result = runner.invoke(
-        app, ["voices", "--provider", "kokoro", "--locale", "en_US"]
-    )
+    result = runner.invoke(app, ["voices", "--provider", "kokoro", "--locale", "en_US"])
 
     assert result.exit_code == 0, result.output
     assert "af_sarah" in result.output

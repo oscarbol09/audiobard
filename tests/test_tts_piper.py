@@ -70,9 +70,7 @@ async def test_piper_ensure_model_downloads_if_missing() -> None:
             "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
             "en/en_US/dummy/medium/en_US-dummy-medium"
         )
-        respx.get(f"{base_url}.onnx").mock(
-            return_value=Response(200, content=b"onnx-data")
-        )
+        respx.get(f"{base_url}.onnx").mock(return_value=Response(200, content=b"onnx-data"))
         respx.get(f"{base_url}.onnx.json").mock(
             return_value=Response(200, content=b'{"config": true}')
         )
@@ -88,9 +86,7 @@ async def test_piper_ensure_model_downloads_if_missing() -> None:
 @pytest.mark.asyncio
 @patch("shutil.which")
 @patch("asyncio.create_subprocess_exec")
-async def test_piper_synthesize_raw(
-    mock_subproc: AsyncMock, mock_which: AsyncMock
-) -> None:
+async def test_piper_synthesize_raw(mock_subproc: AsyncMock, mock_which: AsyncMock) -> None:
     """Test that subprocess is run correctly and returns converted MP3 bytes."""
     mock_which.return_value = "/usr/bin/piper"
 
@@ -100,7 +96,7 @@ async def test_piper_synthesize_raw(
     # Standard 44-byte WAV header:
     wav_header = (
         b"RIFF\x24\x08\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00"
-        b"\x22\x56\x00\x00\x44\xAC\x00\x00\x02\x00\x10\x00data\x00\x08\x00\x00"
+        b"\x22\x56\x00\x00\x44\xac\x00\x00\x02\x00\x10\x00data\x00\x08\x00\x00"
         b"\x00\x00\x00\x00"
     )
 
@@ -221,7 +217,6 @@ async def test_piper_list_voices_invalid_json(tmp_path: Path) -> None:
     assert await provider.list_voices("en_US") == []
 
 
-
 @pytest.mark.asyncio
 async def test_piper_ensure_model_cached(tmp_path: Path) -> None:
     config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
@@ -291,12 +286,8 @@ async def test_piper_ensure_model_atomic_failure_cleanup(tmp_path: Path) -> None
         "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
         "en/en_US/dummy/medium/en_US-dummy-medium"
     )
-    respx.get(f"{base_url}.onnx.json").mock(
-        return_value=Response(200, content=b'{"config": true}')
-    )
-    respx.get(f"{base_url}.onnx").mock(
-        return_value=Response(500, content=b"server error")
-    )
+    respx.get(f"{base_url}.onnx.json").mock(return_value=Response(200, content=b'{"config": true}'))
+    respx.get(f"{base_url}.onnx").mock(return_value=Response(500, content=b"server error"))
 
     with pytest.raises(httpx.HTTPStatusError):
         await provider._ensure_model("en_US-dummy-medium")
@@ -325,12 +316,8 @@ async def test_piper_ensure_model_cleans_corrupt_zero_byte_cache(tmp_path: Path)
         "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
         "en/en_US/dummy/medium/en_US-dummy-medium"
     )
-    respx.get(f"{base_url}.onnx").mock(
-        return_value=Response(200, content=b"valid-onnx-bytes")
-    )
-    respx.get(f"{base_url}.onnx.json").mock(
-        return_value=Response(200, content=b'{"config": true}')
-    )
+    respx.get(f"{base_url}.onnx").mock(return_value=Response(200, content=b"valid-onnx-bytes"))
+    respx.get(f"{base_url}.onnx.json").mock(return_value=Response(200, content=b'{"config": true}'))
 
     provider = PiperProvider(config)
     result = await provider._ensure_model("en_US-dummy-medium")
@@ -351,9 +338,7 @@ async def test_piper_ensure_model_rejects_empty_download(tmp_path: Path) -> None
         "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
         "en/en_US/dummy/medium/en_US-dummy-medium"
     )
-    respx.get(f"{base_url}.onnx.json").mock(
-        return_value=Response(200, content=b"")
-    )
+    respx.get(f"{base_url}.onnx.json").mock(return_value=Response(200, content=b""))
 
     with pytest.raises(ValueError, match="Received empty response"):
         await provider._ensure_model("en_US-dummy-medium")
@@ -374,12 +359,8 @@ async def test_piper_ensure_model_concurrent_separate_instances(tmp_path: Path) 
         "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
         "en/en_US/dummy/medium/en_US-dummy-medium"
     )
-    respx.get(f"{base_url}.onnx").mock(
-        return_value=Response(200, content=b"concurrent-onnx-bytes")
-    )
-    respx.get(f"{base_url}.onnx.json").mock(
-        return_value=Response(200, content=b'{"config": true}')
-    )
+    respx.get(f"{base_url}.onnx").mock(return_value=Response(200, content=b"concurrent-onnx-bytes"))
+    respx.get(f"{base_url}.onnx.json").mock(return_value=Response(200, content=b'{"config": true}'))
 
     p1_res, p2_res = await asyncio.gather(
         provider1._ensure_model("en_US-dummy-medium"),
@@ -535,5 +516,3 @@ async def test_piper_available_locales_uses_voices_dir(tmp_path: Path) -> None:
     )
 
     assert await PiperProvider(config).available_locales() == {"en_US": 1}
-
-

@@ -34,9 +34,7 @@ from audiobard.models import (
         (None, Emotion.NEUTRAL),
     ],
 )
-def test_coerce_emotion_normalizes_synonyms_and_falls_back(
-    raw: object, expected: Emotion
-) -> None:
+def test_coerce_emotion_normalizes_synonyms_and_falls_back(raw: object, expected: Emotion) -> None:
     assert coerce_emotion(raw) is expected
 
 
@@ -115,12 +113,8 @@ def test_character_aliases_default_to_empty() -> None:
         "arbitrary_string_normalizes_to_neutral",
     ],
 )
-def test_character_tone_normalizes_unknown_to_neutral(
-    raw_tone: str, expected_tone: Tone
-) -> None:
-    c = Character.model_validate(
-        {"canonical_id": "Character_A", "name": "Alice", "tone": raw_tone}
-    )
+def test_character_tone_normalizes_unknown_to_neutral(raw_tone: str, expected_tone: Tone) -> None:
+    c = Character.model_validate({"canonical_id": "Character_A", "name": "Alice", "tone": raw_tone})
     assert c.tone == expected_tone
 
 
@@ -146,9 +140,7 @@ def test_dialog_line_speaker_regex() -> None:
         "lowercase_digit_0_to_A",
     ],
 )
-def test_dialog_line_normalizes_multi_digit_speakers(
-    raw_speaker: str, expected: str
-) -> None:
+def test_dialog_line_normalizes_multi_digit_speakers(raw_speaker: str, expected: str) -> None:
     line = DialogLine.model_validate(
         {"text": "hello", "speaker": raw_speaker, "emotion": "neutral"}
     )
@@ -201,4 +193,3 @@ def test_tone_enum_has_expected_members() -> None:
         "timid",
         "sarcastic",
     }
-

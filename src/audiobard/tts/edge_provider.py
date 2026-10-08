@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Bundled snapshot of Microsoft voice metadata, used when the live service is
 # unreachable so the voice picker still populates on an offline desktop launch.
-_BUNDLED_VOICES_PATH = (
-    Path(__file__).resolve().parent.parent / "data" / "edge_voices_cache.json"
-)
+_BUNDLED_VOICES_PATH = Path(__file__).resolve().parent.parent / "data" / "edge_voices_cache.json"
 
 
 def _offline_fallback_errors() -> tuple[type[BaseException], ...]:
@@ -165,30 +163,22 @@ class EdgeProvider(TTSProvider):
                         data += chunk["data"]
 
                 if not data:
-                    raise RuntimeError(
-                        f"Edge TTS returned no audio data for voice: {voice.id}"
-                    )
+                    raise RuntimeError(f"Edge TTS returned no audio data for voice: {voice.id}")
                 return data
 
             except edge_tts.exceptions.NoAudioReceived as exc:
-                logger.warning(
-                    "Edge TTS returned no audio on attempt %d: %s",
-                    attempt + 1, exc
-                )
+                logger.warning("Edge TTS returned no audio on attempt %d: %s", attempt + 1, exc)
                 if attempt == 2:
                     raise RuntimeError(
                         f"Edge TTS failed completely for voice '{voice.id}'. "
                         "Text might contain invalid characters or Microsoft "
                         "is blocking the request."
                     ) from exc
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
             except Exception as exc:
-                logger.warning(
-                    "Edge TTS connection error on attempt %d: %s",
-                    attempt + 1, exc
-                )
+                logger.warning("Edge TTS connection error on attempt %d: %s", attempt + 1, exc)
                 if attempt == 2:
                     raise
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
 
         raise RuntimeError("Edge TTS failed after retries.")

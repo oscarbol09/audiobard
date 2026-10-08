@@ -19,13 +19,7 @@ async def test_gemini_client_success() -> None:
     schema = {"type": "object"}
 
     mock_resp = {
-        "candidates": [
-            {
-                "content": {
-                    "parts": [{"text": '```json\n{"characters": []}\n```'}]
-                }
-            }
-        ]
+        "candidates": [{"content": {"parts": [{"text": '```json\n{"characters": []}\n```'}]}}]
     }
 
     with respx.mock:
@@ -58,11 +52,7 @@ async def test_gemini_client_unexpected_structure() -> None:
 @pytest.mark.asyncio
 async def test_openrouter_client_success() -> None:
     client = OpenRouterClient(api_key="dummy-key")
-    mock_resp = {
-        "choices": [
-            {"message": {"content": '```json\n{"lines": []}\n```'}}
-        ]
-    }
+    mock_resp = {"choices": [{"message": {"content": '```json\n{"lines": []}\n```'}}]}
     with respx.mock:
         respx.post("https://openrouter.ai/api/v1/chat/completions").respond(
             status_code=200, json=mock_resp
@@ -111,9 +101,7 @@ async def test_ollama_client_success() -> None:
     with patch.dict(sys.modules, {"ollama": mock_ollama}):
         raw = await client._raw_call("prompt", {})
         assert raw == '{"characters": []}'
-        mock_async_client_cls.assert_called_once_with(
-            host="http://localhost:11434", timeout=120.0
-        )
+        mock_async_client_cls.assert_called_once_with(host="http://localhost:11434", timeout=120.0)
 
 
 @pytest.mark.asyncio
@@ -137,9 +125,7 @@ async def test_ollama_client_custom_timeout() -> None:
     with patch.dict(sys.modules, {"ollama": mock_ollama}):
         raw = await client._raw_call("prompt", {})
         assert raw == '{"characters": []}'
-        mock_async_client_cls.assert_called_once_with(
-            host="http://localhost:11434", timeout=60.0
-        )
+        mock_async_client_cls.assert_called_once_with(host="http://localhost:11434", timeout=60.0)
 
 
 def test_gemini_client_extract_json_unfenced() -> None:

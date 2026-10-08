@@ -127,17 +127,15 @@ def _cover_item_from_html(book: object) -> object | None:
             continue
         target = match.group(1).replace("\\", "/").split("/")[-1].lower()
         for candidate in items:
-            candidate_name = str(
-                getattr(candidate, "get_name", lambda: "")() or ""
-            ).replace("\\", "/").lower()
+            candidate_name = (
+                str(getattr(candidate, "get_name", lambda: "")() or "").replace("\\", "/").lower()
+            )
             if candidate_name.endswith(target):
                 return cast(object, candidate)
     return None
 
 
-def _extract_cover(
-    book: object, ebooklib_module: object
-) -> tuple[bytes | None, str | None]:
+def _extract_cover(book: object, ebooklib_module: object) -> tuple[bytes | None, str | None]:
     """Return ``(bytes, media_type)`` for the EPUB cover image, if there is one."""
     item = (
         _cover_item_from_meta(book)
@@ -178,6 +176,7 @@ class EpubParser(BookParser):
             book = epub.read_epub(str(source))
         else:
             import io
+
             book = epub.read_epub(io.BytesIO(source))
 
         self._extract_metadata(book, ebooklib)

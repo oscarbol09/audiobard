@@ -54,7 +54,7 @@ _EXTRACT_CHARACTERS_EXAMPLES_V1 = [
         "content": (
             'TEXT:\n"I have told you so already," said Elizabeth impatiently.\n'
             '"Then you will have a charming mother-in-law," said Mrs Bennet.\n'
-            'Mr Darcy said nothing.'
+            "Mr Darcy said nothing."
         ),
     },
     {
@@ -187,7 +187,7 @@ _ATTRIBUTE_DIALOG_EXAMPLES_V1 = [
         "role": "user",
         "content": (
             "TEXT:\nThe young man looked out at the canal.\n"
-            '— What do you see? — someone asked.\n'
+            "— What do you see? — someone asked.\n"
             "— Nothing worth seeing.\n"
             "He said it quietly and went back inside."
         ),

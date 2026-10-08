@@ -722,9 +722,7 @@ async def test_regenerate_book_custom_output_folder(
         patch("audiobard.api.AudioBookPipeline", return_value=fake_pipeline),
         patch("audiobard.api.AudioBardConfig"),
     ):
-        result = await regenerate_book(
-            1, RegenerateRequest(output_folder=str(custom_dir))
-        )
+        result = await regenerate_book(1, RegenerateRequest(output_folder=str(custom_dir)))
         await asyncio.wait_for(run_event.wait(), timeout=2.0)
 
     assert result["status"] == "started"
@@ -732,9 +730,7 @@ async def test_regenerate_book_custom_output_folder(
     assert captured_out[0].resolve() == (custom_dir / "book.mp3").resolve()
 
 
-def test_generate_audiobook_persists_uploaded_file(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_generate_audiobook_persists_uploaded_file(client: TestClient, tmp_path: Path) -> None:
     """POST /generate saves uploaded file to persistent AudioBard/books storage."""
     fake_pipeline = MagicMock()
     fake_pipeline.run = AsyncMock(side_effect=_stub_pipeline_run)
@@ -900,9 +896,7 @@ def test_generate_audiobook_unique_filenames_no_collision(
     assert persisted[0] != persisted[1]
 
 
-def test_generate_audiobook_sanitizes_path_traversal(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_generate_audiobook_sanitizes_path_traversal(client: TestClient, tmp_path: Path) -> None:
     """Path traversal in filename and session_id is safely contained within books_dir."""
     fake_pipeline = MagicMock()
     fake_pipeline.run = AsyncMock(side_effect=_stub_pipeline_run)
@@ -924,9 +918,7 @@ def test_generate_audiobook_sanitizes_path_traversal(
     assert persisted[0].parent.resolve() == books_dir.resolve()
 
 
-def test_generate_audiobook_preserves_display_title(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_generate_audiobook_preserves_display_title(client: TestClient, tmp_path: Path) -> None:
     """Original book stem with punctuation and spaces is preserved in persistence."""
     from audiobard.api import _get_persistence
     from audiobard.parser.base import ParserStats
@@ -1065,7 +1057,7 @@ def test_get_output_dir_rejects_unsafe_paths(
 
     # Reject system directories (e.g. C:\Windows or /etc)
     import sys
+
     system_dir = "C:\\Windows" if sys.platform == "win32" else "/etc"
     out_sys = _get_output_dir(system_dir)
     assert out_sys.resolve() == expected_default
-

@@ -203,9 +203,7 @@ class PiperProvider(TTSProvider):
 
         if proc.returncode != 0:
             err_msg = stderr.decode("utf-8", errors="replace").strip()
-            raise RuntimeError(
-                f"Piper process exited with code {proc.returncode}: {err_msg}"
-            )
+            raise RuntimeError(f"Piper process exited with code {proc.returncode}: {err_msg}")
 
         # 5. Convert WAV to MP3 in worker thread
         return await asyncio.to_thread(_wav_to_mp3, stdout)
@@ -300,4 +298,3 @@ class PiperProvider(TTSProvider):
                 tmp_onnx_path.unlink(missing_ok=True)
 
             return onnx_path
-

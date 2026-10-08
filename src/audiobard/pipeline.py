@@ -188,9 +188,7 @@ def load_voice_preset(path: Path) -> VoicePreset:
     return VoicePreset.model_validate_json(path.read_text(encoding="utf-8-sig"))
 
 
-def chunk_paragraphs(
-    paragraphs: list[Paragraph], chunk_size: int = 1500
-) -> list[list[Paragraph]]:
+def chunk_paragraphs(paragraphs: list[Paragraph], chunk_size: int = 1500) -> list[list[Paragraph]]:
     """Group paragraphs into chunks of *chunk_size* words."""
     chunks = []
     current_chunk: list[Paragraph] = []
@@ -288,7 +286,6 @@ def _make_paragraph_progress(
 
 
 class AudioBookPipeline:
-
     def __init__(self, config: AudioBardConfig) -> None:
         self.config = config
         self.persistence = PersistenceManager(config.db_path)
@@ -344,9 +341,7 @@ class AudioBookPipeline:
                 "duration_ms": len(segment),
             }
         )
-        await asyncio.to_thread(
-            _write_clip_atomically, clip_file, mp3_bytes, meta_file, meta_json
-        )
+        await asyncio.to_thread(_write_clip_atomically, clip_file, mp3_bytes, meta_file, meta_json)
 
     async def _synthesize_paragraphs(
         self,
@@ -430,9 +425,7 @@ class AudioBookPipeline:
             ),
         )
         logger.info("Running character extraction...")
-        checkpoint = await asyncio.to_thread(
-            self.persistence.get_checkpoint, book_id, "characters"
-        )
+        checkpoint = await asyncio.to_thread(self.persistence.get_checkpoint, book_id, "characters")
         if resume and checkpoint and checkpoint["status"] == "completed":
             characters = await asyncio.to_thread(self.persistence.get_characters, book_id)
             logger.info("Loaded %d characters from checkpoint", len(characters))
@@ -486,9 +479,7 @@ class AudioBookPipeline:
         logger.info("Mapping voices...")
         voices = await self.tts_provider.list_voices(self.config.tts_locale)
         if not voices:
-            raise RuntimeError(
-                f"No voices found for locale: {self.config.tts_locale}"
-            )
+            raise RuntimeError(f"No voices found for locale: {self.config.tts_locale}")
         voice_map = {v.id: v for v in voices}
         checkpoint = await asyncio.to_thread(
             self.persistence.get_checkpoint, book_id, "voice_assignment"
@@ -510,9 +501,7 @@ class AudioBookPipeline:
             and preset is None
         )
         if reuse_checkpoint:
-            voice_assignments = await asyncio.to_thread(
-                self.persistence.get_voice_mapping, book_id
-            )
+            voice_assignments = await asyncio.to_thread(self.persistence.get_voice_mapping, book_id)
             logger.info("Loaded voice mappings from checkpoint")
         else:
             if stale_provider and checkpoint is not None:
@@ -529,9 +518,7 @@ class AudioBookPipeline:
                 mapper = VoiceMapper(voices=voices)
             mapped = list(mapper.assign_all(characters).values())
             voice_assignments = self._merge_preset(mapped, preset, voice_map)
-            await asyncio.to_thread(
-                self.persistence.save_voice_mapping, book_id, voice_assignments
-            )
+            await asyncio.to_thread(self.persistence.save_voice_mapping, book_id, voice_assignments)
             await asyncio.to_thread(
                 self.persistence.save_checkpoint,
                 book_id,
@@ -782,9 +769,7 @@ class AudioBookPipeline:
                     )
                 )
 
-                pause_ms = EMOTION_PROSODY.get(emotion, {"pause_after_ms": 250})[
-                    "pause_after_ms"
-                ]
+                pause_ms = EMOTION_PROSODY.get(emotion, {"pause_after_ms": 250})["pause_after_ms"]
 
                 if p.chapter != current_chapter_idx:
                     if current_chapter_idx != -1:
@@ -878,9 +863,7 @@ class AudioBookPipeline:
                 "using PDF2Bard: https://github.com/oscarbol09/pdf2bard"
             )
 
-        parser: BookParser = (
-            EpubParser() if book_path.suffix.lower() == ".epub" else TextParser()
-        )
+        parser: BookParser = EpubParser() if book_path.suffix.lower() == ".epub" else TextParser()
 
         _emit(
             progress_callback,
@@ -911,9 +894,7 @@ class AudioBookPipeline:
             await asyncio.to_thread(self.persistence.clear_checkpoints, book_id)
 
         # 1. Characters Extraction
-        characters = await self._extract_characters(
-            book_id, paragraphs, resume, progress_callback
-        )
+        characters = await self._extract_characters(book_id, paragraphs, resume, progress_callback)
 
         # 2. Voice Assignment (an imported preset overrides the fresh mapping)
         voice_assignments, voice_map, voices = await self._assign_voices(

@@ -325,13 +325,15 @@ def test_empty_pool_raises(tmp_path: Path) -> None:
 def test_pool_with_utf8_bom(tmp_path: Path) -> None:
     """VoiceMapper loads voice pool files containing Windows UTF-8 BOM without error."""
     p = tmp_path / "bom_pool.json"
-    p.write_bytes(b"\xef\xbb\xbf" + json.dumps([
-        {"id": "v1", "locale": "es_CO", "gender": "male", "age": "adult", "energy": 0.5}
-    ]).encode("utf-8"))
+    p.write_bytes(
+        b"\xef\xbb\xbf"
+        + json.dumps(
+            [{"id": "v1", "locale": "es_CO", "gender": "male", "age": "adult", "energy": 0.5}]
+        ).encode("utf-8")
+    )
     mapper = VoiceMapper(voices_path=p)
     assert len(mapper.pool) == 1
     assert mapper.pool[0].id == "v1"
-
 
 
 def test_pool_property_returns_copy(mapper: VoiceMapper) -> None:
@@ -345,7 +347,6 @@ def test_cosine_similarity_zero_vector() -> None:
 
     assert _cosine_similarity((0.0, 0.0, 0.0), (1.0, 1.0, 1.0)) == 0.0
     assert _cosine_similarity((1.0, 1.0, 1.0), (0.0, 0.0, 0.0)) == 0.0
-
 
 
 def test_assignment_is_stable_across_processes(tmp_path: Path) -> None:
@@ -386,14 +387,18 @@ def test_assignment_is_stable_across_processes(tmp_path: Path) -> None:
     results = []
     for seed in ("1", "2"):
         env = dict(os.environ, PYTHONHASHSEED=seed)
+        if "PYTHONPATH" not in env:
+            env["PYTHONPATH"] = str(Path(__file__).parent.parent / "src")
         proc = subprocess.run(
             [sys.executable, "-c", script, str(pool_path)],
-            capture_output=True, text=True, env=env, check=True,
+            capture_output=True,
+            text=True,
+            env=env,
+            check=True,
         )
         results.append(proc.stdout.strip())
     assert results[0] == results[1], (
-        "voice assignment differs between processes: "
-        f"{results[0]} vs {results[1]}"
+        f"voice assignment differs between processes: {results[0]} vs {results[1]}"
     )
 
 
@@ -552,6 +557,3 @@ def test_assign_all_is_order_independent(tmp_path: Path) -> None:
     m2 = VoiceMapper(voices_path=p).assign_all(list(reversed(chars)))
 
     assert {k: v.voice_id for k, v in m1.items()} == {k: v.voice_id for k, v in m2.items()}
-
-
-

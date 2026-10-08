@@ -56,19 +56,16 @@ def test_assert_commercial_safe(
 
 def test_assert_commercial_safe_edge_tts_blocked() -> None:
     """Test that edge TTS is blocked when commercial_use is enabled."""
-    config = AudioBardConfig(
-        tts_provider="edge", llm_provider="ollama", commercial_use=True
-    )
+    config = AudioBardConfig(tts_provider="edge", llm_provider="ollama", commercial_use=True)
     with pytest.raises(RuntimeError, match="may not allow commercial use"):
         config.assert_commercial_safe()
 
 
 def test_assert_commercial_safe_piper_tts_allowed() -> None:
     """Test that piper TTS is allowed when commercial_use is enabled."""
-    config = AudioBardConfig(
-        tts_provider="piper", llm_provider="ollama", commercial_use=True
-    )
+    config = AudioBardConfig(tts_provider="piper", llm_provider="ollama", commercial_use=True)
     config.assert_commercial_safe()  # Should not raise
+
 
 def test_yaml_config_source_loading(tmp_path: Path) -> None:
     """Test YamlConfigSettingsSource parsing key-value settings from file."""
@@ -92,9 +89,10 @@ def test_yaml_config_source_uses_pyyaml_when_available(tmp_path: Path) -> None:
     import types
 
     fake_yaml = types.ModuleType("yaml")
-    fake_yaml.__dict__["safe_load"] = (
-        lambda text: {"llm_provider": "gemini", "llm_model": "gemini-2.0-flash"}
-    )
+    fake_yaml.__dict__["safe_load"] = lambda text: {
+        "llm_provider": "gemini",
+        "llm_model": "gemini-2.0-flash",
+    }
 
     fake_config_file = tmp_path / "config.yaml"
     fake_config_file.write_text(
@@ -103,8 +101,9 @@ def test_yaml_config_source_uses_pyyaml_when_available(tmp_path: Path) -> None:
     )
 
     source = YamlConfigSettingsSource(AudioBardConfig)
-    with patch.dict(sys.modules, {"yaml": fake_yaml}), patch(
-        "pathlib.Path.expanduser", return_value=fake_config_file
+    with (
+        patch.dict(sys.modules, {"yaml": fake_yaml}),
+        patch("pathlib.Path.expanduser", return_value=fake_config_file),
     ):
         data = source()
         assert data["llm_provider"] == "gemini"
@@ -122,8 +121,9 @@ def test_yaml_config_source_ignores_non_dict_yaml(tmp_path: Path) -> None:
     fake_config_file.write_text("llm_provider: gemini\n", encoding="utf-8")
 
     source = YamlConfigSettingsSource(AudioBardConfig)
-    with patch.dict(sys.modules, {"yaml": fake_yaml}), patch(
-        "pathlib.Path.expanduser", return_value=fake_config_file
+    with (
+        patch.dict(sys.modules, {"yaml": fake_yaml}),
+        patch("pathlib.Path.expanduser", return_value=fake_config_file),
     ):
         assert source() == {}
 
@@ -137,8 +137,9 @@ def test_yaml_config_source_fallback_without_pyyaml(tmp_path: Path) -> None:
     )
 
     source = YamlConfigSettingsSource(AudioBardConfig)
-    with patch.dict(sys.modules, {"yaml": None}), patch(
-        "pathlib.Path.expanduser", return_value=fake_config_file
+    with (
+        patch.dict(sys.modules, {"yaml": None}),
+        patch("pathlib.Path.expanduser", return_value=fake_config_file),
     ):
         data = source()
         assert data["llm_provider"] == "ollama"
@@ -200,4 +201,3 @@ def test_target_dbfs_config() -> None:
 
     with pytest.raises(ValidationError):
         AudioBardConfig(target_dbfs=0.0)  # le=-1.0
-

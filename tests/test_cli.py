@@ -202,6 +202,7 @@ def test_generate_pipeline_failure(tmp_path: Path) -> None:
 
 def test_benchmark_subcommand() -> None:
     from unittest.mock import MagicMock
+
     mock_mod = MagicMock()
     mock_mod.main.return_value = 0
     mock_spec = MagicMock()
@@ -233,6 +234,7 @@ def test_benchmark_spec_loader_failure() -> None:
 
 def test_benchmark_nonzero_return() -> None:
     from unittest.mock import MagicMock
+
     mock_mod = MagicMock()
     mock_mod.main.return_value = 3
     mock_spec = MagicMock()
@@ -243,7 +245,6 @@ def test_benchmark_nonzero_return() -> None:
     ):
         result = runner.invoke(app, ["benchmark"])
         assert result.exit_code == 3
-
 
 
 def test_cli_main_invoked() -> None:
@@ -505,9 +506,7 @@ def _write_voice_pool(directory: Path, locale: str, count: int) -> None:
     (directory / f"{locale}.json").write_text(entries, encoding="utf-8")
 
 
-def test_locales_command_lists_piper_pools(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_locales_command_lists_piper_pools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     voices_dir = tmp_path / "voices"
     voices_dir.mkdir()
     _write_voice_pool(voices_dir, "en_US", 2)
@@ -529,9 +528,7 @@ def test_locales_command_edge_uses_bundled_snapshot() -> None:
     assert "en_US" in result.stdout
 
 
-def test_locales_command_without_any_pools(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_locales_command_without_any_pools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     empty = tmp_path / "empty"
     empty.mkdir()
     monkeypatch.setenv("AUDIOBARD_VOICES_DIR", str(empty))
@@ -595,9 +592,7 @@ def test_voices_empty_list_suggests_available_locales() -> None:
         mock_tts.available_locales.return_value = {"en_US": 2, "es_ES": 1}
         mock_create.return_value = mock_tts
 
-        result = runner.invoke(
-            app, ["voices", "--provider", "piper", "--locale", "fr_FR"]
-        )
+        result = runner.invoke(app, ["voices", "--provider", "piper", "--locale", "fr_FR"])
 
     assert result.exit_code == 0
     assert "No voices found for locale: fr_FR" in result.stdout
@@ -611,17 +606,13 @@ def test_voices_empty_list_without_locale_data_prints_no_hint() -> None:
         mock_tts.available_locales.return_value = {}
         mock_create.return_value = mock_tts
 
-        result = runner.invoke(
-            app, ["voices", "--provider", "piper", "--locale", "fr_FR"]
-        )
+        result = runner.invoke(app, ["voices", "--provider", "piper", "--locale", "fr_FR"])
 
     assert result.exit_code == 0
     assert "Available locales" not in result.stdout
 
 
-def _seed_book_with_mapping(
-    db_file: Path, book: Path, assignments: list[VoiceAssignment]
-) -> int:
+def _seed_book_with_mapping(db_file: Path, book: Path, assignments: list[VoiceAssignment]) -> int:
     from audiobard.parser.base import ParserStats
 
     persistence = PersistenceManager(db_file)
@@ -640,9 +631,7 @@ def _seed_book_with_mapping(
     return book_id
 
 
-def test_preset_export_writes_json(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_preset_export_writes_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AUDIOBARD_DB_PATH", str(tmp_path / "test.db"))
     book = tmp_path / "book.txt"
     book.write_text("Chapter 1\n\nHello world.", encoding="utf-8")
@@ -672,9 +661,7 @@ def test_preset_export_writes_json(
     ]
 
 
-def test_preset_export_unknown_book(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_preset_export_unknown_book(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AUDIOBARD_DB_PATH", str(tmp_path / "empty.db"))
     book = tmp_path / "book.txt"
     book.write_text("Hello world.", encoding="utf-8")
@@ -685,9 +672,7 @@ def test_preset_export_unknown_book(
     assert "No stored record for" in result.stdout
 
 
-def test_preset_export_without_mapping(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_preset_export_without_mapping(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     db_file = tmp_path / "test.db"
     monkeypatch.setenv("AUDIOBARD_DB_PATH", str(db_file))
     book = tmp_path / "book.txt"
@@ -700,9 +685,7 @@ def test_preset_export_without_mapping(
     assert "has no saved voice mapping to export" in " ".join(result.stdout.split())
 
 
-def test_generate_applies_voice_preset(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_generate_applies_voice_preset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     voices_dir = tmp_path / "voices"
     voices_dir.mkdir()
     _write_voice_pool(voices_dir, "en_US", 1)
@@ -714,9 +697,7 @@ def test_generate_applies_voice_preset(
             {
                 "version": 1,
                 "name": "series",
-                "assignments": [
-                    {"canonical_id": "Narrator", "voice_id": "en_US-amy-medium"}
-                ],
+                "assignments": [{"canonical_id": "Narrator", "voice_id": "en_US-amy-medium"}],
             }
         ),
         encoding="utf-8",
@@ -797,8 +778,3 @@ def test_voices_test_unwritable_output(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "Could not write the sample" in result.stdout
-
-
-
-
-

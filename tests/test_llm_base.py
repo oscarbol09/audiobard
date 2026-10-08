@@ -190,4 +190,3 @@ async def test_handles_utf8_bom_in_response() -> None:
     result = await client.extract_characters("text")
     assert isinstance(result, CharactersResult)
     assert len(result.characters) == 1
-

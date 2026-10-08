@@ -76,9 +76,7 @@ async def test_edge_synthesize_raw(mock_comm_cls: MagicMock, tmp_path: Path) -> 
     # Pass custom rate=1.1, pitch=1.0
     # final_rate = 1.1 * 1.1 = 1.21 -> +21.0%
     # final_pitch = 1.0 * 1.08 = 1.08 -> +8Hz
-    audio_data = await provider._synthesize_raw(
-        "Hello", voice, Emotion.HAPPY, rate=1.1, pitch=1.0
-    )
+    audio_data = await provider._synthesize_raw("Hello", voice, Emotion.HAPPY, rate=1.1, pitch=1.0)
 
     assert audio_data == b"mp3-bytes"
     mock_comm_cls.assert_called_once_with(
@@ -221,9 +219,7 @@ async def test_edge_offline_fallback_missing_snapshot_is_empty(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A missing snapshot must degrade to the previous empty-list behaviour."""
-    monkeypatch.setattr(
-        edge_provider, "_BUNDLED_VOICES_PATH", tmp_path / "missing.json"
-    )
+    monkeypatch.setattr(edge_provider, "_BUNDLED_VOICES_PATH", tmp_path / "missing.json")
     config = AudioBardConfig(cache_dir=tmp_path, db_path=tmp_path / "test.db")
     with patch("edge_tts.list_voices", side_effect=ConnectionError("offline")):
         voices = await EdgeProvider(config).list_voices("en_US")
@@ -252,9 +248,7 @@ def test_bundled_snapshot_is_well_formed() -> None:
     """The shipped snapshot must stay loadable and internally consistent."""
     import json
 
-    payload = json.loads(
-        edge_provider._BUNDLED_VOICES_PATH.read_text(encoding="utf-8")
-    )
+    payload = json.loads(edge_provider._BUNDLED_VOICES_PATH.read_text(encoding="utf-8"))
     entries = edge_provider._load_bundled_voices()
     assert entries
     assert payload["voice_count"] == len(entries)
@@ -288,4 +282,3 @@ async def test_edge_available_locales_is_offline(tmp_path: Path) -> None:
     with patch("edge_tts.list_voices", side_effect=ConnectionError("offline")):
         counts = await EdgeProvider(config).available_locales()
     assert counts["en_US"] >= 1
-

@@ -23,8 +23,7 @@ if TYPE_CHECKING:
     from audiobard.persistence import PersistenceManager
 
 _GEMINI_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models"
-    "/{model}:generateContent?key={key}"
+    "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
 )
 
 

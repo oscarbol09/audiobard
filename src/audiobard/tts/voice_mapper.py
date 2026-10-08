@@ -73,9 +73,8 @@ _FEMALE_GENDER_CLUES: tuple[str, ...] = (
 
 def _has_whole_word_clue(text: str, clues: tuple[str, ...]) -> bool:
     """True if any clue appears as a whole word in *text* (case-insensitive)."""
-    return any(
-        re.search(rf"\b{re.escape(w)}\b", text, flags=re.IGNORECASE) for w in clues
-    )
+    return any(re.search(rf"\b{re.escape(w)}\b", text, flags=re.IGNORECASE) for w in clues)
+
 
 # ---------------------------------------------------------------------------
 # Tone vector space
@@ -84,17 +83,17 @@ def _has_whole_word_clue(text: str, clues: tuple[str, ...]) -> bool:
 # Each tone is represented as a 3D vector: [energy, warmth, positivity].
 # Used to score voices by cosine similarity to a character's tone.
 _TONE_VECTORS: dict[str, tuple[float, float, float]] = {
-    Tone.NEUTRAL.value:       (0.5, 0.5, 0.5),
-    Tone.WARM.value:          (0.4, 0.9, 0.7),
-    Tone.COLD.value:          (0.3, 0.1, 0.2),
-    Tone.AGITATED.value:      (0.9, 0.3, 0.3),
-    Tone.CALM.value:          (0.2, 0.6, 0.6),
-    Tone.MYSTERIOUS.value:    (0.4, 0.2, 0.4),
-    Tone.CHEERFUL.value:      (0.7, 0.8, 0.9),
-    Tone.MELANCHOLIC.value:   (0.2, 0.5, 0.1),
+    Tone.NEUTRAL.value: (0.5, 0.5, 0.5),
+    Tone.WARM.value: (0.4, 0.9, 0.7),
+    Tone.COLD.value: (0.3, 0.1, 0.2),
+    Tone.AGITATED.value: (0.9, 0.3, 0.3),
+    Tone.CALM.value: (0.2, 0.6, 0.6),
+    Tone.MYSTERIOUS.value: (0.4, 0.2, 0.4),
+    Tone.CHEERFUL.value: (0.7, 0.8, 0.9),
+    Tone.MELANCHOLIC.value: (0.2, 0.5, 0.1),
     Tone.AUTHORITATIVE.value: (0.8, 0.4, 0.5),
-    Tone.TIMID.value:         (0.2, 0.6, 0.4),
-    Tone.SARCASTIC.value:     (0.6, 0.2, 0.3),
+    Tone.TIMID.value: (0.2, 0.6, 0.4),
+    Tone.SARCASTIC.value: (0.6, 0.2, 0.3),
 }
 
 
@@ -182,9 +181,7 @@ class VoiceMapper:
         dest.parent.mkdir(parents=True, exist_ok=True)
         payload: dict[str, Any] = {
             "version": 1,
-            "assignments": {
-                cid: asmt.model_dump() for cid, asmt in self._mapping.items()
-            },
+            "assignments": {cid: asmt.model_dump() for cid, asmt in self._mapping.items()},
         }
         dest.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
         logger.info("Voice mapping saved to %s", dest)
@@ -212,9 +209,7 @@ class VoiceMapper:
     def _load_pool(self) -> None:
         if self.voices_path is None or not self.voices_path.exists():
             raise FileNotFoundError(f"Voice pool not found: {self.voices_path}")
-        raw: list[dict[str, Any]] = json.loads(
-            self.voices_path.read_text(encoding="utf-8-sig")
-        )
+        raw: list[dict[str, Any]] = json.loads(self.voices_path.read_text(encoding="utf-8-sig"))
         self._pool = [Voice.model_validate(v) for v in raw]
         if not self._pool:
             raise ValueError(f"Voice pool is empty: {self.voices_path}")
@@ -264,9 +259,7 @@ class VoiceMapper:
         # Step 4: deterministic tie-break prioritizing voice uniqueness across characters
         assigned_voice_ids = {asmt.voice_id for asmt in self._mapping.values()}
 
-        unused_candidates = [
-            (score, v) for score, _, v in scored if v.id not in assigned_voice_ids
-        ]
+        unused_candidates = [(score, v) for score, _, v in scored if v.id not in assigned_voice_ids]
         if unused_candidates:
             best_unused_score = unused_candidates[0][0]
             pool_to_pick = [
@@ -279,9 +272,7 @@ class VoiceMapper:
         chosen = min(
             pool_to_pick,
             key=lambda v: (
-                zlib.crc32(
-                    character.canonical_id.encode("utf-8") + v.id.encode("utf-8")
-                ),
+                zlib.crc32(character.canonical_id.encode("utf-8") + v.id.encode("utf-8")),
                 v.id,
             ),
         )

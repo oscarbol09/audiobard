@@ -64,9 +64,7 @@ def _stubbed_pipeline(
     llm_client.attribute_dialog = AsyncMock(return_value=MagicMock(lines=[]))
 
     tts_provider = MagicMock()
-    tts_provider.list_voices = AsyncMock(
-        return_value=[MagicMock(id="voice-1", name="Voice 1")]
-    )
+    tts_provider.list_voices = AsyncMock(return_value=[MagicMock(id="voice-1", name="Voice 1")])
     tts_provider.synthesize = AsyncMock(return_value=b"mp3-bytes")
 
     audio_processor = MagicMock()
@@ -89,9 +87,7 @@ def _stubbed_pipeline(
         encoding="utf-8",
     )
 
-    paragraph_mock = MagicMock(
-        index=0, text="Hello world.", is_dialog=False, chapter=0
-    )
+    paragraph_mock = MagicMock(index=0, text="Hello world.", is_dialog=False, chapter=0)
 
     from audiobard import pipeline as pipeline_mod
 
@@ -110,8 +106,9 @@ def _stubbed_pipeline(
     clip_file = pipeline.cache_dir / "clip_1_0.mp3"
     meta_file = pipeline.cache_dir / "clip_1_0.json"
     clip_file.write_bytes(b"x")
-    meta_file.write_text('{"speaker":"Narrator","emotion":"neutral","duration_ms":1000}',
-                         encoding="utf-8")
+    meta_file.write_text(
+        '{"speaker":"Narrator","emotion":"neutral","duration_ms":1000}', encoding="utf-8"
+    )
     pipeline.persistence = persistence
     pipeline.audio_processor = audio_processor
     pipeline._llm_semaphore = asyncio.Semaphore(1)
@@ -161,6 +158,7 @@ def test_progress_callback_errors_do_not_abort_pipeline(tmp_path: Path) -> None:
     output = tmp_path / "out.mp3"
 
     with _stubbed_pipeline(tmp_path) as (pipeline, _llm, _tts, audio):
+
         def broken(_progress: PipelineProgress) -> None:
             raise RuntimeError("subscriber exploded")
 

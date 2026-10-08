@@ -202,9 +202,7 @@ def _is_safe_custom_directory(path: Path) -> bool:
     if sys.platform == "win32":
         windir = os.environ.get("SYSTEMROOT", "C:\\Windows").lower()
         program_files = os.environ.get("PROGRAMFILES", "C:\\Program Files").lower()
-        program_files_x86 = os.environ.get(
-            "PROGRAMFILES(X86)", "C:\\Program Files (x86)"
-        ).lower()
+        program_files_x86 = os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)").lower()
         for blocked in (windir, program_files, program_files_x86):
             if blocked and (resolved_str == blocked or resolved_str.startswith(blocked + "\\")):
                 return False
@@ -281,9 +279,7 @@ def _delete_book_source(source_path: Path) -> None:
             resolved.unlink(missing_ok=True)
 
 
-def _cleanup_book_files(
-    book: dict[str, Any], custom_output: str | Path | None = None
-) -> None:
+def _cleanup_book_files(book: dict[str, Any], custom_output: str | Path | None = None) -> None:
     """Remove generated audio file and stored uploaded book if present."""
     stem = Path(book["path"]).stem if book.get("path") else f"book_{book['id']}"
     if custom_output:
@@ -300,9 +296,7 @@ def _cleanup_book_files(
         _delete_book_source(Path(book["path"]))
 
 
-def _update_book_title(
-    path: Path, title: str, custom_output: str | Path | None = None
-) -> None:
+def _update_book_title(path: Path, title: str, custom_output: str | Path | None = None) -> None:
     """Update book title in persistence, cleaning up older superseded duplicates."""
     persistence = _get_persistence()
     path_str = str(path.resolve())
@@ -323,9 +317,7 @@ def _is_book_registered(path: Path) -> bool:
     persistence = _get_persistence()
     path_str = str(path.resolve())
     with persistence._get_conn() as conn:
-        row = conn.execute(
-            "SELECT id FROM books WHERE path = ?", (path_str,)
-        ).fetchone()
+        row = conn.execute("SELECT id FROM books WHERE path = ?", (path_str,)).fetchone()
         return row is not None
 
 
@@ -560,8 +552,7 @@ async def generate_audiobook(request: GenerateRequest) -> dict[str, str]:
         raw_stem = Path(clean_name).stem.strip() or "book"
         display_title = raw_stem
         safe_stem = (
-            "".join(c for c in raw_stem if c.isalnum() or c in ("-", "_")).strip("._")
-            or "book"
+            "".join(c for c in raw_stem if c.isalnum() or c in ("-", "_")).strip("._") or "book"
         )
         raw_suffix = Path(clean_name).suffix if clean_name else ".txt"
         safe_suffix = "".join(c for c in raw_suffix if c.isalnum() or c == ".").strip() or ".txt"

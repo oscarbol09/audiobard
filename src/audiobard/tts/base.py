@@ -61,6 +61,7 @@ class TTSProvider(ABC):
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._memory_cache = MemoryCache()
         import asyncio
+
         self._semaphore = asyncio.Semaphore(config.tts_semaphore)
 
     async def synthesize(
@@ -146,4 +147,3 @@ class TTSProvider(ABC):
         return an empty mapping, which callers read as "unknown".
         """
         return {}
-

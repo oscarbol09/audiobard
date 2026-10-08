@@ -49,8 +49,7 @@ from audiobard.models import BookMetadata, Emotion
 def test_generate_ffmetadata_escapes_chapter_titles(title: str, escaped_title: str) -> None:
     chapters = [ChapterMarker(title=title, start_ms=0, end_ms=500)]
     assert generate_ffmetadata(chapters) == (
-        ";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=500\n"
-        f"title={escaped_title}\n"
+        f";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=500\ntitle={escaped_title}\n"
     )
 
 
@@ -74,7 +73,10 @@ async def test_export_m4b_preserves_special_characters_in_chapter_titles(
             newline: str | None = None,
         ) -> int:
             return original_write_text(
-                path, data, encoding=encoding, errors=errors,
+                path,
+                data,
+                encoding=encoding,
+                errors=errors,
                 newline="\r\n" if newline is None else newline,
             )
 
@@ -92,7 +94,13 @@ async def test_export_m4b_preserves_special_characters_in_chapter_titles(
     await AudioProcessor().export_m4b(_create_dummy_mp3(), output, chapters)
 
     proc = await asyncio.create_subprocess_exec(
-        ffprobe, "-v", "error", "-show_chapters", "-of", "json", str(output),
+        ffprobe,
+        "-v",
+        "error",
+        "-show_chapters",
+        "-of",
+        "json",
+        str(output),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -119,12 +127,11 @@ def _create_dummy_mp3() -> bytes:
 def _create_audible_mp3() -> bytes:
     """Generate a dummy non-silent MP3 segment using pydub."""
     # A 500ms segment of noise/signal with finite dBFS
-    raw_data = (b"\x10\x20\x30\x40" * 2500)
+    raw_data = b"\x10\x20\x30\x40" * 2500
     segment = AudioSegment(data=raw_data, sample_width=2, frame_rate=44100, channels=2)
     out = io.BytesIO()
     segment.export(out, format="mp3")
     return out.getvalue()
-
 
 
 @pytest.mark.asyncio
@@ -189,7 +196,6 @@ async def test_audio_processor_concatenate_normalizes_audible() -> None:
     assert len(out_bytes) > 0
 
 
-
 @pytest.mark.asyncio
 async def test_audio_processor_export_mp3() -> None:
     """Test export_mp3 writing output files."""
@@ -205,9 +211,7 @@ async def test_audio_processor_export_mp3() -> None:
 @pytest.mark.asyncio
 @patch("audiobard.audio.processor.find_ffmpeg", return_value="/usr/bin/ffmpeg")
 @patch("asyncio.create_subprocess_exec")
-async def test_audio_processor_export_m4b(
-    mock_subproc: AsyncMock, mock_find: Any
-) -> None:
+async def test_audio_processor_export_m4b(mock_subproc: AsyncMock, mock_find: Any) -> None:
     """Test that export_m4b generates ffmetadata and calls ffmpeg to convert and inject."""
     # Mock both ffmpeg subprocess runs
     mock_proc1 = AsyncMock()
@@ -291,9 +295,7 @@ async def test_export_mp3_without_metadata_skips_tagging(tmp_path: Path) -> None
 async def test_export_mp3_tagging_failure_is_not_fatal(tmp_path: Path) -> None:
     """Tagging is best-effort: undecodable bytes must still be written out."""
     out_path = tmp_path / "broken.mp3"
-    await AudioProcessor().export_mp3(
-        b"not-an-mp3", out_path, BookMetadata(title="Whatever")
-    )
+    await AudioProcessor().export_mp3(b"not-an-mp3", out_path, BookMetadata(title="Whatever"))
     assert out_path.read_bytes() == b"not-an-mp3"
 
 
@@ -318,9 +320,7 @@ async def test_export_m4b_attaches_cover_and_metadata(
         cover_mime="image/png",
     )
     chapters = [ChapterMarker(title="Ch 1", start_ms=0, end_ms=500)]
-    await AudioProcessor().export_m4b(
-        b"audio-data", tmp_path / "out.m4b", chapters, metadata
-    )
+    await AudioProcessor().export_m4b(b"audio-data", tmp_path / "out.m4b", chapters, metadata)
 
     call2_args = mock_subproc.call_args_list[1][0]
     assert "attached_pic" in call2_args
@@ -417,9 +417,7 @@ async def test_export_m4b_streams_from_a_staged_file(tmp_path: Path) -> None:
         mock_proc2.communicate.return_value = (b"", b"")
         mock_subproc.side_effect = [mock_proc1, mock_proc2]
 
-        await AudioProcessor().export_m4b(
-            b"", out_path, chapters, None, audio_path=staged
-        )
+        await AudioProcessor().export_m4b(b"", out_path, chapters, None, audio_path=staged)
 
     convert_args = [str(arg) for arg in mock_subproc.call_args_list[0][0]]
     assert "pipe:0" not in convert_args
@@ -566,9 +564,7 @@ def test_find_ffmpeg_uses_path(monkeypatch: pytest.MonkeyPatch) -> None:
         assert find_ffmpeg() == "/usr/local/bin/ffmpeg"
 
 
-def test_find_ffmpeg_falls_back_to_imageio(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_find_ffmpeg_falls_back_to_imageio(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _clear_ffmpeg_env(monkeypatch)
     bundled = tmp_path / "imageio-ffmpeg"
     bundled.write_bytes(b"")
@@ -609,14 +605,10 @@ def test_find_ffmpeg_returns_none_when_absent(
         assert find_ffmpeg() is None
 
 
-def _create_custom_mp3(
-    duration_ms: int = 100, frame_rate: int = 44100, channels: int = 1
-) -> bytes:
+def _create_custom_mp3(duration_ms: int = 100, frame_rate: int = 44100, channels: int = 1) -> bytes:
     """Generate an MP3 audio segment with explicit duration, sample rate, and channels."""
     raw_data = (b"\x10\x20" * channels) * int(frame_rate * duration_ms / 1000)
-    segment = AudioSegment(
-        data=raw_data, sample_width=2, frame_rate=frame_rate, channels=channels
-    )
+    segment = AudioSegment(data=raw_data, sample_width=2, frame_rate=frame_rate, channels=channels)
     out = io.BytesIO()
     segment.export(out, format="mp3")
     return out.getvalue()
@@ -970,9 +962,7 @@ async def test_concatenate_falls_back_when_streaming_fails() -> None:
     clips = [_neutral_clip(_create_custom_mp3(duration_ms=200, frame_rate=24000))]
     processor = AudioProcessor()
 
-    with patch.object(
-        processor_module, "_measure_loudness", side_effect=RuntimeError("boom")
-    ):
+    with patch.object(processor_module, "_measure_loudness", side_effect=RuntimeError("boom")):
         out_bytes = await processor.concatenate(clips)
 
     segment = AudioSegment.from_file(io.BytesIO(out_bytes), format="mp3")

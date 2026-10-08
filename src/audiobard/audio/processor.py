@@ -21,8 +21,7 @@ from audiobard.tts.base import EMOTION_PROSODY
 logger = logging.getLogger(__name__)
 
 FFMPEG_MISSING_MESSAGE = (
-    "FFmpeg is required for M4B/chapter support. "
-    "Please install FFmpeg or select MP3 output."
+    "FFmpeg is required for M4B/chapter support. Please install FFmpeg or select MP3 output."
 )
 
 _FFMPEG_ENV_VARS = ("AUDIOBARD_FFMPEG", "FFMPEG_BINARY", "FFMPEG_PATH")
@@ -260,9 +259,7 @@ def _parse_loudness(stderr: str) -> float | None:
     return float(token)
 
 
-def _measure_loudness(
-    ffmpeg_bin: str, list_file: Path, rate: int, channels: int
-) -> float | None:
+def _measure_loudness(ffmpeg_bin: str, list_file: Path, rate: int, channels: int) -> float | None:
     """Measure the concatenation's level in one bounded-memory FFmpeg pass."""
     args = [
         ffmpeg_bin,
@@ -291,9 +288,7 @@ def _measure_loudness(
     return _parse_loudness(completed.stderr.decode("utf-8", errors="replace"))
 
 
-def _write_silence(
-    ffmpeg_bin: str, path: Path, pause_ms: int, rate: int, channels: int
-) -> None:
+def _write_silence(ffmpeg_bin: str, path: Path, pause_ms: int, rate: int, channels: int) -> None:
     """Render a *pause_ms* long silent MP3 with FFmpeg."""
     layout = "stereo" if channels > 1 else "mono"
     args = [
@@ -411,9 +406,7 @@ class AudioProcessor:
 
             loudness = _measure_loudness(ffmpeg_bin, list_file, rate, channels)
             gain_db = None if loudness is None else self.target_dbfs - loudness
-            self._encode_concat(
-                ffmpeg_bin, list_file, rate, channels, gain_db, destination
-            )
+            self._encode_concat(ffmpeg_bin, list_file, rate, channels, gain_db, destination)
 
     def _encode_concat(
         self,
@@ -463,9 +456,7 @@ class AudioProcessor:
                     self._stream_concatenate(ffmpeg_bin, clips, streamed)
                     return streamed.read_bytes()
             except Exception as exc:
-                logger.warning(
-                    "Streaming concatenation failed (%s); using the in-memory join", exc
-                )
+                logger.warning("Streaming concatenation failed (%s); using the in-memory join", exc)
         return self._concatenate_in_memory(clips)
 
     def _concatenate_in_memory(self, clips: list[AudioClip]) -> bytes:
@@ -482,15 +473,11 @@ class AudioProcessor:
             if clip.path is not None and clip.path.is_file():
                 segment = AudioSegment.from_file(str(clip.path), format="mp3")
             else:
-                segment = AudioSegment.from_file(
-                    io.BytesIO(clip.mp3_bytes), format="mp3"
-                )
+                segment = AudioSegment.from_file(io.BytesIO(clip.mp3_bytes), format="mp3")
             segments.append(segment)
 
             # Add silence gap after the clip based on its emotion
-            pause_ms = EMOTION_PROSODY.get(clip.emotion, {"pause_after_ms": 250})[
-                "pause_after_ms"
-            ]
+            pause_ms = EMOTION_PROSODY.get(clip.emotion, {"pause_after_ms": 250})["pause_after_ms"]
             if pause_ms > 0:
                 silence = AudioSegment.silent(
                     duration=pause_ms,

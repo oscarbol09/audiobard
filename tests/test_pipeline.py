@@ -161,7 +161,7 @@ async def test_pipeline_run(
         # Create dummy text book
         book_file = tmp_path / "book.txt"
         book_file.write_text(
-            "CHAPTER I\n\nThis is narrator text.\n\n\"Hello!\" she said.",
+            'CHAPTER I\n\nThis is narrator text.\n\n"Hello!" she said.',
             encoding="utf-8",
         )
 
@@ -396,9 +396,7 @@ async def test_synthesize_paragraphs_bounds_concurrency(
     fake = _FakeTTS(delay=0.02)
     pipeline.tts_provider = fake
 
-    await pipeline._synthesize_paragraphs(
-        7, _assigned(8), [], {}, [_pool_voice()]
-    )
+    await pipeline._synthesize_paragraphs(7, _assigned(8), [], {}, [_pool_voice()])
 
     assert len(fake.calls) == 8
     assert fake.max_in_flight == 2
@@ -621,7 +619,7 @@ async def test_pipeline_multi_chapter_and_speaker_fallback(
     long_para = "word " * 3000
     book_file = tmp_path / "book.txt"
     book_file.write_text(
-        f"CHAPTER I\n\n{long_para}\n\n{long_para}\n\nCHAPTER II\n\n\"Hello\" said Z.",
+        f'CHAPTER I\n\n{long_para}\n\n{long_para}\n\nCHAPTER II\n\n"Hello" said Z.',
         encoding="utf-8",
     )
 
@@ -672,7 +670,3 @@ async def test_pipeline_pdf_file_raises_pdf2bard_hint(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="PDF2Bard"):
         await pipeline.run(pdf_file, tmp_path / "out.mp3")
-
-
-
-

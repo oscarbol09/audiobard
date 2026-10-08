@@ -181,4 +181,3 @@ def test_get_stats(pm: PersistenceManager, tmp_path: Path, sample_stats: ParserS
     assert stats_filled["llm_cache_entries"] == 2
     assert stats_filled["llm_cache_hits"] == 3
     assert stats_filled["llm_cache_hit_rate"] == "60.0%"
-

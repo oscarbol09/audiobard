@@ -225,7 +225,6 @@ class TestParserStats:
         assert not paragraphs[0].text.startswith("\ufeff")
 
 
-
 # ---------------------------------------------------------------------------
 # EpubParser — unit tests
 # ---------------------------------------------------------------------------
@@ -310,9 +309,7 @@ class TestEpubParser:
 
         from audiobard.parser.epub_parser import EpubParser
 
-        items = [
-            _MockEpubItem("ch1", "ch1.xhtml", b"<p>Simple paragraph from file path.</p>")
-        ]
+        items = [_MockEpubItem("ch1", "ch1.xhtml", b"<p>Simple paragraph from file path.</p>")]
         mock_book = _MockEpubBook(items)
 
         with patch("ebooklib.epub.read_epub", return_value=mock_book):
@@ -401,7 +398,6 @@ class TestEpubParser:
             parser = EpubParser()
             paragraphs = parser.parse(b"dummy-epub-bytes")
             assert len(paragraphs) == 0
-
 
 
 class TestEpubStyleScriptStripping:
@@ -675,9 +671,7 @@ class TestMultilingualBookParsing:
             ),
         ],
     )
-    def test_localized_pg_markers_are_stripped(
-        self, start_marker: str, end_marker: str
-    ) -> None:
+    def test_localized_pg_markers_are_stripped(self, start_marker: str, end_marker: str) -> None:
         text = (
             f"Licence boilerplate before.\n\n{start_marker}\n\n"
             "Real story content.\n\n"
@@ -724,8 +718,6 @@ class TestMultilingualBookParsing:
             "Livre de poche interessant.",
         ],
     )
-    def test_lowercase_prose_is_not_mistaken_for_a_heading(
-        self, paragraph: str
-    ) -> None:
+    def test_lowercase_prose_is_not_mistaken_for_a_heading(self, paragraph: str) -> None:
         result = TextParser().parse(paragraph)
         assert [p.text for p in result] == [paragraph]

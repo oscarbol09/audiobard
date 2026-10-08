@@ -84,6 +84,7 @@ def _ensure_locale_available(config: AudioBardConfig, tts_prov: TTSProvider) -> 
         console.print(f"Available locales: {hint}")
     raise typer.Exit(code=1)
 
+
 # Default audition text: short enough to sound instant, long enough to judge timbre.
 DEFAULT_VOICE_TEST_TEXT = "This is a voice preview."
 
@@ -298,11 +299,7 @@ def generate(
     # 6. Run pipeline
     pipeline = AudioBookPipeline(config)
     try:
-        asyncio.run(
-            pipeline.run(
-                book, output, resume=resume, dry_run=dry_run, voice_preset=preset
-            )
-        )
+        asyncio.run(pipeline.run(book, output, resume=resume, dry_run=dry_run, voice_preset=preset))
     except Exception as exc:
         console.print(f"[red]Pipeline execution failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -358,17 +355,13 @@ def voices(
         raise typer.Exit(code=1) from exc
 
     if not voice_list:
-        console.print(
-            f"[yellow]No voices found for locale: {config.tts_locale}[/yellow]"
-        )
+        console.print(f"[yellow]No voices found for locale: {config.tts_locale}[/yellow]")
         hint = _locale_hint(_known_locales(tts_prov))
         if hint:
             console.print(f"Available locales: {hint}")
         return
 
-    table = Table(
-        title=f"Voices ({config.tts_provider} — {config.tts_locale})"
-    )
+    table = Table(title=f"Voices ({config.tts_provider} — {config.tts_locale})")
     table.add_column("Voice ID", style="cyan")
     table.add_column("Gender", style="magenta")
     table.add_column("Age Hint", style="green")
@@ -467,9 +460,7 @@ def voices_test(
         raise typer.Exit(code=1) from exc
 
     if not audio_bytes:
-        console.print(
-            "[red]Voice audition failed:[/red] the provider returned no audio."
-        )
+        console.print("[red]Voice audition failed:[/red] the provider returned no audio.")
         raise typer.Exit(code=1)
 
     destination = (
@@ -492,9 +483,7 @@ def voices_test(
     console.print(f"Sample written to: {destination}")
 
     if play and not _play_audio(destination):
-        console.print(
-            "[yellow]No system audio player available — open the file above.[/yellow]"
-        )
+        console.print("[yellow]No system audio player available — open the file above.[/yellow]")
 
 
 app.add_typer(voices_app, name="voices")
@@ -582,16 +571,13 @@ def preset_export(
     book_id = persistence.find_book_id(book)
     if book_id is None:
         console.print(
-            f"[red]No stored record for {book}.[/red] "
-            "Generate an audiobook from it first."
+            f"[red]No stored record for {book}.[/red] Generate an audiobook from it first."
         )
         raise typer.Exit(code=1)
 
     assignments = persistence.get_voice_mapping(book_id)
     if not assignments:
-        console.print(
-            f"[red]{book} has no saved voice mapping to export.[/red]"
-        )
+        console.print(f"[red]{book} has no saved voice mapping to export.[/red]")
         raise typer.Exit(code=1)
 
     preset = VoicePreset.from_assignments(
@@ -607,8 +593,7 @@ def preset_export(
         raise typer.Exit(code=1) from exc
 
     console.print(
-        f"[green]Exported {len(preset.assignments)} voice assignment(s)[/green] "
-        f"to {output}"
+        f"[green]Exported {len(preset.assignments)} voice assignment(s)[/green] to {output}"
     )
 
 
@@ -668,11 +653,7 @@ def stats() -> None:
 
     # Pipeline cache disk usage
     pipeline_cache = config.cache_dir / "pipeline"
-    clips_count = (
-        len(list(pipeline_cache.rglob("*.mp3")))
-        if pipeline_cache.exists()
-        else 0
-    )
+    clips_count = len(list(pipeline_cache.rglob("*.mp3"))) if pipeline_cache.exists() else 0
 
     table = Table(title="AudioBard Statistics")
     table.add_column("Metric", style="cyan")

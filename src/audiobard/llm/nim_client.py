@@ -112,9 +112,9 @@ class NimClient(LLMClient):
             raise RuntimeError(f"Unexpected NVIDIA NIM response structure: {data}") from exc
 
         # 1. Strip reasoning blocks like <think>...</think> (common in DeepSeek R1 / Kimi)
-        content = re.sub(
-            r"<think>.*?</think>", "", content, flags=re.DOTALL
-        ).strip().lstrip("\ufeff")
+        content = (
+            re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip().lstrip("\ufeff")
+        )
 
         # 2. Strip markdown code fences (```json ... ```)
         if content.startswith("```"):

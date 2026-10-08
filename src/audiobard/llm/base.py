@@ -172,17 +172,13 @@ class LLMClient(ABC):
         # ------------------------------------------------------------------
         # 1. Cache lookup — key = SHA-256(version + model + temperature + prompt)
         # ------------------------------------------------------------------
-        cache_key_material = (
-            f"{_CACHE_VERSION}:{self.model}:{self.temperature:.4f}:{prompt}"
-        )
+        cache_key_material = f"{_CACHE_VERSION}:{self.model}:{self.temperature:.4f}:{prompt}"
         prompt_hash = hashlib.sha256(cache_key_material.encode()).hexdigest()
 
         if self._persistence is not None:
             cached_raw = self._persistence.get_llm_cache(prompt_hash)
             if cached_raw is not None:
-                logger.debug(
-                    "LLM cache hit: hash=%s model=%s", prompt_hash[:12], self.model
-                )
+                logger.debug("LLM cache hit: hash=%s model=%s", prompt_hash[:12], self.model)
                 try:
                     return model_cls.model_validate(json.loads(cached_raw.lstrip("\ufeff")))
                 except (ValidationError, json.JSONDecodeError) as exc:
@@ -213,9 +209,7 @@ class LLMClient(ABC):
                 # Store in cache only on success
                 if self._persistence is not None:
                     try:
-                        self._persistence.save_llm_cache(
-                            prompt_hash, raw, type(self).__name__
-                        )
+                        self._persistence.save_llm_cache(prompt_hash, raw, type(self).__name__)
                     except Exception as cache_exc:
                         logger.warning("Failed to write LLM cache: %s", cache_exc)
                 return result

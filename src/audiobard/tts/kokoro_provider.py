@@ -36,8 +36,7 @@ MODEL_URL = (
     "model-files-v1.0/kokoro-v1.0.onnx"
 )
 VOICES_URL = (
-    "https://github.com/thewh1teagle/kokoro-onnx/releases/download/"
-    "model-files-v1.0/voices-v1.0.bin"
+    "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
 )
 
 INSTALL_HINT = (
@@ -150,9 +149,7 @@ def samples_to_mp3(samples: object, sample_rate: int, pitch: float = 1.0) -> byt
     clipped = np.clip(np.asarray(samples, dtype=np.float32), -1.0, 1.0)
     pcm = (clipped * 32767.0).astype(np.int16)
     rate = int(sample_rate) or 24000
-    segment = AudioSegment(
-        data=pcm.tobytes(), sample_width=2, frame_rate=rate, channels=1
-    )
+    segment = AudioSegment(data=pcm.tobytes(), sample_width=2, frame_rate=rate, channels=1)
     if pitch and abs(pitch - 1.0) > 0.001:
         shifted = max(rate, int(rate * pitch))
         segment = segment._spawn(segment.raw_data, overrides={"frame_rate": shifted})
@@ -207,11 +204,7 @@ class KokoroProvider(TTSProvider):
 
         names = await asyncio.to_thread(read_voice_names, self._voices_path())
         prefix = KOKORO_LOCALES[locale][0]
-        return [
-            voice_from_id(name, locale)
-            for name in names
-            if name and name[0].lower() == prefix
-        ]
+        return [voice_from_id(name, locale) for name in names if name and name[0].lower() == prefix]
 
     async def _synthesize_raw(
         self,

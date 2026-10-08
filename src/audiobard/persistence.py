@@ -236,24 +236,17 @@ class PersistenceManager:
     # Speaker Voice Map CRUD
     # --------------------------------------------------------------------------
 
-    def save_voice_mapping(
-        self, book_id: int, mapping: list[VoiceAssignment]
-    ) -> None:
+    def save_voice_mapping(self, book_id: int, mapping: list[VoiceAssignment]) -> None:
         """Insert or replace speaker voice maps for a book."""
         with self._get_conn() as conn:
-            conn.execute(
-                "DELETE FROM speaker_voice_map WHERE book_id = ?", (book_id,)
-            )
+            conn.execute("DELETE FROM speaker_voice_map WHERE book_id = ?", (book_id,))
             conn.executemany(
                 """
                 INSERT OR REPLACE INTO speaker_voice_map
                 (book_id, canonical_id, voice_id, rate, pitch)
                 VALUES (?, ?, ?, ?, ?)
             """,
-                [
-                    (book_id, va.canonical_id, va.voice_id, va.rate, va.pitch)
-                    for va in mapping
-                ],
+                [(book_id, va.canonical_id, va.voice_id, va.rate, va.pitch) for va in mapping],
             )
             conn.commit()
 
@@ -307,9 +300,7 @@ class PersistenceManager:
     def clear_checkpoints(self, book_id: int) -> None:
         """Clear all checkpoints for a book (resets run)."""
         with self._get_conn() as conn:
-            conn.execute(
-                "DELETE FROM pipeline_runs WHERE book_id = ?", (book_id,)
-            )
+            conn.execute("DELETE FROM pipeline_runs WHERE book_id = ?", (book_id,))
             conn.commit()
 
     # --------------------------------------------------------------------------
@@ -332,9 +323,7 @@ class PersistenceManager:
                 return str(row["response_json"])
             return None
 
-    def save_llm_cache(
-        self, prompt_hash: str, response_json: str, provider: str
-    ) -> None:
+    def save_llm_cache(self, prompt_hash: str, response_json: str, provider: str) -> None:
         """Save response to LLM cache."""
         with self._get_conn() as conn:
             conn.execute(

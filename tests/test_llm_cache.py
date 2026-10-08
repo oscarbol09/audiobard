@@ -92,9 +92,7 @@ async def test_llm_cache_no_save_on_error() -> None:
         )
 
         # Call fails
-        with patch("asyncio.sleep"), pytest.raises(
-            RuntimeError, match="LLM call failed"
-        ):
+        with patch("asyncio.sleep"), pytest.raises(RuntimeError, match="LLM call failed"):
             await client.extract_characters("Some text")
 
         # Cache should be empty
