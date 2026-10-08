@@ -60,7 +60,8 @@ jobs:
       - name: Build Python Sidecar (PyInstaller)
         shell: bash
         run: |
-          uv pip install pyinstaller
+          uv venv
+          uv pip install pyinstaller .
           uv run pyinstaller --onefile --name python-sidecar src/audiobard/api.py
           mkdir -p src-tauri/bin
           
