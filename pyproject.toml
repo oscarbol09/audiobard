@@ -1,10 +1,10 @@
-[build-system]
+﻿[build-system]
 requires = ["setuptools>=68", "wheel"]
 build_backend = "setuptools.build_meta"
 
 [project]
 name = "audiobard"
-version = "0.2.0"
+version = "0.2.1"
 description = "Multi-voice audiobook generator with character voice assignment from EPUB and TXT books. Offline-capable, FOSS-first."
 readme = "README.md"
 requires-python = ">=3.10"
