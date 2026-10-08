@@ -74,6 +74,10 @@ jobs:
           # Move and rename binary for Tauri
           if [ "${{ matrix.platform }}" == "windows-latest" ]; then
             mv dist/python-sidecar.exe src-tauri/bin/python-sidecar-$TARGET.exe
+          elif [ "${{ matrix.platform }}" == "macos-latest" ]; then
+            cp dist/python-sidecar src-tauri/bin/python-sidecar-aarch64-apple-darwin
+            cp dist/python-sidecar src-tauri/bin/python-sidecar-x86_64-apple-darwin
+            mv dist/python-sidecar src-tauri/bin/python-sidecar-universal-apple-darwin
           else
             mv dist/python-sidecar src-tauri/bin/python-sidecar-$TARGET
           fi
