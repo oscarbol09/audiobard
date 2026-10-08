@@ -52,6 +52,26 @@ jobs:
           cd gui
           npm install
 
+            - name: Build Python Sidecar (PyInstaller)
+        shell: bash
+        run: |
+          uv pip install pyinstaller
+          uv run pyinstaller --onefile --name python-sidecar src/audiobard/api.py
+          mkdir -p src-tauri/bin
+          
+          # Detect the Rust target triple
+          TARGET=$(rustc -Vv | grep host | cut -d ' ' -f 2)
+          if [ "${{ matrix.platform }}" == "macos-latest" ]; then
+            TARGET="universal-apple-darwin"
+          fi
+          
+          # Move and rename binary for Tauri
+          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
+            mv dist/python-sidecar.exe src-tauri/bin/python-sidecar-$TARGET.exe
+          else
+            mv dist/python-sidecar src-tauri/bin/python-sidecar-$TARGET
+          fi
+
       - name: Build Tauri Application & Release
         uses: tauri-apps/tauri-action@v0
         env:
