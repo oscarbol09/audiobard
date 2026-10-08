@@ -52,7 +52,12 @@ jobs:
           cd gui
           npm install
 
-            - name: Build Python Sidecar (PyInstaller)
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+
+      - name: Build Python Sidecar (PyInstaller)
         shell: bash
         run: |
           uv pip install pyinstaller
