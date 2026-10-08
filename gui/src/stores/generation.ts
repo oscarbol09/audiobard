@@ -12,7 +12,7 @@ import {
 } from '../utils/batchQueue'
 
 export type LLMProvider = 'ollama' | 'gemini' | 'openrouter' | 'nim'
-export type TTSProvider = 'piper' | 'edge'
+export type TTSProvider = 'piper' | 'edge' | 'kokoro'
 
 interface GenerationResult {
   session_id: string
