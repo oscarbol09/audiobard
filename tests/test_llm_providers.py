@@ -23,11 +23,16 @@ async def test_gemini_client_success() -> None:
     }
 
     with respx.mock:
-        respx.post(url__regex=r"https://generativelanguage\.googleapis\.com/.*").respond(
+        route = respx.post(url__regex=r"https://generativelanguage\.googleapis\.com/.*").respond(
             status_code=200, json=mock_resp
         )
         raw = await client._raw_call(prompt, schema)
         assert raw == '{"characters": []}'
+        assert route.called
+        last_request = route.calls.last.request
+        assert "key=" not in str(last_request.url)
+        assert last_request.headers.get("x-goog-api-key") == "dummy-key"
+        assert last_request.headers.get("content-type") == "application/json"
 
 
 @pytest.mark.asyncio

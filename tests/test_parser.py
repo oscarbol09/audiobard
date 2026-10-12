@@ -143,6 +143,19 @@ class TestTextParserChapters:
         text = _make_text("Para A.", "Para B.", "Para C.")
         result = parser.parse(text)
         assert all(p.chapter == 0 for p in result)
+        assert parser.chapter_titles == {}
+
+    def test_chapter_titles_stored(self) -> None:
+        text = _make_text(
+            "Chapter I",
+            "First chapter content.",
+            "Chapter II",
+            "Second chapter content.",
+        )
+        parser = TextParser()
+        parser.parse(text)
+        assert parser.chapter_titles[1] == "Chapter I"
+        assert parser.chapter_titles[2] == "Chapter II"
 
 
 # ---------------------------------------------------------------------------
@@ -721,3 +734,46 @@ class TestMultilingualBookParsing:
     def test_lowercase_prose_is_not_mistaken_for_a_heading(self, paragraph: str) -> None:
         result = TextParser().parse(paragraph)
         assert [p.text for p in result] == [paragraph]
+
+
+class TestEpubSecurity:
+    """Security validations for EPUB ingestion (SEC-07: Decompression bomb mitigation)."""
+
+    def test_epub_high_compression_ratio_raises_value_error(self) -> None:
+        import io
+        import zipfile
+
+        from audiobard.parser.epub_parser import EpubParser
+
+        # Create a compressed zip containing > 10MB of zeros, compressing to ~15KB (ratio >> 100x)
+        buf = io.BytesIO()
+        data = b"\x00" * (15 * 1024 * 1024)
+        with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("bomb.xhtml", data)
+
+        parser = EpubParser()
+        with pytest.raises(ValueError, match="EPUB decompression limit exceeded"):
+            parser.parse(buf.getvalue())
+
+    def test_epub_total_uncompressed_limit_raises_value_error(self) -> None:
+        import io
+        from unittest.mock import MagicMock, patch
+
+        from audiobard.parser.epub_parser import EpubParser
+
+        # Valid minimal empty zip buffer
+        buf = io.BytesIO(b"PK\x05\x06" + b"\x00" * 18)
+        mock_info = MagicMock()
+        mock_info.file_size = 550 * 1024 * 1024
+        mock_info.compress_size = 550 * 1024 * 1024  # 1:1 ratio, but > 500 MB total
+
+        with patch("zipfile.ZipFile") as mock_zip:
+            mock_instance = MagicMock()
+            mock_instance.infolist.return_value = [mock_info]
+            mock_instance.__enter__.return_value = mock_instance
+            mock_zip.return_value = mock_instance
+
+            parser = EpubParser()
+            with pytest.raises(ValueError, match="EPUB decompression limit exceeded"):
+                parser.parse(buf.getvalue())
+

@@ -22,9 +22,7 @@ from audiobard.llm.base import LLMClient
 if TYPE_CHECKING:
     from audiobard.persistence import PersistenceManager
 
-_GEMINI_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-)
+_GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 
 class GeminiClient(LLMClient):
@@ -81,7 +79,11 @@ class GeminiClient(LLMClient):
 
     async def _raw_call(self, prompt: str, schema: dict[str, Any]) -> str:
         """POST to the Gemini generateContent endpoint with JSON response mode."""
-        url = _GEMINI_URL.format(model=self.model, key=self.api_key)
+        url = _GEMINI_URL.format(model=self.model)
+        headers = {
+            "x-goog-api-key": self.api_key,
+            "Content-Type": "application/json",
+        }
         payload: dict[str, Any] = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
@@ -91,7 +93,7 @@ class GeminiClient(LLMClient):
             },
         }
         client = self._get_client()
-        response = await client.post(url, json=payload)
+        response = await client.post(url, json=payload, headers=headers)
         response.raise_for_status()
         data = response.json()
 

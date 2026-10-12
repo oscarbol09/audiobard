@@ -47,6 +47,15 @@ Who we protect, against what, and what we explicitly do not defend:
    instructions; (c) `pipeline.py` operating on the parsed contract,
    not on raw book text. Defense in depth: users should still review the
    attribution map once before generating (the CLI prints it).
+4. **Decompression bomb / archive safety.** Input EPUB archives are checked
+   for uncompressed byte inflation (500 MB limit) and extreme compression ratios
+   (>100x) before parsing, preventing memory and disk exhaustion.
+5. **IPC least privilege.** Desktop WebView capabilities explicitly omit
+   shell execution grants (`shell:allow-execute`), restricting frontend
+   IPC strictly to safe, dedicated Rust commands.
+6. **Command injection containment.** Binary invocations (FFmpeg, Piper, OS audio
+   launchers) use structured argument vectors or native Win32 `ShellExecuteW` APIs
+   (`os.startfile`), completely bypassing command shell interpreters (`cmd.exe`).
 
 ### Out of scope (and why)
 

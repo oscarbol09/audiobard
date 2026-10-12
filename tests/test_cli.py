@@ -360,6 +360,40 @@ def test_voices_test_reports_missing_player(tmp_path: Path) -> None:
     assert "No system audio player available" in result.stdout
 
 
+def test_play_audio_windows_success(tmp_path: Path) -> None:
+    from audiobard.cli import _play_audio
+
+    test_file = tmp_path / "test.mp3"
+    test_file.touch()
+
+    with (
+        patch("sys.platform", "win32"),
+        patch("os.startfile", create=True) as mock_startfile,
+        patch("subprocess.Popen") as mock_popen,
+    ):
+        res = _play_audio(test_file)
+        assert res is True
+        mock_startfile.assert_called_once_with(str(test_file))
+        mock_popen.assert_not_called()
+
+
+def test_play_audio_windows_oserror(tmp_path: Path) -> None:
+    from audiobard.cli import _play_audio
+
+    test_file = tmp_path / "test.mp3"
+    test_file.touch()
+
+    with (
+        patch("sys.platform", "win32"),
+        patch("os.startfile", side_effect=OSError("Cannot launch"), create=True) as mock_startfile,
+        patch("subprocess.Popen") as mock_popen,
+    ):
+        res = _play_audio(test_file)
+        assert res is False
+        mock_startfile.assert_called_once_with(str(test_file))
+        mock_popen.assert_not_called()
+
+
 def test_voices_test_accepts_emotion_synonym(tmp_path: Path) -> None:
     with patch("audiobard.cli.create_tts_provider") as mock_create:
         mock_tts = _mock_tts_provider(mock_create, [])

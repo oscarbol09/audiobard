@@ -36,6 +36,7 @@ errors: list[str] = []
 # literal value for any of these shapes in a tracked file is a failure.
 SECRET_PATTERNS = [
     re.compile(r"\b(?:AIza[0-9A-Za-z_-]{35}|sk-[0-9A-Za-z]{20,}|gh[pousr]_[0-9A-Za-z]{30,})\b"),
+    re.compile(r"\bnvapi-[0-9A-Za-z_-]{20,}\b"),
     re.compile(r"\b(?:GEMINI|OPENROUTER|NVIDIA)_API_KEY\s*=\s*['\"]?[^'\"]{8,}"),
     re.compile(r"\bapi[_-]?key\s*[:=]\s*['\"][^'\"]{16,}['\"]", re.IGNORECASE),
 ]
@@ -96,8 +97,7 @@ def check_secrets() -> None:
     for path in tracked:
         rel = path.relative_to(ROOT).as_posix()
         exempt = any(
-            rel.startswith(ex) or rel.endswith("/" + ex.rstrip("/"))
-            for ex in SECRET_EXEMPT_PATHS
+            rel.startswith(ex) or rel.endswith("/" + ex.rstrip("/")) for ex in SECRET_EXEMPT_PATHS
         )
         if exempt:
             continue
@@ -165,16 +165,19 @@ def check_data_voices() -> None:
     for path in _tracked_files():
         rel = path.relative_to(ROOT)
         parts = rel.parts
-        if ("data" in parts and "voices" in parts
-                and rel.suffix.lower() not in ALLOWED_DATA_VOICE_EXTENSIONS):
+        if (
+            "data" in parts
+            and "voices" in parts
+            and rel.suffix.lower() not in ALLOWED_DATA_VOICE_EXTENSIONS
+        ):
             errors.append(
-                    f"{rel.as_posix()}: file extension not allowed under data/voices/ "
-                    f"(only {sorted(e or '.gitkeep' for e in ALLOWED_DATA_VOICE_EXTENSIONS)}). "
-                    "This directory ships voice catalog metadata only - model binaries and "
-                    "audio samples must never be tracked. If this is a legitimate new file "
-                    "type, add it to ALLOWED_DATA_VOICE_EXTENSIONS in tools/guards.py in the "
-                    "same PR."
-                )
+                f"{rel.as_posix()}: file extension not allowed under data/voices/ "
+                f"(only {sorted(e or '.gitkeep' for e in ALLOWED_DATA_VOICE_EXTENSIONS)}). "
+                "This directory ships voice catalog metadata only - model binaries and "
+                "audio samples must never be tracked. If this is a legitimate new file "
+                "type, add it to ALLOWED_DATA_VOICE_EXTENSIONS in tools/guards.py in the "
+                "same PR."
+            )
 
 
 def check_audio_output() -> None:

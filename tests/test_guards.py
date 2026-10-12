@@ -129,6 +129,15 @@ class SecretGuardTests(GuardRepoFixture):
         self.assertEqual(result.returncode, 1)
         self.assertIn("possible API key", result.stdout)
 
+    def test_nvidia_nim_key_literal_fails(self) -> None:
+        # Key split so scanners do not flag this test file as a credential.
+        _fake = "nvapi-" + "abcdef1234567890abcdef1234567890"
+        self.add_tracked_file("src/audiobard/nim_secret.py", f'val = "{_fake}"\n')
+        result = run_guards(self.root)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("possible API key", result.stdout)
+        self.assertIn("nim_secret.py", result.stdout)
+
     def test_env_reference_is_allowed(self) -> None:
         self.add_tracked_file("src/audiobard/config.py", 'key = os.environ["GEMINI_API_KEY"]\n')
         result = run_guards(self.root)

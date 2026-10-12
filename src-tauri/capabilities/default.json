@@ -8,8 +8,6 @@
   "permissions": [
     "core:default",
     "dialog:allow-open",
-    "opener:allow-open-path",
-    "shell:allow-execute",
-    "shell:allow-spawn"
+    "opener:allow-open-path"
   ]
 }

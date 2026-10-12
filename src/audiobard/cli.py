@@ -109,13 +109,19 @@ def _resolve_voice(voice_id: str, locale: str, known: list[Voice]) -> Voice:
 
 def _play_audio(path: Path) -> bool:
     """Play *path* with the platform audio player. Returns False if none launched."""
+    import os
     import subprocess
     import sys
 
+    if sys.platform == "win32":
+        try:
+            os.startfile(str(path))
+            return True
+        except OSError:
+            return False
+
     if sys.platform == "darwin":
         cmd = ["afplay", str(path)]
-    elif sys.platform == "win32":
-        cmd = ["cmd", "/c", "start", "", str(path)]
     else:
         cmd = ["xdg-open", str(path)]
 

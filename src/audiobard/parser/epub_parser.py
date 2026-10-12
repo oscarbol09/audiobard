@@ -9,7 +9,9 @@
 from __future__ import annotations
 
 import html
+import io
 import re
+import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -19,6 +21,10 @@ from audiobard.parser.text_parser import _is_dialog, _split_paragraphs
 
 if TYPE_CHECKING:
     pass
+
+_MAX_UNCOMPRESSED_BYTES = 500 * 1024 * 1024  # 500 MB
+_MAX_RATIO_FILE_SIZE = 10 * 1024 * 1024     # 10 MB
+_MAX_COMPRESSION_RATIO = 100.0
 
 # Spine items whose ``idref`` or file name suggests they are not body chapters.
 # Note: Calibre splits chapters into "index_split_XXX.html", so we use negative lookahead
@@ -153,6 +159,42 @@ def _extract_cover(book: object, ebooklib_module: object) -> tuple[bytes | None,
     return data, (mime or None)
 
 
+def _validate_epub_archive(source: str | bytes | Path) -> None:
+    """Inspect zip container for decompression bombs before extracting."""
+    try:
+        if isinstance(source, (str, Path)):
+            zf = zipfile.ZipFile(source)
+        else:
+            zf = zipfile.ZipFile(io.BytesIO(source))
+    except (zipfile.BadZipFile, OSError):
+        return
+
+    with zf:
+        total_uncompressed = 0
+        total_compressed = 0
+        for info in zf.infolist():
+            total_uncompressed += info.file_size
+            total_compressed += info.compress_size
+            if info.file_size > _MAX_RATIO_FILE_SIZE:
+                ratio = info.file_size / max(info.compress_size, 1)
+                if ratio > _MAX_COMPRESSION_RATIO:
+                    raise ValueError(
+                        "EPUB decompression limit exceeded (possible decompression bomb)"
+                    )
+
+        if total_uncompressed > _MAX_UNCOMPRESSED_BYTES:
+            raise ValueError(
+                "EPUB decompression limit exceeded (possible decompression bomb)"
+            )
+
+        if total_uncompressed > _MAX_RATIO_FILE_SIZE:
+            total_ratio = total_uncompressed / max(total_compressed, 1)
+            if total_ratio > _MAX_COMPRESSION_RATIO:
+                raise ValueError(
+                    "EPUB decompression limit exceeded (possible decompression bomb)"
+                )
+
+
 class EpubParser(BookParser):
     """Parse an EPUB file into :class:`~audiobard.models.Paragraph` objects."""
 
@@ -172,11 +214,11 @@ class EpubParser(BookParser):
                 "ebooklib is required for EPUB parsing: pip install ebooklib"
             ) from exc
 
+        _validate_epub_archive(source)
+
         if isinstance(source, (str, Path)):
             book = epub.read_epub(str(source))
         else:
-            import io
-
             book = epub.read_epub(io.BytesIO(source))
 
         self._extract_metadata(book, ebooklib)
