@@ -125,7 +125,7 @@ class Paragraph(BaseModel):
 class Character(BaseModel):
     """A canonical character extracted by the LLM."""
 
-    canonical_id: str = Field(pattern=r"^(Narrator|Character_[A-Z])$")
+    canonical_id: str = Field(pattern=r"^(Narrator|Character_[A-Za-z0-9_]+)$")
     name: str = Field(min_length=1)
     aliases: list[str] = Field(default_factory=list)
     tone: Tone = Tone.NEUTRAL
@@ -182,7 +182,7 @@ class DialogLine(BaseModel):
     """One attributed line of dialog."""
 
     text: str = Field(min_length=1)
-    speaker: str = Field(pattern=r"^(Narrator|Character_[A-Z])$")
+    speaker: str = Field(pattern=r"^(Narrator|Character_[A-Za-z0-9_]+)$")
     emotion: Emotion = Emotion.NEUTRAL
 
     @field_validator("speaker", mode="before")
@@ -192,12 +192,14 @@ class DialogLine(BaseModel):
             v_clean = v.strip()
             if v_clean.lower() == "narrator":
                 return "Narrator"
-            m = re.match(r"^[Cc]haracter_?([A-Za-z0-9]+)$", v_clean)
+            m = re.match(r"^[Cc]haracter_?([A-Za-z0-9_]+)$", v_clean)
             if m:
-                char_suffix = m.group(1).upper()
-                if char_suffix.isdigit():
-                    idx = int(char_suffix)
-                    char_suffix = chr(ord("A") + min(idx, 25))
+                raw_suffix = m.group(1)
+                if raw_suffix.isdigit():
+                    idx = int(raw_suffix)
+                    char_suffix = chr(ord("A") + idx) if idx < 26 else str(idx)
+                else:
+                    char_suffix = raw_suffix.upper()
                 return f"Character_{char_suffix}"
             return v_clean
         return "Narrator"
@@ -227,7 +229,7 @@ class Voice(BaseModel):
 class VoiceAssignment(BaseModel):
     """A voice bound to a canonical speaker."""
 
-    canonical_id: str = Field(pattern=r"^(Narrator|Character_[A-Z])$")
+    canonical_id: str = Field(pattern=r"^(Narrator|Character_[A-Za-z0-9_]+)$")
     voice_id: str
     rate: float = Field(default=1.0, ge=0.5, le=2.0)
     pitch: float = Field(default=1.0, ge=0.5, le=2.0)

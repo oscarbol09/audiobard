@@ -71,13 +71,13 @@ def test_paragraph_accepts_whitespace_text() -> None:
 
 @pytest.mark.parametrize(
     "bad_id",
-    ["she", "character_a", "NarratorX", "", "Character_AA"],
+    ["she", "character_a", "NarratorX", "", "Character-A"],
     ids=[
         "pronoun_rejected",
-        "lowercase_suffix_rejected",
+        "lowercase_prefix_rejected",
         "prefix_extension_rejected",
         "empty_string_rejected",
-        "multi_letter_suffix_rejected",
+        "hyphen_rejected",
     ],
 )
 def test_character_canonical_id_regex_rejects_invalid(bad_id: str) -> None:
@@ -87,8 +87,26 @@ def test_character_canonical_id_regex_rejects_invalid(bad_id: str) -> None:
 
 @pytest.mark.parametrize(
     "good_id",
-    ["Narrator", "Character_A", "Character_M", "Character_Z"],
-    ids=["narrator", "character_a", "character_middle", "character_z"],
+    [
+        "Narrator",
+        "Character_A",
+        "Character_M",
+        "Character_Z",
+        "Character_27",
+        "Character_AA",
+        "Character_100",
+        "Character_BOB",
+    ],
+    ids=[
+        "narrator",
+        "character_a",
+        "character_middle",
+        "character_z",
+        "character_27",
+        "character_aa",
+        "character_100",
+        "character_bob",
+    ],
 )
 def test_character_accepts_canonical_ids(good_id: str) -> None:
     c = Character(canonical_id=good_id, name="x")
@@ -129,15 +147,29 @@ def test_dialog_line_speaker_regex() -> None:
         ("Character_1", "Character_B"),
         ("Character_10", "Character_K"),
         ("Character_25", "Character_Z"),
-        ("Character_99", "Character_Z"),
         ("character_0", "Character_A"),
+        ("Character_26", "Character_26"),
+        ("Character_27", "Character_27"),
+        ("Character_99", "Character_99"),
+        ("Character_100", "Character_100"),
+        ("Character_AA", "Character_AA"),
+        ("Character_BOB", "Character_BOB"),
+        ("character_aa", "Character_AA"),
+        ("character_bob", "Character_BOB"),
     ],
     ids=[
         "single_digit_1_to_B",
         "double_digit_10_to_K",
         "digit_25_to_Z",
-        "digit_99_capped_at_Z",
         "lowercase_digit_0_to_A",
+        "digit_26_preserved",
+        "digit_27_preserved",
+        "digit_99_preserved",
+        "digit_100_preserved",
+        "multi_letter_AA_preserved",
+        "multi_letter_BOB_preserved",
+        "lowercase_aa_normalized_to_AA",
+        "lowercase_bob_normalized_to_BOB",
     ],
 )
 def test_dialog_line_normalizes_multi_digit_speakers(raw_speaker: str, expected: str) -> None:

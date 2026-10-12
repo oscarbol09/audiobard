@@ -190,19 +190,14 @@ async def _run_attribution(llm_provider: str, model: str) -> list[str]:
     return [dl.speaker for dl in result.lines]
 
 
-def _compute_metrics(
-    gold: list[dict[str, object]], predictions: list[str]
-) -> dict[str, object]:
+def _compute_metrics(gold: list[dict[str, object]], predictions: list[str]) -> dict[str, object]:
     """Compute overall and per-character accuracy."""
     gold_speakers = [str(d["speaker"]) for d in gold]
     total = min(len(gold_speakers), len(predictions))
     if total == 0:
         return {"accuracy": 0.0, "per_character": {}, "confusion": {}}
 
-    correct = sum(
-        g == p
-        for g, p in zip(gold_speakers[:total], predictions[:total], strict=True)
-    )
+    correct = sum(g == p for g, p in zip(gold_speakers[:total], predictions[:total], strict=True))
 
     per_char: dict[str, dict[str, int]] = defaultdict(lambda: {"correct": 0, "total": 0})
     confusion: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
@@ -214,10 +209,7 @@ def _compute_metrics(
             per_char[g]["correct"] += 1
 
     per_char_acc = {
-        speaker: (
-            f"{100 * v['correct'] / v['total']:.1f}%"
-            f" ({v['correct']}/{v['total']})"
-        )
+        speaker: (f"{100 * v['correct'] / v['total']:.1f}% ({v['correct']}/{v['total']})")
         for speaker, v in sorted(per_char.items())
     }
 

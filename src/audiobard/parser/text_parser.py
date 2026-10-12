@@ -129,6 +129,10 @@ def _split_paragraphs(text: str) -> list[str]:
 class TextParser(BookParser):
     """Parse a plain-text book (UTF-8) into :class:`~audiobard.models.Paragraph` objects."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.chapter_titles: dict[int, str] = {}
+
     def parse(self, source: str | bytes | Path) -> list[Paragraph]:
         """Parse *source* (path, string content, or bytes).
 
@@ -137,6 +141,7 @@ class TextParser(BookParser):
         list[Paragraph]
             Ordered list of paragraphs with chapter and index metadata.
         """
+        self.chapter_titles = {}
         if isinstance(source, Path):
             raw = source.read_text(encoding="utf-8-sig", errors="replace")
         elif isinstance(source, bytes):
@@ -154,6 +159,7 @@ class TextParser(BookParser):
         for block in blocks:
             if _CHAPTER_HEAD.match(block):
                 chapter += 1
+                self.chapter_titles[chapter] = block
                 continue  # chapter headings are not emitted as paragraphs
 
             p = Paragraph(
