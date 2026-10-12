@@ -151,10 +151,14 @@ when I was teasing Colonel Forster to give us a ball at Meryton?"
 """
 
 
-def _load_gold() -> list[dict[str, object]]:
+def _load_gold(path: Path | None = None) -> list[dict[str, object]]:
     """Load and return the gold-standard annotations."""
-    with open(GOLD_PATH, encoding="utf-8") as f:
-        return json.load(f)  # type: ignore[no-any-return]
+    target = path or GOLD_PATH
+    with open(target, encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, dict) and "lines" in data:
+        return data["lines"]  # type: ignore[no-any-return]
+    return data  # type: ignore[no-any-return]
 
 
 async def _run_attribution(llm_provider: str, model: str) -> list[str]:
@@ -262,9 +266,15 @@ def main(argv: list[str] | None = None) -> int:
         dest="json_output",
         help="Output results as JSON (for CI)",
     )
+    parser.add_argument(
+        "--gold",
+        type=Path,
+        default=GOLD_PATH,
+        help="Path to gold standard JSON file (default: p_and_p_ch3.json)",
+    )
     args = parser.parse_args(argv)
 
-    gold = _load_gold()
+    gold = _load_gold(args.gold)
     print(
         f"Running attribution benchmark: provider={args.llm} model={args.model}"
         f" gold_lines={len(gold)}"

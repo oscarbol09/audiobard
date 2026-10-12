@@ -3,9 +3,10 @@
 Benchmark harness for the dialog-attribution pipeline — the project's
 quality contract (see CONTRIBUTING "The benchmark bar").
 
-- `gold_standard/` — hand-annotated reference: `p_and_p_ch3.json` (Pride
-  and Prejudice, ch. 3, public domain). Structure and scoring rules are
-  defined in AudioBard_DevPlan.md (Phase 4).
+- `gold_standard/` — hand-annotated references:
+  - `p_and_p_ch3.json` (Pride and Prejudice, ch. 3, Gutenberg #1342).
+  - `sherlock_ch1.json` (A Study in Scarlet, ch. 1, Gutenberg #244, 151 labeled lines with offsets).
+  - `validate.py` (consistency and schema validator for gold standard datasets).
 - `benchmark.py` — runs the pipeline over the gold standard and scores
   attribution accuracy.
 

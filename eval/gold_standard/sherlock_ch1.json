@@ -1,0 +1,1237 @@
+{
+  "book": "A Study in Scarlet",
+  "chapter": 1,
+  "source_url": "https://www.gutenberg.org/cache/epub/244/pg244.txt",
+  "characters": {
+    "Character_A": {
+      "name": "Sherlock Holmes",
+      "aliases": [
+        "Holmes",
+        "Mr. Sherlock Holmes"
+      ]
+    },
+    "Character_B": {
+      "name": "Dr. John H. Watson",
+      "aliases": [
+        "Watson",
+        "Dr. Watson"
+      ]
+    },
+    "Character_C": {
+      "name": "Stamford",
+      "aliases": [
+        "young Stamford"
+      ]
+    }
+  },
+  "lines": [
+    {
+      "index": 0,
+      "text": "Whatever have you been doing with yourself, Watson?",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 281-281 (chars 5490-5543)"
+    },
+    {
+      "index": 1,
+      "text": "You are as thin as a lath and as brown as a nut.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 285-285 (chars 5628-5678)"
+    },
+    {
+      "index": 2,
+      "text": "Poor devil!",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "sad",
+      "source": "pg244.txt:lines 295-295 (chars 5803-5816)"
+    },
+    {
+      "index": 3,
+      "text": "What are you up to now?",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 297-297 (chars 5885-5910)"
+    },
+    {
+      "index": 4,
+      "text": "Looking for lodgings,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 301-301 (chars 5914-5937)"
+    },
+    {
+      "index": 5,
+      "text": "Trying to solve the problem as to whether it is possible to get comfortable rooms at a reasonable price.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 301-303 (chars 5950-6057)"
+    },
+    {
+      "index": 6,
+      "text": "That’s a strange thing,",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 307-307 (chars 6061-6086)"
+    },
+    {
+      "index": 7,
+      "text": "you are the second man to-day that has used that expression to me.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 307-309 (chars 6110-6179)"
+    },
+    {
+      "index": 8,
+      "text": "And who was the first?",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 313-313 (chars 6183-6207)"
+    },
+    {
+      "index": 9,
+      "text": "A fellow who is working at the chemical laboratory up at the hospital.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 317-323 (chars 6220-6466)"
+    },
+    {
+      "index": 10,
+      "text": "He was bemoaning himself this morning because he could not get someone to go halves with him in some nice rooms which he had found, and which were too much for his purse.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 317-323 (chars 6220-6466)"
+    },
+    {
+      "index": 11,
+      "text": "By Jove!",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 327-327 (chars 6470-6480)"
+    },
+    {
+      "index": 12,
+      "text": "if he really wants someone to share the rooms and the expense, I am the very man for him.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 327-331 (chars 6490-6632)"
+    },
+    {
+      "index": 13,
+      "text": "I should prefer having a partner to being alone.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 327-331 (chars 6490-6632)"
+    },
+    {
+      "index": 14,
+      "text": "You don’t know Sherlock Holmes yet,",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 335-337 (chars 6702-6740)"
+    },
+    {
+      "index": 15,
+      "text": "perhaps you would not care for him as a constant companion.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 337-339 (chars 6750-6812)"
+    },
+    {
+      "index": 16,
+      "text": "Why, what is there against him?",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 343-343 (chars 6816-6849)"
+    },
+    {
+      "index": 17,
+      "text": "Oh, I didn’t say there was anything against him.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 347-351 (chars 6853-7029)"
+    },
+    {
+      "index": 18,
+      "text": "He is a little queer in his ideas—an enthusiast in some branches of science.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 347-351 (chars 6853-7029)"
+    },
+    {
+      "index": 19,
+      "text": "As far as I know he is a decent fellow enough.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 347-351 (chars 6853-7029)"
+    },
+    {
+      "index": 20,
+      "text": "A medical student, I suppose?",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 355-355 (chars 7033-7064)"
+    },
+    {
+      "index": 21,
+      "text": "No—I have no idea what he intends to go in for.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 359-367 (chars 7076-7412)"
+    },
+    {
+      "index": 22,
+      "text": "I believe he is well up in anatomy, and he is a first-class chemist; but, as far as I know, he has never taken out any systematic medical classes.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 359-367 (chars 7076-7412)"
+    },
+    {
+      "index": 23,
+      "text": "His studies are very desultory and eccentric, but he has amassed a lot of out-of-the-way knowledge which would astonish his professors.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 359-367 (chars 7076-7412)"
+    },
+    {
+      "index": 24,
+      "text": "Did you never ask him what he was going in for?",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 371-371 (chars 7416-7465)"
+    },
+    {
+      "index": 25,
+      "text": "No; he is not a man that it is easy to draw out, though he can be communicative enough when the fancy seizes him.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 375-377 (chars 7478-7594)"
+    },
+    {
+      "index": 26,
+      "text": "I should like to meet him,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 381-381 (chars 7598-7626)"
+    },
+    {
+      "index": 27,
+      "text": "If I am to lodge with anyone, I should prefer a man of studious and quiet habits.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 381-389 (chars 7635-7913)"
+    },
+    {
+      "index": 28,
+      "text": "I am not strong enough yet to stand much noise or excitement.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 381-389 (chars 7635-7913)"
+    },
+    {
+      "index": 29,
+      "text": "I had enough of both in Afghanistan to last me for the remainder of my natural existence.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 381-389 (chars 7635-7913)"
+    },
+    {
+      "index": 30,
+      "text": "How could I meet this friend of yours?",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 381-389 (chars 7635-7913)"
+    },
+    {
+      "index": 31,
+      "text": "He is sure to be at the laboratory,",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 393-393 (chars 7917-7954)"
+    },
+    {
+      "index": 32,
+      "text": "He either avoids the place for weeks, or else he works there from morning to night.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 393-397 (chars 7978-8124)"
+    },
+    {
+      "index": 33,
+      "text": "If you like, we shall drive round together after luncheon.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 393-397 (chars 7978-8124)"
+    },
+    {
+      "index": 34,
+      "text": "Certainly,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 401-401 (chars 8128-8140)"
+    },
+    {
+      "index": 35,
+      "text": "You mustn’t blame me if you don’t get on with him,",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 415-415 (chars 8383-8435)"
+    },
+    {
+      "index": 36,
+      "text": "I know nothing more of him than I have learned from meeting him occasionally in the laboratory.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 415-421 (chars 8445-8613)"
+    },
+    {
+      "index": 37,
+      "text": "You proposed this arrangement, so you must not hold me responsible.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 415-421 (chars 8445-8613)"
+    },
+    {
+      "index": 38,
+      "text": "If we don’t get on it will be easy to part company,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 425-425 (chars 8617-8670)"
+    },
+    {
+      "index": 39,
+      "text": "It seems to me, Stamford,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 425-427 (chars 8683-8711)"
+    },
+    {
+      "index": 40,
+      "text": "that you have some reason for washing your hands of the matter.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 427-433 (chars 8751-8906)"
+    },
+    {
+      "index": 41,
+      "text": "Is this fellow’s temper so formidable, or what is it?",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 427-433 (chars 8751-8906)"
+    },
+    {
+      "index": 42,
+      "text": "Don’t be mealy-mouthed about it.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 427-433 (chars 8751-8906)"
+    },
+    {
+      "index": 43,
+      "text": "It is not easy to express the inexpressible,",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 437-437 (chars 8910-8956)"
+    },
+    {
+      "index": 44,
+      "text": "Holmes is a little too scientific for my tastes—it approaches to cold-bloodedness.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 439-451 (chars 8984-9432)"
+    },
+    {
+      "index": 45,
+      "text": "I could imagine his giving a friend a little pinch of the latest vegetable alkaloid, not out of malevolence, you understand, but simply out of a spirit of inquiry in order to have an accurate idea of the effects.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 439-451 (chars 8984-9432)"
+    },
+    {
+      "index": 46,
+      "text": "To do him justice, I think that he would take it himself with the same readiness.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 439-451 (chars 8984-9432)"
+    },
+    {
+      "index": 47,
+      "text": "He appears to have a passion for definite and exact knowledge.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 439-451 (chars 8984-9432)"
+    },
+    {
+      "index": 48,
+      "text": "Very right too.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 455-455 (chars 9436-9453)"
+    },
+    {
+      "index": 49,
+      "text": "Yes, but it may be pushed to excess.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 459-463 (chars 9457-9620)"
+    },
+    {
+      "index": 50,
+      "text": "When it comes to beating the subjects in the dissecting-rooms with a stick, it is certainly taking rather a bizarre shape.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 459-463 (chars 9457-9620)"
+    },
+    {
+      "index": 51,
+      "text": "Beating the subjects!",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 467-467 (chars 9624-9647)"
+    },
+    {
+      "index": 52,
+      "text": "Yes, to verify how far bruises may be produced after death.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 471-473 (chars 9651-9747)"
+    },
+    {
+      "index": 53,
+      "text": "I saw him at it with my own eyes.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 471-473 (chars 9651-9747)"
+    },
+    {
+      "index": 54,
+      "text": "And yet you say he is not a medical student?",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 477-477 (chars 9751-9797)"
+    },
+    {
+      "index": 55,
+      "text": "No.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 481-483 (chars 9801-9924)"
+    },
+    {
+      "index": 56,
+      "text": "Heaven knows what the objects of his studies are.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 481-483 (chars 9801-9924)"
+    },
+    {
+      "index": 57,
+      "text": "But here we are, and you must form your own impressions about him.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 481-483 (chars 9801-9924)"
+    },
+    {
+      "index": 58,
+      "text": "I’ve found it!",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 509-511 (chars 10760-10792)"
+    },
+    {
+      "index": 59,
+      "text": "I’ve found it,",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 509-511 (chars 10760-10792)"
+    },
+    {
+      "index": 60,
+      "text": "I have found a re-agent which is precipitated by hæmoglobin, and by nothing else.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 513-515 (chars 10871-10955)"
+    },
+    {
+      "index": 61,
+      "text": "Dr.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 521-521 (chars 11047-11081)"
+    },
+    {
+      "index": 62,
+      "text": "Watson, Mr.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 521-521 (chars 11047-11081)"
+    },
+    {
+      "index": 63,
+      "text": "Sherlock Holmes,",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 521-521 (chars 11047-11081)"
+    },
+    {
+      "index": 64,
+      "text": "How are you?",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 525-525 (chars 11116-11130)"
+    },
+    {
+      "index": 65,
+      "text": "You have been in Afghanistan, I perceive.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 527-529 (chars 11233-11277)"
+    },
+    {
+      "index": 66,
+      "text": "How on earth did you know that?",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 533-533 (chars 11281-11314)"
+    },
+    {
+      "index": 67,
+      "text": "Never mind,",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 537-537 (chars 11343-11356)"
+    },
+    {
+      "index": 68,
+      "text": "The question now is about hæmoglobin.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 537-541 (chars 11388-11490)"
+    },
+    {
+      "index": 69,
+      "text": "No doubt you see the significance of this discovery of mine?",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 537-541 (chars 11388-11490)"
+    },
+    {
+      "index": 70,
+      "text": "It is interesting, chemically, no doubt,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 545-545 (chars 11494-11536)"
+    },
+    {
+      "index": 71,
+      "text": "but practically——",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 545-547 (chars 11549-11569)"
+    },
+    {
+      "index": 72,
+      "text": "Why, man, it is the most practical medico-legal discovery for years.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 551-555 (chars 11573-11733)"
+    },
+    {
+      "index": 73,
+      "text": "Don’t you see that it gives us an infallible test for blood stains.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 551-555 (chars 11573-11733)"
+    },
+    {
+      "index": 74,
+      "text": "Come over here now!",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 551-555 (chars 11573-11733)"
+    },
+    {
+      "index": 75,
+      "text": "Let us have some fresh blood,",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 557-559 (chars 11845-11877)"
+    },
+    {
+      "index": 76,
+      "text": "Now, I add this small quantity of blood to a litre of water.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 563-571 (chars 11995-12284)"
+    },
+    {
+      "index": 77,
+      "text": "You perceive that the resulting mixture has the appearance of pure water.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 563-571 (chars 11995-12284)"
+    },
+    {
+      "index": 78,
+      "text": "The proportion of blood cannot be more than one in a million.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 563-571 (chars 11995-12284)"
+    },
+    {
+      "index": 79,
+      "text": "I have no doubt, however, that we shall be able to obtain the characteristic reaction.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 563-571 (chars 11995-12284)"
+    },
+    {
+      "index": 80,
+      "text": "Ha!",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 581-581 (chars 12529-12538)"
+    },
+    {
+      "index": 81,
+      "text": "ha!",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 581-581 (chars 12529-12538)"
+    },
+    {
+      "index": 82,
+      "text": "What do you think of that?",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 583-583 (chars 12622-12650)"
+    },
+    {
+      "index": 83,
+      "text": "It seems to be a very delicate test,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 587-587 (chars 12654-12692)"
+    },
+    {
+      "index": 84,
+      "text": "Beautiful!",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 591-601 (chars 12708-13104)"
+    },
+    {
+      "index": 85,
+      "text": "beautiful!",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 591-601 (chars 12708-13104)"
+    },
+    {
+      "index": 86,
+      "text": "The old Guiacum test was very clumsy and uncertain.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 591-601 (chars 12708-13104)"
+    },
+    {
+      "index": 87,
+      "text": "So is the microscopic examination for blood corpuscles.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 591-601 (chars 12708-13104)"
+    },
+    {
+      "index": 88,
+      "text": "The latter is valueless if the stains are a few hours old.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 591-601 (chars 12708-13104)"
+    },
+    {
+      "index": 89,
+      "text": "Now, this appears to act as well whether the blood is old or new.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 591-601 (chars 12708-13104)"
+    },
+    {
+      "index": 90,
+      "text": "Had this test been invented, there are hundreds of men now walking the earth who would long ago have paid the penalty of their crimes.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 591-601 (chars 12708-13104)"
+    },
+    {
+      "index": 91,
+      "text": "Indeed!",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 605-605 (chars 13108-13117)"
+    },
+    {
+      "index": 92,
+      "text": "Criminal cases are continually hinging upon that one point.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 609-621 (chars 13133-13621)"
+    },
+    {
+      "index": 93,
+      "text": "A man is suspected of a crime months perhaps after it has been committed.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 609-621 (chars 13133-13621)"
+    },
+    {
+      "index": 94,
+      "text": "His linen or clothes are examined, and brownish stains discovered upon them.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 609-621 (chars 13133-13621)"
+    },
+    {
+      "index": 95,
+      "text": "Are they blood stains, or mud stains, or rust stains, or fruit stains, or what are they?",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 609-621 (chars 13133-13621)"
+    },
+    {
+      "index": 96,
+      "text": "That is a question which has puzzled many an expert, and why?",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 609-621 (chars 13133-13621)"
+    },
+    {
+      "index": 97,
+      "text": "Because there was no reliable test.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 609-621 (chars 13133-13621)"
+    },
+    {
+      "index": 98,
+      "text": "Now we have the Sherlock Holmes’ test, and there will no longer be any difficulty.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 609-621 (chars 13133-13621)"
+    },
+    {
+      "index": 99,
+      "text": "You are to be congratulated,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 633-633 (chars 13777-13807)"
+    },
+    {
+      "index": 100,
+      "text": "There was the case of Von Bischoff at Frankfort last year.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 639-647 (chars 13866-14180)"
+    },
+    {
+      "index": 101,
+      "text": "He would certainly have been hung had this test been in existence.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 639-647 (chars 13866-14180)"
+    },
+    {
+      "index": 102,
+      "text": "Then there was Mason of Bradford, and the notorious Muller, and Lefevre of Montpellier, and Samson of New Orleans.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 639-647 (chars 13866-14180)"
+    },
+    {
+      "index": 103,
+      "text": "I could name a score of cases in which it would have been decisive.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 639-647 (chars 13866-14180)"
+    },
+    {
+      "index": 104,
+      "text": "You seem to be a walking calendar of crime,",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 651-651 (chars 14184-14229)"
+    },
+    {
+      "index": 105,
+      "text": "You might start a paper on those lines.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 653-655 (chars 14259-14340)"
+    },
+    {
+      "index": 106,
+      "text": "Call it the ‘Police News of the Past.’",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 653-655 (chars 14259-14340)"
+    },
+    {
+      "index": 107,
+      "text": "Very interesting reading it might be made, too,",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 659-659 (chars 14344-14393)"
+    },
+    {
+      "index": 108,
+      "text": "I have to be careful,",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 663-663 (chars 14486-14509)"
+    },
+    {
+      "index": 109,
+      "text": "for I dabble with poisons a good deal.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 663-665 (chars 14552-14593)"
+    },
+    {
+      "index": 110,
+      "text": "We came here on business,",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 673-673 (chars 14743-14770)"
+    },
+    {
+      "index": 111,
+      "text": "My friend here wants to take diggings, and as you were complaining that you could get no one to go halves with you, I thought that I had better bring you together.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 677-681 (chars 14886-15053)"
+    },
+    {
+      "index": 112,
+      "text": "I have my eye on a suite in Baker Street,",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 687-687 (chars 15133-15176)"
+    },
+    {
+      "index": 113,
+      "text": "which would suit us down to the ground.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 687-691 (chars 15186-15281)"
+    },
+    {
+      "index": 114,
+      "text": "You don’t mind the smell of strong tobacco, I hope?",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 687-691 (chars 15186-15281)"
+    },
+    {
+      "index": 115,
+      "text": "I always smoke ‘ship’s’ myself,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 695-695 (chars 15285-15318)"
+    },
+    {
+      "index": 116,
+      "text": "That’s good enough.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 699-701 (chars 15334-15445)"
+    },
+    {
+      "index": 117,
+      "text": "I generally have chemicals about, and occasionally do experiments.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 699-701 (chars 15334-15445)"
+    },
+    {
+      "index": 118,
+      "text": "Would that annoy you?",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 699-701 (chars 15334-15445)"
+    },
+    {
+      "index": 119,
+      "text": "By no means.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 705-705 (chars 15449-15463)"
+    },
+    {
+      "index": 120,
+      "text": "Let me see—what are my other shortcomings.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 709-717 (chars 15467-15807)"
+    },
+    {
+      "index": 121,
+      "text": "I get in the dumps at times, and don’t open my mouth for days on end.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 709-717 (chars 15467-15807)"
+    },
+    {
+      "index": 122,
+      "text": "You must not think I am sulky when I do that.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 709-717 (chars 15467-15807)"
+    },
+    {
+      "index": 123,
+      "text": "Just let me alone, and I’ll soon be right.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 709-717 (chars 15467-15807)"
+    },
+    {
+      "index": 124,
+      "text": "What have you to confess now?",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 709-717 (chars 15467-15807)"
+    },
+    {
+      "index": 125,
+      "text": "It’s just as well for two fellows to know the worst of one another before they begin to live together.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 709-717 (chars 15467-15807)"
+    },
+    {
+      "index": 126,
+      "text": "I keep a bull pup,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 721-721 (chars 15848-15868)"
+    },
+    {
+      "index": 127,
+      "text": "and I object to rows because my nerves are shaken, and I get up at all sorts of ungodly hours, and I am extremely lazy.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 721-727 (chars 15877-16089)"
+    },
+    {
+      "index": 128,
+      "text": "I have another set of vices when I’m well, but those are the principal ones at present.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 721-727 (chars 15877-16089)"
+    },
+    {
+      "index": 129,
+      "text": "Do you include violin-playing in your category of rows?",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 731-731 (chars 16093-16150)"
+    },
+    {
+      "index": 130,
+      "text": "It depends on the player,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 737-737 (chars 16176-16203)"
+    },
+    {
+      "index": 131,
+      "text": "A well-played violin is a treat for the gods—a badly-played one——",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 737-739 (chars 16216-16284)"
+    },
+    {
+      "index": 132,
+      "text": "Oh, that’s all right,",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 743-743 (chars 16288-16311)"
+    },
+    {
+      "index": 133,
+      "text": "I think we may consider the thing as settled—that is, if the rooms are agreeable to you.",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 743-747 (chars 16342-16434)"
+    },
+    {
+      "index": 134,
+      "text": "When shall we see them?",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 751-751 (chars 16438-16463)"
+    },
+    {
+      "index": 135,
+      "text": "Call for me here at noon to-morrow, and we’ll go together and settle everything,",
+      "speaker": "Character_A",
+      "speaker_name": "Sherlock Holmes",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 755-757 (chars 16467-16550)"
+    },
+    {
+      "index": 136,
+      "text": "All right—noon exactly,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 761-761 (chars 16567-16592)"
+    },
+    {
+      "index": 137,
+      "text": "By the way,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 771-771 (chars 16708-16721)"
+    },
+    {
+      "index": 138,
+      "text": "how the deuce did he know that I had come from Afghanistan?",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 773-773 (chars 16777-16838)"
+    },
+    {
+      "index": 139,
+      "text": "That’s just his little peculiarity,",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 777-779 (chars 16884-16922)"
+    },
+    {
+      "index": 140,
+      "text": "A good many people have wanted to know how he finds things out.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 779-781 (chars 16932-16998)"
+    },
+    {
+      "index": 141,
+      "text": "Oh!",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 785-785 (chars 17002-17024)"
+    },
+    {
+      "index": 142,
+      "text": "a mystery is it?",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "surprised",
+      "source": "pg244.txt:lines 785-785 (chars 17002-17024)"
+    },
+    {
+      "index": 143,
+      "text": "This is very piquant.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 785-789 (chars 17052-17176)"
+    },
+    {
+      "index": 144,
+      "text": "I am much obliged to you for bringing us together.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 785-789 (chars 17052-17176)"
+    },
+    {
+      "index": 145,
+      "text": "‘The proper study of mankind is man,’ you know.",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 785-789 (chars 17052-17176)"
+    },
+    {
+      "index": 146,
+      "text": "You must study him, then,",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 793-793 (chars 17180-17207)"
+    },
+    {
+      "index": 147,
+      "text": "You’ll find him a knotty problem, though.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 795-797 (chars 17248-17358)"
+    },
+    {
+      "index": 148,
+      "text": "I’ll wager he learns more about you than you about him.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 795-797 (chars 17248-17358)"
+    },
+    {
+      "index": 149,
+      "text": "Good-bye.",
+      "speaker": "Character_C",
+      "speaker_name": "Stamford",
+      "emotion": "happy",
+      "source": "pg244.txt:lines 795-797 (chars 17248-17358)"
+    },
+    {
+      "index": 150,
+      "text": "Good-bye,",
+      "speaker": "Character_B",
+      "speaker_name": "Watson",
+      "emotion": "neutral",
+      "source": "pg244.txt:lines 801-801 (chars 17362-17373)"
+    }
+  ]
+}
