@@ -14,6 +14,7 @@ Example .env::
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Literal
 
@@ -24,6 +25,8 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class YamlConfigSettingsSource(PydanticBaseSettingsSource):
     """Loads configuration from ~/.config/audiobard/config.yaml or config.json if present."""
@@ -31,15 +34,10 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
     def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str, bool]:
         return None, field_name, False
 
-    def __call__(self) -> dict[str, Any]:
-        config_path = Path("~/.config/audiobard/config.yaml").expanduser()
-        if not config_path.exists():
-            config_path = Path("~/.config/audiobard/config.json").expanduser()
-        if not config_path.exists():
-            return {}
+    def _read_file(self, path: Path) -> dict[str, Any]:
         try:
-            text = config_path.read_text(encoding="utf-8-sig")
-            if config_path.suffix in (".yaml", ".yml"):
+            text = path.read_text(encoding="utf-8-sig")
+            if path.suffix in (".yaml", ".yml"):
                 try:
                     import yaml
 
@@ -59,8 +57,17 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
 
                 data = json.loads(text)
                 return data if isinstance(data, dict) else {}
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to parse config file %s: %s", path, exc)
             return {}
+
+    def __call__(self) -> dict[str, Any]:
+        config_path = Path("~/.config/audiobard/config.yaml").expanduser()
+        if not config_path.exists():
+            config_path = Path("~/.config/audiobard/config.json").expanduser()
+        if not config_path.exists():
+            return {}
+        return self._read_file(config_path)
 
 
 def _default_voices_dir() -> Path:

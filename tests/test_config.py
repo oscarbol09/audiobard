@@ -186,6 +186,32 @@ def test_yaml_config_source_corrupted_file(tmp_path: Path) -> None:
         assert source() == {}
 
 
+def test_yaml_config_source_malformed_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """YamlConfigSettingsSource logs a warning when config file cannot be parsed."""
+    import logging
+
+    fake_file = tmp_path / "config.json"
+    fake_file.write_text("{malformed: json", encoding="utf-8")
+
+    source = YamlConfigSettingsSource(AudioBardConfig)
+
+    def mock_expanduser(self: Path) -> Path:
+        if "config.yaml" in str(self):
+            return tmp_path / "nonexistent.yaml"
+        return fake_file
+
+    with caplog.at_level(logging.WARNING), patch("pathlib.Path.expanduser", mock_expanduser):
+        data = source()
+        assert data == {}
+        assert any(
+            record.levelno == logging.WARNING
+            and "Failed to parse config file" in record.message
+            for record in caplog.records
+        )
+
+
 def test_target_dbfs_config() -> None:
     """Test target_dbfs default and custom value validation."""
     from pydantic import ValidationError

@@ -149,8 +149,8 @@ export const useGenerationStore = defineStore('generation', () => {
       if (update.stage === 'complete' || update.stage === 'error' || update.stage === 'cancelled') {
         stopProgressPolling()
       }
-    } catch {
-      // Transient errors should not stop the poll; the next tick will retry.
+    } catch (err) {
+      console.debug('Transient error in progress poll:', err)
     }
   }
 

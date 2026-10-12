@@ -229,7 +229,8 @@ def _clip_stream_format(clip: AudioClip) -> tuple[int, int] | None:
             info = MP3(str(clip.path)).info  # type: ignore[no-untyped-call]
         else:
             info = MP3(io.BytesIO(clip.mp3_bytes)).info  # type: ignore[no-untyped-call]
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to read MP3 header for clip: %s", exc)
         return None
 
     rate = int(getattr(info, "sample_rate", 0) or 0)

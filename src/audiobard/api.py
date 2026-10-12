@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
+import logging
 import os
 import shutil
 import sys
@@ -23,6 +24,8 @@ from audiobard.audio.processor import FFMPEG_MISSING_MESSAGE
 from audiobard.config import AudioBardConfig
 from audiobard.pipeline import AudioBookPipeline
 from audiobard.progress import PipelineProgress
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AudioBard API", version="0.1.0")
 
@@ -229,8 +232,12 @@ def _get_output_dir(custom_path: str | Path | None = None) -> Path:
                 if _is_safe_custom_directory(out):
                     out.mkdir(parents=True, exist_ok=True)
                     return out
-            except (OSError, ValueError):
-                pass
+            except (OSError, ValueError) as exc:
+                logger.debug(
+                    "Custom output directory %s is invalid or inaccessible: %s",
+                    custom_str,
+                    exc,
+                )
     output_dir = Path.home() / "AudioBard" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
