@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this project are documented in this file.
 
@@ -6,6 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 The changelog is an entry point for humans: every PR that changes behavior
 adds an entry under the relevant section, in the same commit as the change.
+
+## [0.2.1] - 2026-10-12
+
+### Added
+
+- **Decompression Bomb Defense (SEC-07)**:
+  - Added archive boundary validation (`_validate_epub_archive`) in `EpubParser` enforcing a 500 MB uncompressed limit and a maximum expansion ratio of 100x.
+- **Extended Character Capacity**:
+  - Expanded `Character.canonical_id`, `DialogLine.speaker`, and `VoiceAssignment.canonical_id` validation regex to support characters beyond the 26-character threshold (`r"^(Narrator|Character_[A-Za-z0-9_]+)$"`).
+- **Chapter Title Preservation**:
+  - Added `TextParser.chapter_titles` mapping chapter indexes to exact detected heading strings.
+- **Kokoro TTS UI Type Integration**:
+  - Extended desktop GUI `TTSProvider` type union (`gui/src/stores/generation.ts`) to include `'kokoro'`.
+- **Bilingual Desktop GUI Localization**:
+  - Added full Spanish (🇪🇸) and English (🇺🇸) dictionary keys for batch queue items, queue controls, and sidecar lifecycle statuses.
+
+### Fixed
+
+- **SEC-02 (Gemini API Key Exposure)**:
+  - Migrated Google Gemini authentication from URL query parameter (`?key=...`) to standard `x-goog-api-key` HTTP header.
+- **SEC-03 (Windows CLI Command Injection)**:
+  - Replaced `cmd.exe /c start` in `_play_audio` with direct Win32 `os.startfile` API to eliminate argument injection.
+- **SEC-06 (Tauri Capability Hardening)**:
+  - Revoked unused `shell:allow-execute` and `shell:allow-spawn` capabilities in `src-tauri/capabilities/default.json` adhering to the Principle of Least Privilege.
+- **SEC-08 (NVIDIA NIM Secret Detection)**:
+  - Added `nvapi-*` regex pattern scanning to `tools/guards.py`.
+- **Silent Failure Prevention (ECC Rule 4)**:
+  - Added structured warning logging for malformed configuration files in `config.py`.
+  - Added debug logging for output directory validation failures in `api.py` and MP3 header parsing in `processor.py`.
+  - Added diagnostic logging for transient IPC progress polling in `gui/src/stores/generation.ts`.
 
 ## [0.2.0] - 2026-08-26
 

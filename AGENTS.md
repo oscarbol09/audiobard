@@ -1,8 +1,8 @@
 # AGENTS.md — for AI coding agents working in this repo
 
 AudioBard converts public-domain books into multi-voice audiobooks with a
-local LLM and TTS, then optionally generates a "radio play" scene version
-and narration track. This file covers the rules agents must not violate.
+local LLM and TTS, attributing character dialogue with emotional context.
+This file covers the rules agents must not violate.
 
 ## Verification gate (run before every PR)
 
@@ -35,13 +35,14 @@ python tools/guards.py
 - **One change per PR.** Personal fork config (your AGENTS.md, local
   scripts) never enters a PR.
 
-## Current state (2026-08)
+## Current state (2026-10 — v0.2.1)
 
 All phases (1–5 including Desktop GUI) are complete and production-ready:
-- `src/audiobard/` — all modules implemented (parser, llm, tts, audio, pipeline, persistence, cli, config, api, nim_client)
+- `src/audiobard/` — all modules implemented (parser, llm, tts, audio, pipeline, persistence, cli, config, api, nim_client, kokoro_provider)
 - `gui/` & `src-tauri/` — native Desktop GUI (Tauri v2 + Vue 3) with BYOK (NVIDIA NIM, OpenRouter, Gemini, Ollama) and i18n multi-language support (Spanish 🇪🇸 / English 🇺🇸)
-- 342 unit tests passing across all source files
-- CI gates green: ruff, mypy, guards, tests on Python 3.10/3.11/3.12, vue-tsc & vite build
+- 508 unit, property, and contract tests passing across all source files (94.49% coverage)
+- CI gates green: ruff, mypy (strict), guards, tests on Python 3.10/3.11/3.12, vue-tsc & vite build
+- ECC engineering protocols and security hardening (Zip Bomb defense, Windows ShellExecuteW isolation, least-privilege Tauri capabilities) fully active
 - The project is in **production desktop release mode** — contributions welcome
 
 ## Pointers

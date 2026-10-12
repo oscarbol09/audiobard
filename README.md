@@ -122,7 +122,7 @@ audiobard/
 │   └── persistence.py            # SQLite state: character rosters, voice mapping, cache
 ├── gui/                          # Vue 3 + Tailwind CSS desktop frontend
 ├── src-tauri/                    # Tauri v2 desktop application wrapper
-├── tests/                        # Automated test suite (342 unit & integration tests)
+├── tests/                        # Automated test suite (508 unit, property & contract tests)
 ├── eval/
 │   ├── gold_standard/            # Hand-labeled dialogue ground truth datasets
 │   └── benchmark.py              # Attribution accuracy benchmark runner
@@ -156,15 +156,22 @@ llm:
   provider: ollama        # ollama | gemini | openrouter | nim
   model: qwen2.5:7b
 tts:
-  provider: piper         # piper | edge
+  provider: piper         # piper | edge | kokoro
   locale: en_US
 ```
 
 - **`LLMClient`:** `ollama_client` (local default), `gemini_client` (cloud), `openrouter_client` (cloud), `nim_client` (NVIDIA NIM).
-- **`TTSProvider`:** `piper_provider` (local neural default), `edge_provider` (cloud).
+- **`TTSProvider`:** `piper_provider` (local neural default), `edge_provider` (cloud), `kokoro_provider` (local ONNX).
 - **`BookParser`:** `text_parser`, `epub_parser`.
 
 To add a new provider, subclass `LLMClient` or `TTSProvider`, implement the abstract methods, and register the provider in the corresponding module factory. See [docs/guides/adding-a-provider.md](docs/guides/adding-a-provider.md).
+
+## Known Limitations & Trade-offs
+
+- **Opening Roster Heuristic:** Initial character extraction samples up to the first 5,000 words. Characters introduced late in a book without prior mention are attributed to the Narrator or assigned contextually.
+- **Dialogue Turn Granularity:** Spoken dialogue within a paragraph is synthesized with the speaking character's assigned voice, including adjacent narrative tags (e.g. *"—Yes, she said"*).
+- **Disk Cache Space:** Multi-chapter audiobook synthesis stores atomic paragraph audio clips in `~/.cache/audiobard/`. A full-length novel typically utilizes 50–200 MB of temporary disk space during assembly.
+- **Compute vs Network:** Local generation with Piper or Kokoro requires local CPU/GPU compute, whereas cloud providers (Edge TTS, Gemini, NIM, OpenRouter) require reliable internet connectivity and valid BYOK credentials.
 
 ## Contributing
 
