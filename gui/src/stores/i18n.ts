@@ -120,6 +120,24 @@ const translations = {
     regenerateConfirm: '¿Regenerar "{title}"? Esto sobrescribirá el audio existente.',
     regenerationStarted: '¡Regeneración iniciada! Revisa el progreso de generación.',
     regenerateFailed: 'Error al regenerar:',
+
+    // Batch queue
+    batchQueueTitle: 'Cola de procesamiento por lotes',
+    batchFinished: '{done} de {total} completados',
+    batchFailed: '{failed} fallidos',
+    batchClear: 'Limpiar',
+    statusWaiting: 'En espera',
+    statusGenerating: 'Generando',
+    statusDone: 'Completado',
+    statusCancelled: 'Cancelado',
+    statusFailed: 'Fallido',
+
+    // Server startup & health
+    serverStarting: 'Iniciando servidor FastAPI...',
+    serverHealthFailed: 'Comprobación de salud fallida: {error}',
+    serverWaiting: 'Esperando al servidor...',
+    serverRetrying: 'Reintentando en 2 segundos...',
+    serverReady: 'Servidor Listo',
   },
   en: {
     // General / Header
@@ -240,6 +258,24 @@ const translations = {
     regenerateConfirm: 'Regenerate "{title}"? This will overwrite the existing audio.',
     regenerationStarted: 'Regeneration started! Check the generation progress.',
     regenerateFailed: 'Regenerate failed:',
+
+    // Batch queue
+    batchQueueTitle: 'Batch queue',
+    batchFinished: '{done} of {total} finished',
+    batchFailed: '{failed} failed',
+    batchClear: 'Clear',
+    statusWaiting: 'Waiting',
+    statusGenerating: 'Generating',
+    statusDone: 'Done',
+    statusCancelled: 'Cancelled',
+    statusFailed: 'Failed',
+
+    // Server startup & health
+    serverStarting: 'Starting FastAPI server...',
+    serverHealthFailed: 'Health check failed: {error}',
+    serverWaiting: 'Waiting for server...',
+    serverRetrying: 'Retrying in 2 seconds...',
+    serverReady: 'Server Ready',
   },
 }
 

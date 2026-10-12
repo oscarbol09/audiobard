@@ -4,9 +4,11 @@
  * status, plus overall progress and a stopping button.
  */
 import { useGenerationStore } from '../stores/generation'
+import { useI18nStore } from '../stores/i18n'
 import type { BatchQueueItem } from '../utils/batchQueue'
 
 const generationStore = useGenerationStore()
+const i18nStore = useI18nStore()
 
 const STATUS_STYLES: Record<BatchQueueItem['status'], string> = {
   pending: 'text-gray-400 border-gray-700',
@@ -19,15 +21,15 @@ const STATUS_STYLES: Record<BatchQueueItem['status'], string> = {
 function statusLabel(item: BatchQueueItem): string {
   switch (item.status) {
     case 'pending':
-      return 'Waiting'
+      return i18nStore.t('statusWaiting')
     case 'running':
-      return 'Generating'
+      return i18nStore.t('statusGenerating')
     case 'done':
-      return 'Done'
+      return i18nStore.t('statusDone')
     case 'cancelled':
-      return 'Cancelled'
+      return i18nStore.t('statusCancelled')
     default:
-      return item.error ? `Failed: ${item.error}` : 'Failed'
+      return item.error ? `${i18nStore.t('statusFailed')}: ${item.error}` : i18nStore.t('statusFailed')
   }
 }
 
@@ -42,11 +44,11 @@ function formatSize(bytes: number): string {
   <div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3">
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h3 class="text-sm font-semibold text-gray-100">Batch queue</h3>
+        <h3 class="text-sm font-semibold text-gray-100">{{ i18nStore.t('batchQueueTitle') }}</h3>
         <p class="text-xs text-gray-500">
-          {{ generationStore.queueSummary.done }} of {{ generationStore.queueSummary.total }} finished
+          {{ i18nStore.t('batchFinished', { done: generationStore.queueSummary.done, total: generationStore.queueSummary.total }) }}
           <span v-if="generationStore.queueSummary.failed > 0" class="text-red-400">
-            · {{ generationStore.queueSummary.failed }} failed
+            · {{ i18nStore.t('batchFailed', { failed: generationStore.queueSummary.failed }) }}
           </span>
         </p>
       </div>
@@ -58,7 +60,7 @@ function formatSize(bytes: number): string {
           :disabled="generationStore.queueRunning || generationStore.queue.length === 0"
           @click="generationStore.clearQueue()"
         >
-          Clear
+          {{ i18nStore.t('batchClear') }}
         </button>
       </div>
     </div>

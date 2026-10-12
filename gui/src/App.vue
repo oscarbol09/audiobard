@@ -133,12 +133,12 @@ async function onGenerate(): Promise<void> {
         </div>
         <div class="space-y-2">
           <h1 class="text-3xl font-extrabold tracking-tight text-brand-500">AudioBard</h1>
-          <p class="text-gray-400" v-if="checking">Starting FastAPI server...</p>
-          <p class="text-gray-400" v-else-if="healthError">Health check failed: {{ healthError }}</p>
-          <p class="text-gray-400" v-else>Waiting for server...</p>
+          <p class="text-gray-400" v-if="checking">{{ t('serverStarting') }}</p>
+          <p class="text-gray-400" v-else-if="healthError">{{ t('serverHealthFailed', { error: healthError }) }}</p>
+          <p class="text-gray-400" v-else>{{ t('serverWaiting') }}</p>
         </div>
         <div v-if="healthError" class="text-sm text-red-400">
-          Retrying in 2 seconds...
+          {{ t('serverRetrying') }}
         </div>
       </div>
     </div>
@@ -155,7 +155,7 @@ async function onGenerate(): Promise<void> {
           </div>
           <div class="flex items-center gap-4">
             <span class="px-3 py-1 text-xs font-medium text-green-400 bg-green-900/30 rounded-full">
-              Server Ready
+              {{ t('serverReady') }}
             </span>
             <button
               @click="showSettings = true"
