@@ -44,7 +44,9 @@ logger = logging.getLogger(__name__)
 
 # Whole-word gender clues for NEUTRAL characters (names/aliases/description text).
 # Matched with word boundaries so short tokens like "man"/"he" do not fire inside
-# names such as Amanda / Michelle (issue #79).
+# names such as Amanda / Michelle (issue #79). Apostrophes count as word-internal
+# characters so contractions like "don't" do not match the Spanish title "don"
+# (issue #130).
 _MALE_GENDER_CLUES: tuple[str, ...] = (
     "soñador",
     "hombre",
@@ -72,8 +74,16 @@ _FEMALE_GENDER_CLUES: tuple[str, ...] = (
 
 
 def _has_whole_word_clue(text: str, clues: tuple[str, ...]) -> bool:
-    """True if any clue appears as a whole word in *text* (case-insensitive)."""
-    return any(re.search(rf"\b{re.escape(w)}\b", text, flags=re.IGNORECASE) for w in clues)
+    """True if any clue appears as a whole word in *text* (case-insensitive).
+
+    A clue must not be flanked by word characters or apostrophes: plain ``\\b``
+    would treat the apostrophe in ``"don't"`` as a boundary and match the
+    Spanish title ``"don"`` inside the English contraction (issue #130).
+    """
+    return any(
+        re.search(rf"(?<![\w']){re.escape(w)}(?![\w'])", text, flags=re.IGNORECASE)
+        for w in clues
+    )
 
 
 # ---------------------------------------------------------------------------
