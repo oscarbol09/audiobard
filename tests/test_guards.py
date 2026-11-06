@@ -109,6 +109,50 @@ class CleanTreeTests(GuardRepoFixture):
 
 
 class SecretGuardTests(GuardRepoFixture):
+    def test_exempt_file_name_prefixes_do_not_skip_scanning(self) -> None:
+        fake_key = "sk-" + "abcdef1234567890abcdef1234567890"
+        for relpath in (
+            "README.md.env",
+            "SECURITY.md.bak",
+            "tools/guards.py.bak",
+            "tests/test_guards.py.bak",
+            "README.md/secret.py",
+        ):
+            with self.subTest(path=relpath):
+                self.add_tracked_file(relpath, f'key = "{fake_key}"\n')
+                result = run_guards(self.root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(f"{relpath}: possible API key", result.stdout)
+
+    def test_exempt_directory_prefixes_do_not_skip_sibling_paths(self) -> None:
+        fake_key = "sk-" + "abcdef1234567890abcdef1234567890"
+        for relpath in ("docs-private/config.py", ".github-backup/config.py"):
+            with self.subTest(path=relpath):
+                self.add_tracked_file(relpath, f'key = "{fake_key}"\n')
+                result = run_guards(self.root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(f"{relpath}: possible API key", result.stdout)
+
+    def test_exempt_file_names_do_not_apply_in_other_directories(self) -> None:
+        fake_key = "sk-" + "abcdef1234567890abcdef1234567890"
+        for relpath in ("nested/README.md", "src/SECURITY.md", "nested/tools/guards.py"):
+            with self.subTest(path=relpath):
+                self.add_tracked_file(relpath, f'key = "{fake_key}"\n')
+                result = run_guards(self.root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(f"{relpath}: possible API key", result.stdout)
+
+    def test_reviewed_files_and_directory_contents_remain_exempt(self) -> None:
+        fake_key = "sk-" + "abcdef1234567890abcdef1234567890"
+        for exempt in guards.SECRET_EXEMPT_PATHS:
+            # The fixture already runs the real script at this exact path.
+            if exempt == "tools/guards.py":
+                continue
+            relpath = exempt + "nested/example.md" if exempt.endswith("/") else exempt
+            self.add_tracked_file(relpath, f'key = "{fake_key}"\n')
+        result = run_guards(self.root)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_gemini_key_literal_fails(self) -> None:
         # Key split so GitHub secret-scanning does not flag this test file
         # as containing a real credential. The concatenation is identical at
@@ -236,6 +280,26 @@ class AudioOutputGuardTests(GuardRepoFixture):
 
 
 class DataVoicesGuardTests(GuardRepoFixture):
+    def test_extensionless_voice_files_are_not_gitkeep(self) -> None:
+        for relpath in (
+            "data/voices/model",
+            "data/voices/nested/weights",
+            "data/voices/.hidden-model",
+            "data/voices/.gitkeep-backup",
+        ):
+            with self.subTest(path=relpath):
+                self.add_tracked_file(relpath, "model data\n")
+                result = run_guards(self.root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(f"{relpath}: file extension not allowed", result.stdout)
+
+    def test_gitkeep_and_nested_catalogs_pass(self) -> None:
+        for relpath in ("data/voices/.gitkeep", "data/voices/nested/.gitkeep"):
+            self.add_tracked_file(relpath)
+        self.add_tracked_file("data/voices/nested/catalog.JSON", '{"voices": []}\n')
+        result = run_guards(self.root)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_voice_model_binary_fails(self) -> None:
         self.add_tracked_file("data/voices/en_US-amy-medium.onnx", "")
         result = run_guards(self.root)
@@ -255,8 +319,8 @@ class DataVoicesGuardTests(GuardRepoFixture):
         guard = self.root / "tools" / "guards.py"
         guard.write_text(
             guard.read_text(encoding="utf-8").replace(
-                'ALLOWED_DATA_VOICE_EXTENSIONS = {".json", ""}',
-                'ALLOWED_DATA_VOICE_EXTENSIONS = {".json", ".txt", ""}',
+                'ALLOWED_DATA_VOICE_EXTENSIONS = {".json"}',
+                'ALLOWED_DATA_VOICE_EXTENSIONS = {".json", ".txt"}',
             ),
             encoding="utf-8",
         )
