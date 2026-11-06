@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The changelog is an entry point for humans: every PR that changes behavior
 adds an entry under the relevant section, in the same commit as the change.
 
+## [Unreleased]
+
+### Fixed
+
+- Restrict secret-scan exemptions to exact repository-relative files and explicitly listed
+  directories, so similarly named files and nested copies are still scanned (#132).
+- Allow only catalog JSON files and the exact `.gitkeep` filename under `data/voices/`,
+  rejecting other extensionless files (#132).
+
 ## [0.2.1] - 2026-10-12
 
 ### Added

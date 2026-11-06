@@ -40,8 +40,8 @@ SECRET_PATTERNS = [
     re.compile(r"\b(?:GEMINI|OPENROUTER|NVIDIA)_API_KEY\s*=\s*['\"]?[^'\"]{8,}"),
     re.compile(r"\bapi[_-]?key\s*[:=]\s*['\"][^'\"]{16,}['\"]", re.IGNORECASE),
 ]
-# Files that are allowed to look like they contain secrets (docs/tests may
-# discuss shapes without holding real keys).
+# Repository-relative files that may discuss secret shapes without real keys.
+# File entries match exactly; only entries ending in / cover directory contents.
 SECRET_EXEMPT_PATHS = [
     "tools/guards.py",
     "tests/test_guards.py",
@@ -85,7 +85,7 @@ ALLOWED_DATA_BOOK_FILES = {".gitkeep"}
 # (e.g. data/voices/en_US.json) and .gitkeep may be tracked - never model
 # binaries (*.onnx is already gitignored, but this catches anything else
 # large or personal that isn't caught by extension-based .gitignore rules).
-ALLOWED_DATA_VOICE_EXTENSIONS = {".json", ""}
+ALLOWED_DATA_VOICE_EXTENSIONS = {".json"}
 
 # Audio output must never be tracked, wherever it lands.
 AUDIO_EXTENSIONS = {".mp3", ".m4b", ".wav", ".flac", ".ogg", ".aac", ".opus"}
@@ -97,7 +97,7 @@ def check_secrets() -> None:
     for path in tracked:
         rel = path.relative_to(ROOT).as_posix()
         exempt = any(
-            rel.startswith(ex) or rel.endswith("/" + ex.rstrip("/")) for ex in SECRET_EXEMPT_PATHS
+            rel == ex or (ex.endswith("/") and rel.startswith(ex)) for ex in SECRET_EXEMPT_PATHS
         )
         if exempt:
             continue
@@ -168,11 +168,12 @@ def check_data_voices() -> None:
         if (
             "data" in parts
             and "voices" in parts
+            and rel.name != ".gitkeep"
             and rel.suffix.lower() not in ALLOWED_DATA_VOICE_EXTENSIONS
         ):
             errors.append(
                 f"{rel.as_posix()}: file extension not allowed under data/voices/ "
-                f"(only {sorted(e or '.gitkeep' for e in ALLOWED_DATA_VOICE_EXTENSIONS)}). "
+                f"(only {sorted({'.gitkeep', *ALLOWED_DATA_VOICE_EXTENSIONS})}). "
                 "This directory ships voice catalog metadata only - model binaries and "
                 "audio samples must never be tracked. If this is a legitimate new file "
                 "type, add it to ALLOWED_DATA_VOICE_EXTENSIONS in tools/guards.py in the "
