@@ -167,6 +167,32 @@ def test_neutral_name_with_male_substring_stays_neutral(
     assert "neutral" in result.voice_id
 
 
+@pytest.mark.parametrize(
+    "name,aliases",
+    [
+        ("Wisp", ["The knight who don't talk"]),
+        ("Singer", ["can't stop singing"]),
+    ],
+)
+def test_neutral_alias_with_contraction_stays_neutral(
+    mapper: VoiceMapper, name: str, aliases: list[str]
+) -> None:
+    """Contractions embedding a male title ("don't") must not flip to male voices (#130)."""
+    char = Character(
+        canonical_id="Character_C",
+        name=name,
+        aliases=aliases,
+        gender_hint=GenderHint.NEUTRAL,
+        age_hint=AgeHint.ADULT,
+        tone=Tone.NEUTRAL,
+    )
+    result = mapper.assign(char)
+    assert "male" not in result.voice_id, (
+        f"{aliases!r} was wrongly gender-clued male via contraction match → {result.voice_id}"
+    )
+    assert "neutral" in result.voice_id
+
+
 def test_neutral_with_whole_word_male_clue_gets_male_voice(mapper: VoiceMapper) -> None:
     char = Character(
         canonical_id="Character_B",
@@ -202,6 +228,11 @@ def test_has_whole_word_clue_helper() -> None:
     assert _has_whole_word_clue("he said", ("he",)) is True
     assert _has_whole_word_clue("humana", ("man",)) is False
     assert _has_whole_word_clue("Mr. Darcy", ("mr",)) is True
+    # Issue #130: apostrophes are word-internal, so contractions never match a title.
+    assert _has_whole_word_clue("The girl who don't talk", ("don",)) is False
+    assert _has_whole_word_clue("don't", ("don",)) is False
+    assert _has_whole_word_clue("Don Quixote", ("don",)) is True
+    assert _has_whole_word_clue("the man's hat", ("man",)) is False
 
 
 # ---------------------------------------------------------------------------
