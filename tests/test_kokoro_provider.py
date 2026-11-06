@@ -390,3 +390,35 @@ def test_cli_lists_kokoro_voices_from_the_local_pack(
     assert result.exit_code == 0, result.output
     assert "af_sarah" in result.output
     assert "Voice ID" in result.output
+
+
+@pytest.mark.parametrize("pitch", [0.8, 1.0, 1.2])
+def test_samples_to_mp3_shifts_tone_pitch(pitch: float) -> None:
+    sample_rate = 24000
+    samples = 0.5 * np.sin(2 * np.pi * 440 * np.arange(sample_rate) / sample_rate)
+    encoded = samples_to_mp3(samples, sample_rate, pitch)
+    decoded = AudioSegment.from_file(io.BytesIO(encoded), format="mp3")
+    pcm = np.asarray(decoded.get_array_of_samples(), dtype=np.float64)
+    frequencies = np.fft.rfftfreq(len(pcm), d=1 / decoded.frame_rate)
+    peak = frequencies[np.argmax(np.abs(np.fft.rfft(pcm)))]
+    assert peak == pytest.approx(440 * pitch, abs=3)
+    assert len(decoded) == pytest.approx(1000 / pitch, abs=20)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("emotion, expected_pitch", [(Emotion.SAD, 0.92), (Emotion.HAPPY, 1.08)])
+async def test_synthesize_combines_custom_and_emotion_pitch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emotion: Emotion, expected_pitch: float
+) -> None:
+    provider = _provider_with_pack(tmp_path, monkeypatch)
+    sample_rate = 24000
+    samples = 0.5 * np.sin(2 * np.pi * 440 * np.arange(sample_rate) / sample_rate)
+    fake = _FakeKokoro(samples=samples, sample_rate=sample_rate)
+    voice = voice_from_id("af_sarah", "en_US")
+    with patch.object(provider, "_session", return_value=fake):
+        encoded = await provider.synthesize("A synthetic test tone.", voice, emotion, pitch=0.8)
+    decoded = AudioSegment.from_file(io.BytesIO(encoded), format="mp3")
+    pcm = np.asarray(decoded.get_array_of_samples(), dtype=np.float64)
+    frequencies = np.fft.rfftfreq(len(pcm), d=1 / decoded.frame_rate)
+    peak = frequencies[np.argmax(np.abs(np.fft.rfft(pcm)))]
+    assert peak == pytest.approx(440 * 0.8 * expected_pitch, abs=3)

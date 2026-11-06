@@ -143,7 +143,7 @@ The `generate` command coordinates six decoupled stages:
 2. **Character Extraction:** Analyzes opening chapters to extract canonical character IDs, aliases, and demographic/tone hints.
 3. **Voice Mapping:** Selects suitable voice models from regional pools based on gender, age, and tone similarity, with deterministic hash tie-breaking.
 4. **Dialogue Attribution:** Processes sliding text windows (~1,500 words) to assign each sentence to a character or the Narrator, along with emotional context.
-5. **TTS Synthesis:** Synthesizes individual lines with emotion-informed prosody parameters, utilizing persistent disk and memory caches.
+5. **TTS Synthesis:** Synthesizes individual lines with emotion-informed prosody parameters, utilizing persistent disk and memory caches. Kokoro combines custom pitch with the emotion pitch, supporting both lower and higher pitch through a frame-rate shift (which also changes duration).
 6. **Mastering & Assembly:** Normalizes loudness, injects configurable pacing gaps, and packages the result into `.mp3` or chapter-tagged `.m4b`.
 
 ## Extension Model
