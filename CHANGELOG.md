@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The changelog is an entry point for humans: every PR that changes behavior
 adds an entry under the relevant section, in the same commit as the change.
 
+## [Unreleased]
+
+### Fixed
+
+- **Gender Clue Word Boundaries**: typographic apostrophes (`’` / U+2019) are now treated as word-internal, just like `'`, so `"don’t"` in Gutenberg/EPUB text no longer matches the Spanish title `don` (#130).
+
 ## [0.2.1] - 2026-10-12
 
 ### Added

@@ -79,9 +79,11 @@ def _has_whole_word_clue(text: str, clues: tuple[str, ...]) -> bool:
     A clue must not be flanked by word characters or apostrophes: plain ``\\b``
     would treat the apostrophe in ``"don't"`` as a boundary and match the
     Spanish title ``"don"`` inside the English contraction (issue #130).
+    Typographic apostrophes (``’`` / ``\\u2019``), common in Gutenberg and
+    EPUB sources, are treated the same way.
     """
     return any(
-        re.search(rf"(?<![\w']){re.escape(w)}(?![\w'])", text, flags=re.IGNORECASE)
+        re.search(rf"(?<![\w'’]){re.escape(w)}(?![\w'’])", text, flags=re.IGNORECASE)
         for w in clues
     )
 

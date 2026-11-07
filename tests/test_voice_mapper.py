@@ -233,6 +233,11 @@ def test_has_whole_word_clue_helper() -> None:
     assert _has_whole_word_clue("don't", ("don",)) is False
     assert _has_whole_word_clue("Don Quixote", ("don",)) is True
     assert _has_whole_word_clue("the man's hat", ("man",)) is False
+    # Typographic apostrophes (U+2019, common in Gutenberg/EPUB sources) are
+    # word-internal too: "don’t" must never match the Spanish title "don".
+    assert _has_whole_word_clue("The knight who don’t talk", ("don",)) is False
+    assert _has_whole_word_clue("don’t", ("don",)) is False
+    assert _has_whole_word_clue("the knight’s tale", ("knight",)) is False
 
 
 # ---------------------------------------------------------------------------
