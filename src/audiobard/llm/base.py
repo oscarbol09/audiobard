@@ -18,6 +18,7 @@ import hashlib
 import json
 import logging
 import random
+import re
 import time
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -52,6 +53,29 @@ def _is_non_retriable(exc: Exception) -> bool:
 def _backoff(attempt: int) -> float:
     """Return seconds to sleep before attempt *attempt* (0-indexed)."""
     return float(min(60.0, float((2**attempt) + random.uniform(0.0, 1.0))))
+
+
+def _extract_json_payload(raw: str) -> str:
+    """Extract a JSON object from common LLM response wrappers.
+
+    Providers may return reasoning blocks, markdown fences, or a short
+    conversational preamble even when JSON mode is requested. Keep the
+    fallback conservative by returning the original payload when no object
+    boundaries can be identified; ``json.loads`` will then report the real
+    parse failure to the retry loop.
+    """
+    cleaned = raw.strip().lstrip("\ufeff")
+    cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL).strip()
+
+    fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", cleaned, flags=re.DOTALL | re.IGNORECASE)
+    if fenced:
+        return fenced.group(1).strip()
+
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start >= 0 and end > start:
+        return cleaned[start : end + 1]
+    return cleaned
 
 
 class LLMClient(ABC):
@@ -180,7 +204,7 @@ class LLMClient(ABC):
             if cached_raw is not None:
                 logger.debug("LLM cache hit: hash=%s model=%s", prompt_hash[:12], self.model)
                 try:
-                    return model_cls.model_validate(json.loads(cached_raw.lstrip("\ufeff")))
+                    return model_cls.model_validate(json.loads(_extract_json_payload(cached_raw)))
                 except (ValidationError, json.JSONDecodeError) as exc:
                     # Stale or corrupt cache entry — fall through to live call
                     logger.warning("LLM cache entry invalid, re-querying: %s", exc)
@@ -193,8 +217,7 @@ class LLMClient(ABC):
             t0 = time.monotonic()
             try:
                 raw = await self._raw_call(prompt, schema)
-                cleaned_raw = raw.strip().lstrip("\ufeff")
-                data = json.loads(cleaned_raw)
+                data = json.loads(_extract_json_payload(raw))
                 result = model_cls.model_validate(data)
                 elapsed = time.monotonic() - t0
                 logger.debug(

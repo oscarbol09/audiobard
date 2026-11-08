@@ -190,3 +190,20 @@ async def test_handles_utf8_bom_in_response() -> None:
     result = await client.extract_characters("text")
     assert isinstance(result, CharactersResult)
     assert len(result.characters) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "wrapped_response",
+    [
+        "Here is the character breakdown:\n```json\n" + _VALID_CHARACTERS_JSON + "\n```",
+        "<think>planning the response</think>\n" + _VALID_CHARACTERS_JSON,
+        "Here is the character breakdown: " + _VALID_CHARACTERS_JSON,
+    ],
+)
+async def test_extracts_json_from_common_llm_wrappers(wrapped_response: str) -> None:
+    """Realistic provider wrappers are parsed before schema validation."""
+    client = _EchoClient([wrapped_response], max_retries=1)
+    result = await client.extract_characters("text")
+    assert isinstance(result, CharactersResult)
+    assert result.characters[0].canonical_id == "Narrator"
