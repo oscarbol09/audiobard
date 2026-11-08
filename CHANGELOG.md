@@ -12,6 +12,10 @@ adds an entry under the relevant section, in the same commit as the change.
 ### Fixed
 
 - **Gender Clue Word Boundaries**: typographic apostrophes (`’` / U+2019) are now treated as word-internal, just like `'`, so `"don’t"` in Gutenberg/EPUB text no longer matches the Spanish title `don` (#130).
+- Restrict secret-scan exemptions to exact repository-relative files and explicitly listed
+  directories, so similarly named files and nested copies are still scanned (#132).
+- Allow only catalog JSON files and the exact `.gitkeep` filename under `data/voices/`,
+  rejecting other extensionless files (#132).
 
 ## [0.2.1] - 2026-10-12
 
