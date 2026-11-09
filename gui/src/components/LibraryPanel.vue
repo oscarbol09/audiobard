@@ -227,7 +227,7 @@ onMounted(() => {
       <li
         v-for="book in filteredBooks"
         :key="book.id"
-        class="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+        class="py-4 flex flex-col lg:flex-row md:items-center justify-between gap-4"
       >
         <div class="flex-1 space-y-1">
           <div class="flex items-center gap-2 flex-wrap">
