@@ -16,6 +16,7 @@ adds an entry under the relevant section, in the same commit as the change.
   directories, so similarly named files and nested copies are still scanned (#132).
 - Allow only catalog JSON files and the exact `.gitkeep` filename under `data/voices/`,
   rejecting other extensionless files (#132).
+- Align LibraryPanel row layout breakpoints at `lg` so metadata and actions no longer misalign between 768px and 1023px (#135).
 
 ## [0.2.1] - 2026-10-12
 
