@@ -67,14 +67,40 @@ def _extract_json_payload(raw: str) -> str:
     cleaned = raw.strip().lstrip("\ufeff")
     cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL).strip()
 
-    fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", cleaned, flags=re.DOTALL | re.IGNORECASE)
-    if fenced:
-        return fenced.group(1).strip()
+    decoder = json.JSONDecoder()
+    try:
+        value = json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+    else:
+        if isinstance(value, (dict, list)):
+            return cleaned
 
-    start = cleaned.find("{")
-    end = cleaned.rfind("}")
-    if start >= 0 and end > start:
-        return cleaned[start : end + 1]
+    fenced = re.search(r"```(?:json)?[ \t]*(?:\r?\n|$)", cleaned, flags=re.IGNORECASE)
+    if fenced:
+        content_start = fenced.end()
+        closing_start = content_start
+        while True:
+            closing = cleaned.find("```", closing_start)
+            if closing < 0:
+                break
+            candidate = cleaned[content_start:closing].strip()
+            try:
+                value = json.loads(candidate)
+            except json.JSONDecodeError:
+                closing_start = closing + 3
+                continue
+            if isinstance(value, (dict, list)):
+                return candidate
+            closing_start = closing + 3
+
+    for match in re.finditer(r"[\[{]", cleaned):
+        try:
+            value, end = decoder.raw_decode(cleaned, match.start())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, (dict, list)):
+            return cleaned[match.start() : end]
     return cleaned
 
 

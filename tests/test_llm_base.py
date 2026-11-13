@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from audiobard.llm.base import LLMClient, _backoff
+from audiobard.llm.base import LLMClient, _backoff, _extract_json_payload
 from audiobard.models import AttributionResult, CharactersResult
 
 # ---------------------------------------------------------------------------
@@ -199,6 +199,7 @@ async def test_handles_utf8_bom_in_response() -> None:
         "Here is the character breakdown:\n```json\n" + _VALID_CHARACTERS_JSON + "\n```",
         "<think>planning the response</think>\n" + _VALID_CHARACTERS_JSON,
         "Here is the character breakdown: " + _VALID_CHARACTERS_JSON,
+        "Here is the draft {ignore}:\n" + _VALID_CHARACTERS_JSON,
     ],
 )
 async def test_extracts_json_from_common_llm_wrappers(wrapped_response: str) -> None:
@@ -207,3 +208,22 @@ async def test_extracts_json_from_common_llm_wrappers(wrapped_response: str) -> 
     result = await client.extract_characters("text")
     assert isinstance(result, CharactersResult)
     assert result.characters[0].canonical_id == "Narrator"
+
+
+def test_preserves_valid_json_with_backticks() -> None:
+    """Already valid JSON must not be reduced to a markdown fence fragment."""
+    payload = json.loads(_VALID_CHARACTERS_JSON)
+    payload["characters"][0]["name"] = "See ```foo``` and ```bar```."
+    raw = json.dumps(payload)
+
+    assert _extract_json_payload(raw) == raw
+
+
+def test_handles_backticks_inside_fenced_json() -> None:
+    """A fence scanner must ignore backticks that are part of JSON strings."""
+    payload = json.loads(_VALID_CHARACTERS_JSON)
+    payload["characters"][0]["name"] = "See ```foo``` and ```bar```."
+    raw = json.dumps(payload)
+    wrapped = "```json\n" + raw + "\n```"
+
+    assert _extract_json_payload(wrapped) == raw
