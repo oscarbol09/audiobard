@@ -542,6 +542,8 @@ class AudioProcessor:
         if not ffmpeg_bin:
             raise FileNotFoundError(FFMPEG_MISSING_MESSAGE)
 
+        path.parent.mkdir(parents=True, exist_ok=True)
+
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
             raw_m4b = tmp_path / "raw.m4b"
@@ -576,7 +578,6 @@ class AudioProcessor:
 
             # 3. Inject metadata into final M4B file
             logger.info("Injecting chapter markers into final M4B...")
-            path.parent.mkdir(parents=True, exist_ok=True)
             attach_args: list[str] = []
             if cover_file is not None:
                 attach_args = [

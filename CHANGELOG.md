@@ -11,6 +11,10 @@ adds an entry under the relevant section, in the same commit as the change.
 
 ### Fixed
 
+- Ensure destination parent directory exists before beginning M4B export in `AudioProcessor.export_m4b` (#120).
+
+### Fixed
+
 - **Gender Clue Word Boundaries**: typographic apostrophes (`’` / U+2019) are now treated as word-internal, just like `'`, so `"don’t"` in Gutenberg/EPUB text no longer matches the Spanish title `don` (#130).
 - Restrict secret-scan exemptions to exact repository-relative files and explicitly listed
   directories, so similarly named files and nested copies are still scanned (#132).
