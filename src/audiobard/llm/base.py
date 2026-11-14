@@ -79,20 +79,16 @@ def _extract_json_payload(raw: str) -> str:
     fenced = re.search(r"```(?:json)?[ \t]*(?:\r?\n|$)", cleaned, flags=re.IGNORECASE)
     if fenced:
         content_start = fenced.end()
-        closing_start = content_start
-        while True:
-            closing = cleaned.find("```", closing_start)
-            if closing < 0:
-                break
-            candidate = cleaned[content_start:closing].strip()
+        candidate_start = content_start
+        while candidate_start < len(cleaned):
             try:
-                value = json.loads(candidate)
+                value, end = decoder.raw_decode(cleaned, candidate_start)
             except json.JSONDecodeError:
-                closing_start = closing + 3
+                candidate_start += 1
                 continue
             if isinstance(value, (dict, list)):
-                return candidate
-            closing_start = closing + 3
+                return cleaned[candidate_start:end]
+            candidate_start = end
 
     for match in re.finditer(r"[\[{]", cleaned):
         try:

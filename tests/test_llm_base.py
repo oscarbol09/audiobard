@@ -227,3 +227,12 @@ def test_handles_backticks_inside_fenced_json() -> None:
     wrapped = "```json\n" + raw + "\n```"
 
     assert _extract_json_payload(wrapped) == raw
+
+
+def test_extracts_json_from_fence_with_preamble() -> None:
+    payload = json.loads(_VALID_CHARACTERS_JSON)
+    payload["characters"][0]["name"] = "See ```foo``` and ```bar```."
+    raw = json.dumps(payload)
+    wrapped = "Explanation:\n```json\n" + raw + "\n```\nDone."
+
+    assert _extract_json_payload(wrapped) == raw
