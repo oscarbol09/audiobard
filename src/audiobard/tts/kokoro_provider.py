@@ -151,7 +151,7 @@ def samples_to_mp3(samples: object, sample_rate: int, pitch: float = 1.0) -> byt
     rate = int(sample_rate) or 24000
     segment = AudioSegment(data=pcm.tobytes(), sample_width=2, frame_rate=rate, channels=1)
     if pitch and abs(pitch - 1.0) > 0.001:
-        shifted = max(rate, int(rate * pitch))
+        shifted = max(8000, int(rate * pitch))
         segment = segment._spawn(segment.raw_data, overrides={"frame_rate": shifted})
         segment = segment.set_frame_rate(rate)
 
@@ -227,13 +227,14 @@ class KokoroProvider(TTSProvider):
         locale = voice.locale if voice.locale in KOKORO_LOCALES else self.config.tts_locale
         lang = KOKORO_LOCALES.get(locale, KOKORO_LOCALES["en_US"])[1]
 
-        emotion_rate = EMOTION_PROSODY.get(emotion, {"rate": 1.0})["rate"]
-        speed = max(_MIN_SPEED, min(rate * emotion_rate, _MAX_SPEED))
+        emotion_prosody = EMOTION_PROSODY.get(emotion, {"rate": 1.0, "pitch": 1.0})
+        speed = max(_MIN_SPEED, min(rate * emotion_prosody["rate"], _MAX_SPEED))
+        final_pitch = pitch * emotion_prosody["pitch"]
 
         samples, sample_rate = await asyncio.to_thread(
             self._infer, model_path, voices_path, text, voice.id, speed, lang
         )
-        return await asyncio.to_thread(samples_to_mp3, samples, sample_rate, pitch)
+        return await asyncio.to_thread(samples_to_mp3, samples, sample_rate, final_pitch)
 
     def _infer(
         self,
