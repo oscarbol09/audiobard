@@ -231,7 +231,14 @@ async def test_audio_processor_export_m4b(mock_subproc: AsyncMock, mock_find: An
     ]
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        out_path = Path(tmpdir) / "output.m4b"
+        out_path = Path(tmpdir) / "new_folder" / "output.m4b"
+        processes = iter([mock_proc1, mock_proc2])
+
+        async def create_subprocess(*args: Any, **kwargs: Any) -> AsyncMock:
+            assert out_path.parent.is_dir()
+            return next(processes)
+
+        mock_subproc.side_effect = create_subprocess
         await processor.export_m4b(b"audio-data", out_path, chapters)
 
         assert mock_subproc.call_count == 2
