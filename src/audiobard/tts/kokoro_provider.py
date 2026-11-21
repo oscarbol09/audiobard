@@ -116,6 +116,19 @@ def _is_valid_asset(path: Path) -> bool:
         return False
 
 
+def _asset_path(directory: Path, variable: str, filename: str) -> Path:
+    override = os.getenv(variable)
+    return Path(override).expanduser() if override else directory / filename
+
+
+def has_local_assets(cache_dir: Path) -> bool:
+    """Return whether both Kokoro assets are present for offline synthesis."""
+    directory = cache_dir / "kokoro"
+    model = _asset_path(directory, MODEL_ENV_VAR, MODEL_FILENAME)
+    voices = _asset_path(directory, VOICES_ENV_VAR, VOICES_FILENAME)
+    return _is_valid_asset(model) and _is_valid_asset(voices)
+
+
 async def _download(url: str, destination: Path) -> None:
     """Download *url* to *destination* via a temporary file, then move it."""
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -260,16 +273,10 @@ class KokoroProvider(TTSProvider):
         return self._kokoro
 
     def _model_path(self) -> Path:
-        override = os.environ.get(MODEL_ENV_VAR)
-        if override:
-            return Path(override).expanduser()
-        return self.kokoro_dir / MODEL_FILENAME
+        return _asset_path(self.kokoro_dir, MODEL_ENV_VAR, MODEL_FILENAME)
 
     def _voices_path(self) -> Path:
-        override = os.environ.get(VOICES_ENV_VAR)
-        if override:
-            return Path(override).expanduser()
-        return self.kokoro_dir / VOICES_FILENAME
+        return _asset_path(self.kokoro_dir, VOICES_ENV_VAR, VOICES_FILENAME)
 
     async def _ensure_assets(self) -> tuple[Path, Path]:
         """Return (model, voices) paths, downloading whichever is missing."""

@@ -179,7 +179,7 @@ def doctor() -> None:
     for name, status, detail in collect_diagnostics():
         style = "green" if status == "ok" or status == "configured" else "yellow"
         table.add_row(name, f"[{style}]{status}[/{style}]", detail)
-        failed |= status in {"missing", "error"}
+        failed |= status == "error" or (name == "ffmpeg" and status == "missing")
     console.print(table)
     if failed:
         raise typer.Exit(code=1)
