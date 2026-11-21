@@ -730,6 +730,29 @@ async def test_audio_processor_custom_target_dbfs() -> None:
     assert abs(seg_custom.dBFS - (-20.0)) < 1.0
 
 
+@pytest.mark.asyncio
+async def test_audio_processor_normalizes_clips_with_different_sample_rates() -> None:
+    """Issue #148: a sample-rate change must not hide the speech from the loudness pass."""
+    clips = [
+        AudioClip(
+            mp3_bytes=_create_custom_mp3(duration_ms=500, frame_rate=24000, channels=1),
+            speaker="Character_A",
+            emotion=Emotion.NEUTRAL,
+            duration_ms=500,
+        ),
+        AudioClip(
+            mp3_bytes=_create_custom_mp3(duration_ms=500, frame_rate=22050, channels=1),
+            speaker="Narrator",
+            emotion=Emotion.NEUTRAL,
+            duration_ms=500,
+        ),
+    ]
+
+    out_bytes = await AudioProcessor(target_dbfs=-20.0).concatenate(clips)
+    segment = AudioSegment.from_file(io.BytesIO(out_bytes), format="mp3")
+    assert abs(segment.dBFS - (-20.0)) < 1.0
+
+
 def _part_files(directory: Path) -> list[Path]:
     """List staged ``.part`` files (sync, so async tests stay lint clean)."""
     return list(directory.glob("*.part"))
