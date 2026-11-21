@@ -317,6 +317,35 @@ def _write_silence(ffmpeg_bin: str, path: Path, pause_ms: int, rate: int, channe
         raise RuntimeError(f"FFmpeg silence generation failed: {stderr}")
 
 
+def _resample_clip(
+    ffmpeg_bin: str, source: Path, destination: Path, rate: int, channels: int
+) -> None:
+    """Re-encode *source* as an MP3 with the shared sample rate and channel count."""
+    args = [
+        ffmpeg_bin,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-nostdin",
+        "-y",
+        "-i",
+        str(source),
+        "-ar",
+        str(rate),
+        "-ac",
+        str(channels),
+        "-c:a",
+        "libmp3lame",
+        "-q:a",
+        "2",
+        str(destination),
+    ]
+    completed = subprocess.run(args, capture_output=True, check=False)
+    if completed.returncode != 0 or not destination.exists():
+        stderr = completed.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"FFmpeg resampling failed: {stderr}")
+
+
 def _materialize_clip(clip: AudioClip, workdir: Path, index: int) -> Path:
     """Return the file FFmpeg should read, writing bytes out only when needed."""
     if clip.path is not None and clip.path.is_file():
@@ -386,7 +415,12 @@ class AudioProcessor:
             entries: list[Path] = []
             silences: dict[int, Path] = {}
             for index, clip in enumerate(clips):
-                entries.append(_materialize_clip(clip, workdir, index))
+                entry = _materialize_clip(clip, workdir, index)
+                if _clip_stream_format(clip) != (rate, channels):
+                    resampled = workdir / f"resampled_{index:06d}.mp3"
+                    _resample_clip(ffmpeg_bin, entry, resampled, rate, channels)
+                    entry = resampled
+                entries.append(entry)
                 prosody = EMOTION_PROSODY.get(clip.emotion, {"pause_after_ms": 250})
                 pause_ms = int(prosody.get("pause_after_ms") or 0)
                 if pause_ms <= 0:
