@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import logging
 from pathlib import Path
 from typing import Any
+from unicodedata import category
 
 import edge_tts
+from pydub import AudioSegment
 
 from audiobard.models import AgeHint, Emotion, GenderHint, Voice
 from audiobard.tts.base import EMOTION_PROSODY, TTSProvider
@@ -18,6 +21,13 @@ logger = logging.getLogger(__name__)
 # Bundled snapshot of Microsoft voice metadata, used when the live service is
 # unreachable so the voice picker still populates on an offline desktop launch.
 _BUNDLED_VOICES_PATH = Path(__file__).resolve().parent.parent / "data" / "edge_voices_cache.json"
+
+
+def _scene_break_mp3() -> bytes:
+    """Encode half a second of silence at the Edge TTS sample rate."""
+    output = io.BytesIO()
+    AudioSegment.silent(duration=500, frame_rate=24000).export(output, format="mp3")
+    return output.getvalue()
 
 
 def _offline_fallback_errors() -> tuple[type[BaseException], ...]:
@@ -125,6 +135,10 @@ class EdgeProvider(TTSProvider):
         pitch: float,
     ) -> bytes:
         """Synthesize raw MP3 bytes using edge_tts Communicate."""
+        # Punctuation and tilde dividers represent pauses.
+        if all(char.isspace() or char == "~" or category(char).startswith("P") for char in text):
+            return await asyncio.to_thread(_scene_break_mp3)
+
         # Calculate rates/pitches based on baseline and emotion prosody
         emotion_prosody = EMOTION_PROSODY.get(emotion, {"rate": 1.0, "pitch": 1.0})
         final_rate = rate * emotion_prosody["rate"]
