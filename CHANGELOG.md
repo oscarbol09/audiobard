@@ -11,6 +11,7 @@ adds an entry under the relevant section, in the same commit as the change.
 
 ### Fixed
 
+- Resample clips with mismatched sample rates before the concat demuxer so volume normalization measures the full audio stream (#148).
 - Render punctuation-only paragraphs and scene dividers as silence in Edge TTS to prevent empty stream errors (#152).
 - Ensure destination parent directory exists before beginning M4B export in `AudioProcessor.export_m4b` (#120).
 - Treat missing optional cloud BYOK keys as informational in `audiobard doctor` rather than failing the check (#129).
